@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-01-27 18:07:58
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-02-01 15:10:30
+# @Last Modified time: 2021-02-01 15:45:28
 
 ### create two mock catalogues for MultiBand_ImSim
 ###     1. good shape measurement & have all photometry & have redshifts
@@ -96,7 +96,7 @@ print('     final (9 photo)', len(cosmos_cata_9))
 cosmos_cata_9.to_feather(outpath_9_photo)
 print('saved to', outpath_9_photo)
 
-cols = ['OBJNO', 'RA', 'DEC', 'Z_optimal', 
+cols = ['OBJNO', 'RA', 'DEC',
             'shape/Re', 'shape/sersic_n', 'N_GALFIT_HI', 'BA_GALFIT_HI', 
             'r_mag_auto']
 cosmos_cata_r = cosmos_cata_r[cols].copy()
