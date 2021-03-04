@@ -6,8 +6,8 @@ __pycache__/
 *.a
 
 test_*
-*_hack
-*_backup
+*_hack.py
+*_backup.py
 nohup*
 old_*
 tmp_*
