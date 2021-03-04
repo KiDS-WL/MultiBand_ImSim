@@ -1,4 +1,4 @@
-# example config file for KiDS DR4 data 
+# example config file for KiDS DR4 data
 ## http://kids.strw.leidenuniv.nl/DR4/example_config.sex
 
 #-------------------------------- Catalog ------------------------------------
@@ -11,14 +11,14 @@ PARAMETERS_NAME /specified/in/each/run  # name of the file containing catalog co
 #------------------------------- Extraction ----------------------------------
 DETECT_TYPE     CCD                     # "CCD" or "PHOTO" (*)
 DETECT_MINAREA  3                       # minimum number of pixels above threshold
-DETECT_THRESH   1.5                     # <sigmas> or <threshold>,<ZP> in mag.arcsec-2 
+DETECT_THRESH   1.5                     # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
 ANALYSIS_THRESH 1.5                     # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
 
 FILTER          Y                       # apply filter for detection ("Y" or "N")?
 FILTER_NAME     /specified/in/each/run  # name of the file containing the filter
 
 DEBLEND_NTHRESH 32                      # Number of deblending sub-thresholds
-DEBLEND_MINCONT 0.001                   # Minimum contrast parameter for deblending
+DEBLEND_MINCONT 0.002                   # Minimum contrast parameter for deblending
 
 CLEAN           Y                       # Clean spurious detections? (Y or N)?
 CLEAN_PARAM     1.0                     # Cleaning efficiency
@@ -35,7 +35,7 @@ PHOT_AUTOPARAMS 2.5, 3.5                # MAG_AUTO parameters: <Kron_fact>,<min_
 SATUR_LEVEL     3.469705445e4           # level (in ADUs) at which arises saturation
 MAG_ZEROPOINT   /specified/in/each/run  # magnitude zero-point
 MAG_GAMMA       4.0                     # gamma of emulsion (for photographic scans)
-GAIN            1e+20                   # The huge GAIN value is intended to fool SExtractor. 
+GAIN            1e+20                   # The huge GAIN value is intended to fool SExtractor.
 PIXEL_SCALE     /specified/in/each/run  # size of pixel in arcsec
 
 #------------------------- Star/Galaxy Separation ----------------------------

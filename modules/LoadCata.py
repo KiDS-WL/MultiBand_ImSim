@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2021-01-07 16:24:17
-# @Last Modified by:   lshuns
-# @Last Modified time: 2021-01-30 19:24:03
+# @Last modified by:   lshuns
+# @Last modified time: 2021-03-02, 20:51:17
 
 ### Everything about input catalogue
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 def GalInfo(cata_pathfile, bands,
             id_name, primary_mag_name, mag_name_list,
-            RaDec_names, 
+            RaDec_names,
             shape_names,
             rng_seed=940120, mag_min_cut=0):
     """
@@ -42,7 +42,7 @@ def GalInfo(cata_pathfile, bands,
     rng_seed (optional) : int (default: 940120)
         Seed for random number generator.
     mag_min_cut (optional) : float (default: 0)
-        Min value of the primary band (the brightest galaxies will be simulated). 
+        Min value of the primary band (the brightest galaxies will be simulated).
     """
     logger.info('Collect galaxy info from input catalogue...')
     logger.info(f'Query bands {bands}, the detection band {primary_mag_name}')
@@ -61,7 +61,7 @@ def GalInfo(cata_pathfile, bands,
         raise Exception(f'Not supported file type! {cata_pathfile}')
     logger.info(f'gal_cata: {cata_pathfile}')
 
-    # pre-selection based on magnitude 
+    # pre-selection based on magnitude
     ### only magnitude > mag_min_cut is simulated
     mask_mag = cata[primary_mag_name] > mag_min_cut
     cata = cata[mask_mag]
@@ -128,17 +128,17 @@ def GalInfo(cata_pathfile, bands,
         disk_axis_ratios = np.zeros(Ngal)
 
     # magnitudes
-    mag_list = [cata[mag_name] for mag_name in mag_name_list]
-    
+    mag_list = [np.array(cata[mag_name]).astype(float) for mag_name in mag_name_list]
+
     # sky position
     X_gals = cata[RaDec_names[0]] # degree
     Y_gals = cata[RaDec_names[1]] # degree
-    
+
     # collect all information to dataframe
-    data = [np.array(index), np.array(X_gals), np.array(Y_gals),
-                np.array(sersic_n), np.array(Re), np.array(axis_ratios), np.array(position_angles),
-                np.array(bulge_fractions), np.array(bulge_Re), np.array(bulge_axis_ratios), np.array(bulge_n),
-                np.array(disk_Re), np.array(disk_axis_ratios)] + mag_list
+    data = [np.array(index).astype(int), np.array(X_gals).astype(float), np.array(Y_gals).astype(float),
+                np.array(sersic_n).astype(float), np.array(Re).astype(float), np.array(axis_ratios).astype(float), np.array(position_angles).astype(float),
+                np.array(bulge_fractions).astype(float), np.array(bulge_Re).astype(float), np.array(bulge_axis_ratios).astype(float), np.array(bulge_n).astype(float),
+                np.array(disk_Re).astype(float), np.array(disk_axis_ratios).astype(float)] + mag_list
     data = np.transpose(data)
     name = ['index','RA','DEC',
                 'sersic_n','Re','axis_ratios','position_angles',
@@ -169,10 +169,10 @@ def StarInfo(cata_pathfile, bands,
     mag_name_list : list of str
         A list of names for the magnitudes wanted.
     RaDec_names (optional) : list of str [RA, dec] (default: None)
-        Column names for position information. 
+        Column names for position information.
         Not required, if stars will be randomly placed.
     mag_min_cut (optional) : float (default: 0)
-        Min value of the primary band (the brightest stars will be simulated). 
+        Min value of the primary band (the brightest stars will be simulated).
     """
     logger.info('Collect star info from input catalogue...')
     logger.info(f'Query bands {bands}, the primary band {primary_mag_name}')
@@ -191,7 +191,7 @@ def StarInfo(cata_pathfile, bands,
         raise Exception(f'Not supported file type! {cata_pathfile}')
     logger.info(f'star_cata: {cata_pathfile}')
 
-    # pre-selection based on magnitude 
+    # pre-selection based on magnitude
     ### only magnitude > mag_min_cut is simulated
     mask_mag = cata[primary_mag_name] > mag_min_cut
     cata = cata[mask_mag]
@@ -204,11 +204,11 @@ def StarInfo(cata_pathfile, bands,
     logger.debug(f'Number of stars {Nstar}')
 
     # magnitudes
-    mag_list = [cata[mag_name] for mag_name in mag_name_list]
+    mag_list = [np.array(cata[mag_name]).astype(float) for mag_name in mag_name_list]
 
     # sky position
     if RaDec_names is not None:
-        ## use true position 
+        ## use true position
         X_stars = cata[RaDec_names[0]] # degree
         Y_stars = cata[RaDec_names[0]] # degree
     else:
@@ -217,7 +217,7 @@ def StarInfo(cata_pathfile, bands,
         Y_stars = np.zeros(Nstar)
 
     # collect all information to dataframe
-    data = [np.array(index), np.array(X_stars), np.array(Y_stars)] + mag_list
+    data = [np.array(index).astype(int), np.array(X_stars).astype(float), np.array(Y_stars).astype(float)] + mag_list
     data = np.transpose(data)
     name = ['index','RA','DEC'] + bands
     stars_info = pd.DataFrame(data=data, columns=name)
@@ -226,7 +226,7 @@ def StarInfo(cata_pathfile, bands,
 
     return stars_info
 
-def NoiseInfo(cata_pathfile, bands, noise_psf_basenames):
+def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list=[], N_exposures=0):
     """
     Get star information from the input catalogue.
 
@@ -239,6 +239,10 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames):
     noise_psf_basenames : list of str [label, rms, seeing, MoffatBeta, psf_e1, psf_e2]
         A list of base names for noise and psf info.
         Not all required, if not available, simply set 'none'
+    multiple_exposures_list : a list of boolean, optional (default: [])
+        Use multiple noise info for multiple exposures or not, a list for MultiBand.
+    N_exposures : int, optional (default: 0)
+        Number of exposures, only used when multiple_exposures==True
     """
     logger.info('Collect observation info from input catalogue...')
     logger.info(f'Query bands {bands}')
@@ -260,24 +264,50 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames):
     name_label, name_rms, name_seeing, name_MoffatBeta, name_psf_e1, name_psf_e2 = noise_psf_basenames
 
     noise_info = pd.DataFrame({'label': cata[name_label]})
-    for band in bands:
-        noise_info.loc[:, f'rms_{band}'] = cata[f'{name_rms}_{band}']
-        noise_info.loc[:, f'seeing_{band}'] = cata[f'{name_seeing}_{band}']
+    for i_band, band in enumerate(bands):
         try:
-            noise_info.loc[:, f'beta_{band}'] = cata[f'{name_MoffatBeta}_{band}']
-        except KeyError:
-            # (if not provided using 3.5)
-            noise_info.loc[:, f'beta_{band}'] = np.full(len(cata), 3.5)
-        try:
-            noise_info.loc[:, f'psf_e1_{band}'] = cata[f'{name_psf_e1}_{band}']
-        except KeyError:
-            # (if not provided assuming 0)
-            noise_info.loc[:, f'psf_e1_{band}'] = np.zeros(len(cata))
-        try:
-            noise_info.loc[:, f'psf_e2_{band}'] = cata[f'{name_psf_e2}_{band}']
-        except KeyError:
-            # (if not provided assuming 0)
-            noise_info.loc[:, f'psf_e2_{band}'] = np.zeros(len(cata))
+            multiple_exposures = multiple_exposures_list[i_band]
+        except IndexError:
+            multiple_exposures = False
+
+        if multiple_exposures:
+            for i_expo in range(N_exposures):
+                noise_info.loc[:, f'rms_{band}_expo{i_expo}'] = np.array(cata[f'{name_rms}_{band}_expo{i_expo}']).astype(float)
+                noise_info.loc[:, f'seeing_{band}_expo{i_expo}'] = np.array(cata[f'{name_seeing}_{band}_expo{i_expo}']).astype(float)
+                try:
+                    noise_info.loc[:, f'beta_{band}_expo{i_expo}'] = np.array(cata[f'{name_MoffatBeta}_{band}_expo{i_expo}']).astype(float)
+                except KeyError:
+                    # (if not provided using 3.5)
+                    noise_info.loc[:, f'beta_{band}_expo{i_expo}'] = np.full(len(cata), 3.5)
+                try:
+                    noise_info.loc[:, f'psf_e1_{band}_expo{i_expo}'] = np.array(cata[f'{name_psf_e1}_{band}_expo{i_expo}']).astype(float)
+                except KeyError:
+                    # (if not provided assuming 0)
+                    noise_info.loc[:, f'psf_e1_{band}_expo{i_expo}'] = np.zeros(len(cata))
+                try:
+                    noise_info.loc[:, f'psf_e2_{band}_expo{i_expo}'] = np.array(cata[f'{name_psf_e2}_{band}_expo{i_expo}']).astype(float)
+                except KeyError:
+                    # (if not provided assuming 0)
+                    noise_info.loc[:, f'psf_e2_{band}_expo{i_expo}'] = np.zeros(len(cata))
+        else:
+            noise_info.loc[:, f'rms_{band}'] = np.array(cata[f'{name_rms}_{band}']).astype(float)
+            noise_info.loc[:, f'seeing_{band}'] = np.array(cata[f'{name_seeing}_{band}']).astype(float)
+            try:
+                noise_info.loc[:, f'beta_{band}'] = np.array(cata[f'{name_MoffatBeta}_{band}']).astype(float)
+            except KeyError:
+                # (if not provided using 3.5)
+                noise_info.loc[:, f'beta_{band}'] = np.full(len(cata), 3.5)
+            try:
+                noise_info.loc[:, f'psf_e1_{band}'] = np.array(cata[f'{name_psf_e1}_{band}']).astype(float)
+            except KeyError:
+                # (if not provided assuming 0)
+                noise_info.loc[:, f'psf_e1_{band}'] = np.zeros(len(cata))
+            try:
+                noise_info.loc[:, f'psf_e2_{band}'] = np.array(cata[f'{name_psf_e2}_{band}']).astype(float)
+            except KeyError:
+                # (if not provided assuming 0)
+                noise_info.loc[:, f'psf_e2_{band}'] = np.zeros(len(cata))
+
     logger.debug('Desired info collected to DataFrame.')
 
     return noise_info

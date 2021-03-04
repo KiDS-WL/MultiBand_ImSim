@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
-# @Last Modified by:   lshuns
-# @Last Modified time: 2021-01-29 17:06:39
+# @Last modified by:   ssli
+# @Last modified time: 2021-03-01, 15:50:22
 
 ### Wrapper for lensfit code
 
@@ -67,6 +67,14 @@ def LensfitShape(lensfit_dir, python2_env,
         Lensfit wrapper
     """
 
+    # check existence
+    output_feather = os.path.join(out_dir, output_file)
+    if os.path.isfile(output_feather):
+        logger.info(f'The final feather catalogue {output_feather} already exists.')
+        logger.info(f'End the process.')
+        return 1
+
+    # tmp directory
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
 
@@ -94,11 +102,11 @@ def LensfitShape(lensfit_dir, python2_env,
         cmd = [psfimage2coeffs_path, psf_ima, psf_coeff]
 
         # run
-        print("########## psfimage2coeffs info start ##########\n", f=outLog)
-        print("########## psfimage2coeffs error start ##########\n", f=errLog)
+        print("########## psfimage2coeffs info start ##########\n", file=outLog)
+        print("########## psfimage2coeffs error start ##########\n", file=errLog)
         proc = subprocess.run(cmd, stdout=outLog, stderr=errLog)
-        print("########## psfimage2coeffs info end ##########\n", f=outLog)
-        print("########## psfimage2coeffs error end ##########\n", f=errLog)
+        print("########## psfimage2coeffs info end ##########\n", file=outLog)
+        print("########## psfimage2coeffs error end ##########\n", file=errLog)
 
     logger.info(f'PSF polynomial coefficients saved to {psf_coeff_dir}')
 
@@ -123,15 +131,15 @@ def LensfitShape(lensfit_dir, python2_env,
     envVars['CAMERA'] = CAMERA
 
     # build command
-    cmd = [lensfit_path, input_file, output_path, 
+    cmd = [lensfit_path, input_file, output_path,
             postage_size, start_exposure, end_exposure, start_mag, end_mag]
 
     # run
-    print("########## flensfit info start ##########\n", f=outLog)
-    print("########## flensfit error start ##########\n", f=errLog)
+    print("########## flensfit info start ##########\n", file=outLog)
+    print("########## flensfit error start ##########\n", file=errLog)
     proc = subprocess.run(cmd, stdout=outLog, stderr=errLog, env=envVars, cwd=tmp_dir)
-    print("########## flensfit info end ##########\n", f=outLog)
-    print("########## flensfit error end ##########\n", f=errLog)
+    print("########## flensfit info end ##########\n", file=outLog)
+    print("########## flensfit error end ##########\n", file=errLog)
 
     logger.info(f'Lensfit shape info saved as {output_path}')
 
@@ -140,11 +148,11 @@ def LensfitShape(lensfit_dir, python2_env,
 
     cmd = [python2_env, weights_recal_path, f'--input={output_path}.asc']
 
-    print("########## apply2dtheta info start ##########\n", f=outLog)
-    print("########## apply2dtheta error start ##########\n", f=errLog)
+    print("########## apply2dtheta info start ##########\n", file=outLog)
+    print("########## apply2dtheta error start ##########\n", file=errLog)
     proc = subprocess.run(cmd, stdout=outLog, stderr=errLog, cwd=tmp_dir)
-    print("########## apply2dtheta info end ##########\n", f=outLog)
-    print("########## apply2dtheta error end ##########\n", f=errLog)
+    print("########## apply2dtheta info end ##########\n", file=outLog)
+    print("########## apply2dtheta error end ##########\n", file=errLog)
 
     logger.info(f'Lensfit reweighting results saved as {output_path}.asc.scheme2b_corr')
 
@@ -174,15 +182,14 @@ def LensfitShape(lensfit_dir, python2_env,
         'e1_corr_LF': data[:, 22].astype(float), # e1 correction
         'e2_corr_LF': data[:, 23].astype(float), # e2 correction
         'scalelength_corr_LF': data[:, 19].astype(float), # size correction
-        'contamination_radius_LF': data[:, 11].astype(float), 
-        'nm_LF': data[:, 24].astype(float), # neighbour mag   
-        'nd_LF': data[:, 25].astype(float), # neighbour distance        
+        'contamination_radius_LF': data[:, 11].astype(float),
+        'nm_LF': data[:, 24].astype(float), # neighbour mag
+        'nd_LF': data[:, 25].astype(float), # neighbour distance
         'LS_variance_LF': data[:, 20].astype(float), # 2D measurement variance
-        'bulge_fraction_LF': data[:, 7].astype(float), 
+        'bulge_fraction_LF': data[:, 7].astype(float),
         'SG_prob_LF': data[:, 18].astype(float), # star-galaxy f-probability
         })
 
-    output_feather = os.path.join(out_dir, output_file)
     data_out.to_feather(output_feather)
 
     logger.info(f'Final catalogue saved as {output_feather}')
@@ -191,3 +198,5 @@ def LensfitShape(lensfit_dir, python2_env,
     if clean_up_level:
         logger.info('Clean up tmp directory')
         shutil.rmtree(tmp_dir)
+
+    return 0

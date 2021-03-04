@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2021-01-27 18:07:58
-# @Last Modified by:   lshuns
-# @Last Modified time: 2021-02-01 15:45:28
+# @Last modified by:   lshuns
+# @Last modified time: 2021-02-08, 13:48:50
 
 ### create two mock catalogues for MultiBand_ImSim
 ###     1. good shape measurement & have all photometry & have redshifts
@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 from astropy.io import fits
 
-# ++++++++++++ Files 
+# ++++++++++++ Files
 cata_dir = '/disks/shear10/ssli/ImSim/input/COSMOS_cata/'
 
 ## inputs
@@ -88,8 +88,8 @@ cosmos_cata_9.loc[:, 'g_Jester_2'] = g_Jester_2
 cosmos_cata_9.loc[:, 'g_Lupton'] = g_Lupton
 
 # ++++++++++++++ useful columns for ImSim
-cols = ['OBJNO', 'RA', 'DEC', 'Z_optimal', 
-            'shape/Re', 'shape/sersic_n', 'N_GALFIT_HI', 'BA_GALFIT_HI', 
+cols = ['OBJNO', 'id_laigle', 'ID_Jan', 'RA', 'DEC', 'Z_optimal',
+            'shape/Re', 'shape/sersic_n', 'N_GALFIT_HI', 'BA_GALFIT_HI',
             'u_mag_auto', 'g_Jester_1', 'g_Jester_2', 'g_Lupton', 'r_mag_auto', 'ip_mag_auto', 'zpp_mag_auto', 'y_mag_auto', 'j_mag_auto', 'h_mag_auto', 'ks_mag_auto']
 cosmos_cata_9 = cosmos_cata_9[cols].copy()
 print('     final (9 photo)', len(cosmos_cata_9))
@@ -97,7 +97,7 @@ cosmos_cata_9.to_feather(outpath_9_photo)
 print('saved to', outpath_9_photo)
 
 cols = ['OBJNO', 'RA', 'DEC',
-            'shape/Re', 'shape/sersic_n', 'N_GALFIT_HI', 'BA_GALFIT_HI', 
+            'shape/Re', 'shape/sersic_n', 'N_GALFIT_HI', 'BA_GALFIT_HI',
             'r_mag_auto']
 cosmos_cata_r = cosmos_cata_r[cols].copy()
 print('     final (r photo)', len(cosmos_cata_r))

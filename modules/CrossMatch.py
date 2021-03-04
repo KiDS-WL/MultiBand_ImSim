@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-09-24 17:42:47
-# @Last Modified by:   lshuns
-# @Last Modified time: 2021-01-29 17:02:44
+# @Last modified by:   lshuns
+# @Last modified time: 2021-02-20, 14:10:09
 
 ### cross-match catalogues based on object positions using KDTree
 
@@ -34,7 +34,7 @@ def KDTreeFunc(X1, X2, max_distance=np.inf, unique=True, k=1, leafsize=100):
         return unique X2 index
     k : list of integer or integer
         The list of k-th nearest neighbors to return. If k is an integer it is treated as a list of [1, … k] (range(1, k+1)). Note that the counting starts from 1.
-    
+
     Returns
     -------
     dist, ind: ndarrays
@@ -57,7 +57,7 @@ def KDTreeFunc(X1, X2, max_distance=np.inf, unique=True, k=1, leafsize=100):
     kdt = sst.cKDTree(X2, leafsize=leafsize)
 
     # query
-    if unique: 
+    if unique:
         ## return one-one match
         ### original returns
         dist, ind = kdt.query(X1, k=k, distance_upper_bound=max_distance)
@@ -90,7 +90,7 @@ def KDTreeFunc(X1, X2, max_distance=np.inf, unique=True, k=1, leafsize=100):
                 flag_empty = (dist_final==np.inf)
                 dist_final = np.where(flag_empty, dist_i, dist_final)
                 ind_final = np.where(flag_empty, ind_i, ind_final)
-                                
+
                 ### find duplicated matched
                 u_ind, c_ind = np.unique(ind_final, return_counts=True)
                 ind_duplicated = u_ind[c_ind>1]
@@ -110,13 +110,13 @@ def KDTreeFunc(X1, X2, max_distance=np.inf, unique=True, k=1, leafsize=100):
             ind = ind_final
             dist = dist_final
 
-    else: 
+    else:
         ## simply return query results
         dist, ind = kdt.query(X1, k=k, distance_upper_bound=max_distance)
 
     return dist, ind
 
-def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list, 
+def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
                     outDir=None, basename=None, save_matched=False, save_false=False, save_missed=False,
                     dmag_max=0.5, r_max=0.5/3600., k=4, running_info=True):
     """
@@ -173,9 +173,9 @@ def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
     id_false = id_detec[flag_false]
     false_cata = pd.DataFrame({
                     'id_detec': id_false,
-                    'id_input': np.full(len(id_false), np.nan),
-                    'distance': np.full(len(id_false), np.nan),
-                    'dmag': np.full(len(id_false), np.nan)
+                    'id_input': np.full(len(id_false), -999).astype(int),
+                    'distance': np.full(len(id_false), -999).astype(int),
+                    'dmag': np.full(len(id_false), -999.).astype(float)
                     })
     ## dmag does not meet requirement
     tmp_cata = tmp_matched_cata[(tmp_matched_cata['dmag']>=dmag_max)].copy()
@@ -184,16 +184,16 @@ def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
     if running_info:
         logger.info('Number of false detections {:}'.format(len(false_cata)))
         logger.info('false_detec/detections {:}'.format(len(false_cata)/len(id_detec)))
-        
+
     # missed inputs
     mask_tmp = np.ones(len(id_input), np.bool)
     mask_tmp[ind_matched] = 0
     id_miss = id_input[mask_tmp]
     miss_cata = pd.DataFrame({
-                    'id_detec': np.full(len(id_miss), np.nan),
+                    'id_detec': np.full(len(id_miss), -999).astype(int),
                     'id_input': id_miss,
-                    'distance': np.full(len(id_miss), np.nan),
-                    'dmag': np.full(len(id_miss), np.nan)
+                    'distance': np.full(len(id_miss), -999).astype(float),
+                    'dmag': np.full(len(id_miss), -999).astype(float)
                     })
     ## dmag does not meet requirement
     tmp_cata = tmp_matched_cata[(tmp_matched_cata['dmag']>=dmag_max)].copy()

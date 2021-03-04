@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2021-01-13 19:27:48
-# @Last Modified by:   lshuns
-# @Last Modified time: 2021-01-29 17:00:37
+# @Last modified by:   lshuns
+# @Last modified time: 2021-02-18, 16:41:07
 
 ### Wrapper for GAaP code
 
 import os
+import re
 import sys
 import glob
 import shutil
@@ -53,10 +54,10 @@ class GAaPwrapper(object):
         2: and *.gaap files
     """
 
-    def __init__(self, gaap_dir, out_dir, 
+    def __init__(self, gaap_dir, out_dir,
                 star_mag_cut=[16., 20.],
                 mag_zero=30.,
-                min_aper=0.7, max_aper=2.0, 
+                min_aper=0.7, max_aper=2.0,
                 running_log=True, log_dir=None,
                 clean_up_level=0):
 
@@ -73,7 +74,7 @@ class GAaPwrapper(object):
         logger.info(f'star magnitude cut: ({star_mag_cut[0]}, {star_mag_cut[1]})')
 
         self._magzero = mag_zero
-        logger.info("magnitude zero point: %f", self._magzero)        
+        logger.info("magnitude zero point: %f", self._magzero)
 
         self._minaper = min_aper
         logger.info("Minimum aperture: %f", self._minaper)
@@ -81,7 +82,7 @@ class GAaPwrapper(object):
         logger.info("Maximum aperture: %f", self._maxaper)
 
         self._running_log = running_log
-        logger.info(f"Save running info: {self._running_info}")
+        logger.info(f"Save running info: {self._running_log}")
         self._logDir = log_dir
 
         self._clean_up_level = clean_up_level
@@ -103,7 +104,7 @@ class GAaPwrapper(object):
         else:
 
             # using psf map
-            if self._psfDir is not None:
+            if star_info is None:
 
                 logger.info("Producing PSF catalogue from separated PSF map...")
 
@@ -114,20 +115,20 @@ class GAaPwrapper(object):
 
                 # run sex
                 cmd = ['sex', SKYimaFile, '-c', sex_config[0], '-PARAMETERS_NAME', sex_config[1], '-FILTER_NAME', sex_config[2], '-DETECT_THRESH', str(10), '-CATALOG_NAME', PSFcataFile]
-                print("########## sex info start ##########\n", f=outLog)
-                print("########## sex error start ##########\n", f=errLog)
+                print("########## sex info start ##########\n", file=outLog)
+                print("########## sex error start ##########\n", file=errLog)
                 proc = subprocess.run(cmd, stdout=outLog, stderr=errLog)
-                print("########## sex info end ##########\n", f=outLog)
-                print("########## sex error end ##########\n", f=errLog)
+                print("########## sex info end ##########\n", file=outLog)
+                print("########## sex error end ##########\n", file=errLog)
 
             # using stars
             else:
 
                 logger.info("Producing PSF catalogue using stars within image...")
 
-                # intermediate 
+                # intermediate
                 DetecFile = SKYimaFile.replace('.fits', '_all.sex')
-                
+
                 # +++++++++ sextractor detection
 
                 # necessary sex config files
@@ -137,11 +138,11 @@ class GAaPwrapper(object):
 
                 # run sex
                 cmd = ['sex', SKYimaFile, '-c', sex_config[0], '-PARAMETERS_NAME', sex_config[1], '-FILTER_NAME', sex_config[2], '-DETECT_THRESH', str(10), '-CATALOG_NAME', DetecFile]
-                print("########## sex info start ##########\n", f=outLog)
-                print("########## sex error start ##########\n", f=errLog)
+                print("########## sex info start ##########\n", file=outLog)
+                print("########## sex error start ##########\n", file=errLog)
                 proc = subprocess.run(cmd, stdout=outLog, stderr=errLog)
-                print("########## sex info end ##########\n", f=outLog)
-                print("########## sex error end ##########\n", f=errLog)
+                print("########## sex info end ##########\n", file=outLog)
+                print("########## sex error end ##########\n", file=errLog)
 
                 # +++++++++ cross match to find stars
 
@@ -161,7 +162,7 @@ class GAaPwrapper(object):
                 id_list = ['index', 'NUMBER']
                 position_list = [['RA', 'DEC'], ['X_WORLD', 'Y_WORLD']]
                 mag_list = [band, 'MAG_AUTO']
-                matched_cata, _, _ = run_position2id(input_cata, detec_cata, id_list, position_list, mag_list, 
+                matched_cata, _, _ = run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
                                                                         outDir=None, basename=None, save_matched=False, save_false=False, save_missed=False,
                                                                         dmag_max=0.3, r_max=0.5/3600., k=4, running_info=False)
 
@@ -172,9 +173,9 @@ class GAaPwrapper(object):
                 # +++++++++ save desired info
                 psf_cata = detec_cata_ori[mask, :11]
                 logger.info(f"Number of stars selected {len(psf_cata)}")
-                np.savetxt(PSFcataFile, psf_cata, 
+                np.savetxt(PSFcataFile, psf_cata,
                             fmt='%.4f %.4f %.2f %.5f %.3f %.3f %.3f %.2f %i %i %.2f')
-        
+
             logger.info(f"PSF catalogue Extracted as {PSFcataFile}")
 
         return PSFcataFile
@@ -198,7 +199,7 @@ class GAaPwrapper(object):
 
         else:
 
-            ## orders 
+            ## orders
             np.savetxt(os.path.join(tmp_dir, 'orders.par'), [[8], [0]], fmt='%d')
             # np.savetxt(os.path.join(tmp_dir, 'orders.par'), [[8], [3]], fmt='%d')
 
@@ -209,34 +210,34 @@ class GAaPwrapper(object):
             os.symlink(SKYimaFile, inimage)
 
             ## +++++++++++++++++++++ create Gaussian kernel map
-            print("########## psfcat2gauskerwithtweak_no_recentre info start ##########\n", f=outLog)
-            print("########## psfcat2gauskerwithtweak_no_recentre error start ##########\n", f=errLog)
-            proc = subprocess.run(f'(echo -1; cat {PSFcataFile}) | {self._GAAP}/bin/psfcat2gauskerwithtweak_no_recentre > tmp_ker.sh2', 
+            print("########## psfcat2gauskerwithtweak_no_recentre info start ##########\n", file=outLog)
+            print("########## psfcat2gauskerwithtweak_no_recentre error start ##########\n", file=errLog)
+            proc = subprocess.run(f'(echo -1; cat {PSFcataFile}) | {self._GAAP}/bin/psfcat2gauskerwithtweak_no_recentre > tmp_ker.sh2',
                     stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-            print("########## psfcat2gauskerwithtweak_no_recentre info end ##########\n", f=outLog)
-            print("########## psfcat2gauskerwithtweak_no_recentre error end ##########\n", f=errLog)
+            print("########## psfcat2gauskerwithtweak_no_recentre info end ##########\n", file=outLog)
+            print("########## psfcat2gauskerwithtweak_no_recentre error end ##########\n", file=errLog)
 
-            print("########## fitkermaptwk_noplots info start ##########\n", f=outLog)
-            print("########## fitkermaptwk_noplots error start ##########\n", f=errLog)
-            proc = subprocess.run(f'{self._GAAP}/bin/fitkermaptwk_noplots < tmp_ker.sh2 > {SKYimaKerFile}', 
+            print("########## fitkermaptwk_noplots info start ##########\n", file=outLog)
+            print("########## fitkermaptwk_noplots error start ##########\n", file=errLog)
+            proc = subprocess.run(f'{self._GAAP}/bin/fitkermaptwk_noplots < tmp_ker.sh2 > {SKYimaKerFile}',
                     stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-            print("########## fitkermaptwk_noplots info end ##########\n", f=outLog)
-            print("########## fitkermaptwk_noplots error end ##########\n", f=errLog)
+            print("########## fitkermaptwk_noplots info end ##########\n", file=outLog)
+            print("########## fitkermaptwk_noplots error end ##########\n", file=errLog)
 
-            logger.info("Kernel map produced as {:}".format(SKYimaKerFile))    
+            logger.info("Kernel map produced as {:}".format(SKYimaKerFile))
 
             ## +++++++++++++++++++++ convolve to image (Gaussianised image)
-            print("########## imxshmapwithtweak info start ##########\n", f=outLog)
-            print("########## imxshmapwithtweak error start ##########\n", f=errLog)
-            proc = subprocess.run(f'{self._GAAP}/bin/imxshmapwithtweak < {SKYimaKerFile}', 
+            print("########## imxshmapwithtweak info start ##########\n", file=outLog)
+            print("########## imxshmapwithtweak error start ##########\n", file=errLog)
+            proc = subprocess.run(f'{self._GAAP}/bin/imxshmapwithtweak < {SKYimaKerFile}',
                     stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-            print("########## imxshmapwithtweak info end ##########\n", f=outLog)
-            print("########## imxshmapwithtweak error end ##########\n", f=errLog)
- 
+            print("########## imxshmapwithtweak info end ##########\n", file=outLog)
+            print("########## imxshmapwithtweak error end ##########\n", file=errLog)
+
             ### rename as gpsfimage
             os.rename(os.path.join(tmp_dir, 'convolved.fits'), SKYimaGpsfFile)
 
-            logger.info("PSF-Gaussianised image produced as {:}".format(SKYimaGpsfFile))    
+            logger.info("PSF-Gaussianised image produced as {:}".format(SKYimaGpsfFile))
 
         return SKYimaKerFile, SKYimaGpsfFile
 
@@ -271,7 +272,7 @@ class GAaPwrapper(object):
 
             ## position
             np.savetxt(os.path.join(tmp_dir, 'radec.cat'), radec)
-            proc = subprocess.run('sky2xy {:} @radec.cat | awk \' {:} \' > xy.cat'.format(SKYimaGpsfFile, '{print($5,$6)}'), 
+            proc = subprocess.run('sky2xy {:} @radec.cat | awk \' {:} \' > xy.cat'.format(SKYimaGpsfFile, '{print($5,$6)}'),
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, cwd=tmp_dir)
             tmp = np.loadtxt(os.path.join(tmp_dir, 'xy.cat'))
             x = tmp[:, 0]
@@ -292,14 +293,14 @@ class GAaPwrapper(object):
             np.savetxt(os.path.join(tmp_dir, 'gaap.in'), gaapin, fmt='%.3f %.3f %.2f %.2f %.2f %i')
 
             ## Make kernel ACF map of GPSF image if needed
-            print("########## keracfmap & fitkermap info start ##########\n", f=outLog)
-            print("########## keracfmap & fitkermap error start ##########\n", f=errLog)
-            proc = subprocess.run(f'{self._GAAP}/bin/keracfmap < {SKYimaKerFile} | {self._GAAP}/bin/fitkermap > {SKYimaKerAcfFile}', 
+            print("########## keracfmap & fitkermap info start ##########\n", file=outLog)
+            print("########## keracfmap & fitkermap error start ##########\n", file=errLog)
+            proc = subprocess.run(f'{self._GAAP}/bin/keracfmap < {SKYimaKerFile} | {self._GAAP}/bin/fitkermap > {SKYimaKerAcfFile}',
                     stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-            print("########## keracfmap & fitkermap info end ##########\n", f=outLog)
-            print("########## keracfmap & fitkermap error end ##########\n", f=errLog)
-        
-            logger.info("Kernel acf map produced as {:}".format(SKYimaKerAcfFile))    
+            print("########## keracfmap & fitkermap info end ##########\n", file=outLog)
+            print("########## keracfmap & fitkermap error end ##########\n", file=errLog)
+
+            logger.info("Kernel acf map produced as {:}".format(SKYimaKerAcfFile))
 
             ## Estimate pre-GPSF pixel correlation and convolve with kernel ACF
             if os.path.isfile(SKYimaTotAcfFile) and (os.path.getsize(SKYimaTotAcfFile)>0):
@@ -315,22 +316,22 @@ class GAaPwrapper(object):
                         os.remove(wei_image)
                     os.symlink(SKYweiFile, wei_image)
 
-                print("########## kermapxgauss info start ##########\n", f=outLog)
-                print("########## kermapxgauss error start ##########\n", f=errLog)
+                print("########## kermapxgauss info start ##########\n", file=outLog)
+                print("########## kermapxgauss error start ##########\n", file=errLog)
                 proc = subprocess.run('echo NOMAP|{GAAP}/bin/gapphot > /dev/null;\
                                         mv -f cov.fits {image_name}.cov.fits;\
                                         mv -f covsh.fits {image_name}.covsh.fits;\
                                         (echo `head -1 keracffitted.map |awk \' {print2} \'` `head -1 {keracfmap} |awk \' {print2} \'`; cat {keracfmap}) |{GAAP}/bin/kermapxgauss > {totacfmap};\
-                                        '.format(GAAP=self._GAAP, 
-                                                print2='{print($2)}', 
-                                                keracfmap=SKYimaKerAcfFile, 
-                                                image_name=os.path.basename(SKYimaFile), 
+                                        '.format(GAAP=self._GAAP,
+                                                print2='{print($2)}',
+                                                keracfmap=SKYimaKerAcfFile,
+                                                image_name=os.path.basename(SKYimaFile),
                                                 totacfmap=SKYimaTotAcfFile),
                                         stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-                print("########## kermapxgauss info end ##########\n", f=outLog)
-                print("########## kermapxgauss error end ##########\n", f=errLog)
+                print("########## kermapxgauss info end ##########\n", file=outLog)
+                print("########## kermapxgauss error end ##########\n", file=errLog)
 
-                logger.info("Total noise acf map produced as {:}".format(SKYimaTotAcfFile))    
+                logger.info("Total noise acf map produced as {:}".format(SKYimaTotAcfFile))
 
             ## do gapphot
             inimage = os.path.join(tmp_dir, 'inimage.fits')
@@ -338,25 +339,25 @@ class GAaPwrapper(object):
                 os.remove(inimage)
             os.symlink(SKYimaGpsfFile, inimage)
 
-            print("########## gapphot info start ##########\n", f=outLog)
-            print("########## gapphot error start ##########\n", f=errLog)
+            print("########## gapphot info start ##########\n", file=outLog)
+            print("########## gapphot error start ##########\n", file=errLog)
             proc = subprocess.run('{GAAP}/bin/dfits {gpsfimage} | grep GPSFSIG | sed \'s/.*GPSFSIG =//\' | awk \' {print1} \' > gpsfsig.dat;\
                                 (echo {totacfmap} ; cat gaap.in) | {GAAP}/bin/gapphot > {gaapout};\
                                 mv -f keracf.fits {totacfmap}.fits;\
-                                '.format(GAAP=self._GAAP, 
-                                        gpsfimage=SKYimaGpsfFile, 
-                                        print1='{print($1)}', 
-                                        totacfmap=SKYimaTotAcfFile, 
-                                        gaapout=GaapFile), 
+                                '.format(GAAP=self._GAAP,
+                                        gpsfimage=SKYimaGpsfFile,
+                                        print1='{print($1)}',
+                                        totacfmap=SKYimaTotAcfFile,
+                                        gaapout=GaapFile),
                                 stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-            print("########## gapphot info start ##########\n", f=outLog)
-            print("########## gapphot error start ##########\n", f=errLog)
+            print("########## gapphot info start ##########\n", file=outLog)
+            print("########## gapphot error start ##########\n", file=errLog)
 
             logger.info("GAaP catalogue produced as {:}".format(GaapFile))
 
         return GaapFile
 
-    def _CleanUpFunc(self, tile_label, tmp_dir):
+    def _CleanUpFunc(self, GaapFile_list, tmp_dir):
         """
         Clean up intermediate files
         """
@@ -368,8 +369,7 @@ class GAaPwrapper(object):
 
         if self._clean_up_level >= 2:
             logger.info('Clean up .gaap directory')
-            filelist = glob.glob(os.path.join(self._outDir, "*_{:}_*.gaap".format(tile_label)))
-            for f in filelist:
+            for f in GaapFile_list:
                 os.remove(f)
 
     def _CombineCataFunc(self, SKYcata, bands, GaapFile_list, FinalFile):
@@ -380,12 +380,12 @@ class GAaPwrapper(object):
         logger.info('Combine GAaP catalogues with detection catalogue...')
 
         # the final catalogue
-        data_out = pd.read_feather({'id_detec': np.array(SKYcata['NUMBER']).astype(int)})
+        data_out = pd.DataFrame({'id_detec': np.array(SKYcata['NUMBER']).astype(int)})
 
         # loop over all bands
         for i_band, band in enumerate(bands):
 
-            # GAaP catalogue 
+            # GAaP catalogue
             GaapFile = GaapFile_list[i_band]
             tmp = np.loadtxt(GaapFile)
             data_out.loc[:, 'Agaper'] = tmp[:, 2]
@@ -412,28 +412,30 @@ class GAaPwrapper(object):
             ## assigning dummy values to undesired flux
             data_out.loc[mask_false, 'MAG_GAAP_0p7_{:}'.format(band)] = 99.
             data_out.loc[mask_false, 'MAGERR_GAAP_0p7_{:}'.format(band)] = 99.
-        
+
         data_out.to_feather(FinalFile)
 
         logger.info('Combined catalogues saved to {:}'.format(FinalFile))
 
-    def RunSingleTile(self, tile_label, FinalFile, SKYcataFile, bands, SKYimaFile_list, SKYweiFile_list=None, PSFimaFile_list=None, star_info=None):
+    def RunSingleTile(self, FinalFile, SKYcataFile, bands, SKYimaFile_list, SKYweiFile_list=None, PSFimaFile_list=None, star_info=None):
         '''
         Running GAaP with single process for multiple bands.
         '''
 
-        logger.info(f'Running for tile {tile_label}...')
+        name_base = re.findall(f'(.*).feather', os.path.basename(FinalFile))[0]
+
+        logger.info(f'Running GAaP for {name_base}...')
 
         # check if already exist
         if os.path.isfile(FinalFile):
-            logger.info(f"Final combined feather catalogue already exist, end for tile {tile_label}..")
+            logger.info(f"Final combined feather catalogue already exist, end for {name_base}.")
             return 1
 
         # prepare log info
         if self._running_log:
             basename = os.path.basename(FinalFile)
-            outLog = open(os.path.join(self._logDir, basename.replace('.feather', '.log')), "w")
-            errLog = open(os.path.join(self._logDir, basename.replace('.feather', '.err.log')), "w")
+            outLog = open(os.path.join(self._logDir, f"{name_base}.log"), 'w')
+            errLog = open(os.path.join(self._logDir, f"{name_base}.err.log"), 'w')
         else:
             outLog = subprocess.PIPE
             errLog = subprocess.STDOUT
@@ -442,8 +444,8 @@ class GAaPwrapper(object):
         SKYcata = pd.read_feather(SKYcataFile)
 
         # 0. make tmp dir
-        ## different for each run (each tile)
-        tmp_dir = os.path.join(self._outDir, 'tmp_GAaP_{:}'.format(tile_label))
+        ## different for each run
+        tmp_dir = os.path.join(self._outDir, name_base)
         if not os.path.exists(tmp_dir):
             os.mkdir(tmp_dir)
 
@@ -487,6 +489,6 @@ class GAaPwrapper(object):
         self._CombineCataFunc(SKYcata, bands, GaapFile_list, FinalFile)
 
         if self._clean_up_level:
-            self._CleanUpFunc(tile_label, tmp_dir)
+            self._CleanUpFunc(GaapFile_list, tmp_dir)
 
-        logger.info(f'Finished for tile {tile_label}.')
+        logger.info(f'Finished for tile {name_base}.')
