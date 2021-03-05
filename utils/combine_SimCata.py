@@ -1,18 +1,21 @@
 # @Author: lshuns
 # @Date:   2021-03-03, 18:21:04
-# @Last modified by:   lshuns
-# @Last modified time: 2021-03-04, 22:50:34
+# @Last modified by:   ssli
+# @Last modified time: 2021-03-05, 16:09:16
 
 ### a simple script to combine catalogues produced by the main pipeline
 ###     it can be used to combine catalogues from different running_tags
 ###             and assign photo-z based on input id of galaxies
 ###                 in which case at least one running_tag should contain photo-z
 ###                     and same galaxies are simulated in different running_tags
+###                     and same noise, same rotations
+###                     that is the only difference is the shear input
 ###     it removes false detections (those not matched with the input catalogue)
 ###     it only preserves specified columns
 ###     it can generate mask (MASK_gold) for desired selections
 
 import os
+import re
 import glob
 
 import numpy as np
@@ -49,68 +52,144 @@ mask_gold = 'KiDS-lensfit'
 cols_final = ['NUMBER', 'X_WORLD', 'Y_WORLD', 'MAG_AUTO', 'perfect_flag_star', 'id_input', 'Z_B',
                 'e1_LF_r', 'e2_LF_r', 'SNR_LF_r', 'scalelength_LF_r', 'weight_LF_r', 'psf_Q11_LF_r', 'psf_Q22_LF_r', 'psf_Q12_LF_r', 'class_LF_r', 'contamination_radius_LF_r']
 
+
 # +++++++++++++++++++++++++++++ workhorse
-cata_final = []
-for run_tag in run_tag_list:
 
-    # basic info for input shear values
-    opened_file = open(os.path.join(in_dir, run_tag, 'basic_info.txt'), 'r')
-    all_lines = opened_file.readlines()
-    opened_file.close()
-    useful_line = [line for line in all_lines if 'g_cosmic' in line][0]
-    try:
-        g1 = float(useful_line.split()[2])
-    except ValueError:
-        g1 = float(useful_line.split()[2][:-1])
-    g2 = float(useful_line.split()[3])
+# === assign photoz
+### should match catalogue in tile level
+if assign_photoz:
+    print('Assign photoz to catalogues')
+    print('     NOTE: catalogues from different run_tag should have same input galaxies and same rotations and same noise')
+    print('             the only difference is the shear input')
 
-    # main catalogues from simulation
-    cata_tag = []
-    file_list = glob.glob(os.path.join(in_dir, run_tag, 'catalogues', '*_combined.*'))
+    # the fist tag is the reference with photoz
+    run_tag0 = run_tag_list[0]
+    file_list = glob.glob(os.path.join(in_dir, run_tag0, 'catalogues', '*_combined.*'))
     if not file_list:
         raise Exception('Cannot find any catalogues from the main pipeline!\n\
         make sure the main pipeline ended properly to the end (taskID=7 is required)!')
-    for file in file_list:
-        file_type = file[-3:]
-        if file_type == 'csv':
-            cata = pd.read_csv(file)
-        elif file_type == 'her':
-            cata = pd.read_feather(file)
-        elif file_type == 'its':
-            with fits.open(file) as hdul:
-                cata = Table(hdul[1].data).to_pandas()
-        else:
-            raise Exception(f'Not supported input file type! {file}')
+    # get rotations
+    rotations = np.unique([re.search(r'_rot(\d+)', file).group(1) for file in file_list])
+    # get tiles (noise realization)
+    tiles = np.unique([re.search(r'tile(.*)_rot', file).group(1) for file in file_list])
+    print(f'Number of files in each run_tag: {len(file_list)} (={len(tiles)} tiles * {len(rotations)} rotations)' )
+
+    # loop over all tags
+    cata_final = []
+    for run_tag in run_tag_list:
+
+        # basic info for input shear values
+        opened_file = open(os.path.join(in_dir, run_tag, 'basic_info.txt'), 'r')
+        all_lines = opened_file.readlines()
+        opened_file.close()
+        useful_line = [line for line in all_lines if 'g_cosmic' in line][0]
         try:
+            g1 = float(useful_line.split()[2])
+        except ValueError:
+            g1 = float(useful_line.split()[2][:-1])
+        g2 = float(useful_line.split()[3])
+
+        # main catalogues within the tag
+        if not 'cata_z_tag' in locals():
+            cata_z_tag = [] # to save z info, not used if assign_photoz=False
+        i_file = 0
+        for tile in tiles:
+            for rot in rotations:
+
+                file = glob.glob(os.path.join(in_dir, run_tag, 'catalogues', f'tile{tile}_rot{rot}_combined.*'))[0]
+
+                # load catalogue
+                file_type = file[-3:]
+                if file_type == 'csv':
+                    cata = pd.read_csv(file)
+                elif file_type == 'her':
+                    cata = pd.read_feather(file)
+                elif file_type == 'its':
+                    with fits.open(file) as hdul:
+                        cata = Table(hdul[1].data).to_pandas()
+                else:
+                    raise Exception(f'Not supported input file type! {file}')
+                try:
+                    cata = cata[cols_final]
+                except KeyError:
+                    cols_final.remove('Z_B')
+                    cata = cata[cols_final]
+
+                # discard false-detections
+                mask_true = (cata['id_input']>-999)
+                cata = cata[mask_true]
+
+                # assign cosmic shear
+                cata.loc[:, 'g1_in'] = g1
+                cata.loc[:, 'g2_in'] = g2
+
+                # for fast join
+                cata.set_index('id_input', inplace=True)
+
+                # assign photoz
+                if run_tag == run_tag0:
+                    cata_withz = cata[['Z_B']]
+                    cata_z_tag.append(cata_withz)
+                else:
+                    cata = cata.join(cata_z_tag[i_file], how='left')
+                # iterating
+                i_file += 1
+
+                cata_final.append(cata)
+        print(f'All catalogues collected for {run_tag}')
+
+    cata_final = pd.concat(cata_final)
+    print(f'Total number of source {len(cata_final)}')
+
+else:
+    print('easy combine without assigning photoz')
+    # easy combine without assign photoz
+    cata_final = []
+    for run_tag in run_tag_list:
+
+        # basic info for input shear values
+        opened_file = open(os.path.join(in_dir, run_tag, 'basic_info.txt'), 'r')
+        all_lines = opened_file.readlines()
+        opened_file.close()
+        useful_line = [line for line in all_lines if 'g_cosmic' in line][0]
+        try:
+            g1 = float(useful_line.split()[2])
+        except ValueError:
+            g1 = float(useful_line.split()[2][:-1])
+        g2 = float(useful_line.split()[3])
+
+        # main catalogues from simulation
+        file_list = glob.glob(os.path.join(in_dir, run_tag, 'catalogues', '*_combined.*'))
+        if not file_list:
+            raise Exception('Cannot find any catalogues from the main pipeline!\n\
+            make sure the main pipeline ended properly to the end (taskID=7 is required)!')
+        print(f'Number of files in {run_tag}: {len(file_list)}' )
+        for file in file_list:
+            file_type = file[-3:]
+            if file_type == 'csv':
+                cata = pd.read_csv(file)
+            elif file_type == 'her':
+                cata = pd.read_feather(file)
+            elif file_type == 'its':
+                with fits.open(file) as hdul:
+                    cata = Table(hdul[1].data).to_pandas()
+            else:
+                raise Exception(f'Not supported input file type! {file}')
+
             cata = cata[cols_final]
-        except KeyError:
-            cols_final.remove('Z_B')
-            cata = cata[cols_final]
-        cata_tag.append(cata)
-    cata_tag = pd.concat(cata_tag)
 
-    # discard false-detections
-    mask_true = (cata_tag['id_input']>-999)
-    cata_tag = cata_tag[mask_true]
+            # assign cosmic shear
+            cata.loc[:, 'g1_in'] = g1
+            cata.loc[:, 'g2_in'] = g2
 
-    # for fast join
-    cata_tag.set_index('id_input', inplace=True)
+            # discard false-detections
+            mask_true = (cata['id_input']>-999)
+            cata = cata[mask_true]
 
-    # assign cosmic shear
-    cata_tag.loc[:, 'g1_in'] = g1
-    cata_tag.loc[:, 'g2_in'] = g2
+            cata_final.append(cata)
 
-    # assign photoz
-    if assign_photoz:
-        if run_tag == run_tag_list[0]:
-            cata_tag_withz = cata_tag[['Z_B']]
-        else:
-            cata_tag = cata_tag.join(cata_tag_withz, how='left')
-
-    cata_final.append(cata_tag)
-    print(f'All catalogues collected for {run_tag}')
-
-cata_final = pd.concat(cata_final)
+    cata_final = pd.concat(cata_final)
+    print(f'Total number of source {len(cata_final)}')
 
 # apply selections
 if mask_gold == 'none':
@@ -130,6 +209,7 @@ elif mask_gold == 'KiDS-lensfit':
 
     # apply
     cata_final.loc[(mask_gal & fitcuts & weight_cuts & blend_cuts & binary_star_cuts), 'MASK_gold'] = 0
+    print(f'Number after lensfit selection {np.sum(mask_gal & fitcuts & weight_cuts & blend_cuts & binary_star_cuts)}')
 else:
     raise Exception(f'Unsupported mask_gold type! {mask_gold}')
 
