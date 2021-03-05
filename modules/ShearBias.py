@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-02-02, 19:21:29
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-03, 18:18:01
+# @Last modified time: 2021-03-04, 22:04:47
 
 ### Module to calculate the m bias
 
@@ -52,13 +52,13 @@ def _WgBin2DFunc(v1, v2, wgs, Nbin1, Nbin2):
     pq2 = np.linspace(0,1.0,Nbin2+1)
 
     # Calculate quantiles for v1
-    q1 = WgQuantile1DFunc(v1, wgs, pq1)
+    q1 = _WgQuantile1DFunc(v1, wgs, pq1)
 
     #Compute quantiles for v2 in each v1 bin
     q2s=[]
     for i in range(len(q1)-1):
         mask = (v1>=q1[i]) & (v1<q1[i+1])
-        q2 = WgQuantile1DFunc(v2[mask], wgs[mask], pq2)
+        q2 = _WgQuantile1DFunc(v2[mask], wgs[mask], pq2)
         q2s.append(q2)
 
     return q1, np.array(q2s)
@@ -101,13 +101,13 @@ def mcCalFunc_simple(dataSim, nboot=0, rng_seed_boot=201294):
         g_outANDsigma[i_g, 2] = 1./(np.sum(wgSim[maskShear]))**0.5
 
     # mc fitting with input and output shear
-    m1c1, err1 = optimize.curve_fit(mcFitFunc, xdata=g_in_unique[:, 0], ydata=g_outANDsigma[:, 0], sigma=g_outANDsigma[:, 2])
+    m1c1, err1 = optimize.curve_fit(_mcFitFunc, xdata=g_in_unique[:, 0], ydata=g_outANDsigma[:, 0], sigma=g_outANDsigma[:, 2])
     m1 = m1c1[0]
     m1_err = (err1[0, 0])**0.5
     c1 = m1c1[1]
     c1_err = (err1[1, 1])**0.5
     ##
-    m2c2, err2 = optimize.curve_fit(mcFitFunc, xdata=g_in_unique[:, 1], ydata=g_outANDsigma[:, 1], sigma=g_outANDsigma[:, 2])
+    m2c2, err2 = optimize.curve_fit(_mcFitFunc, xdata=g_in_unique[:, 1], ydata=g_outANDsigma[:, 1], sigma=g_outANDsigma[:, 2])
     m2 = m2c2[0]
     m2_err = (err2[0, 0])**0.5
     c2 = m2c2[1]
@@ -133,16 +133,16 @@ def mcCalFunc_simple(dataSim, nboot=0, rng_seed_boot=201294):
             # re-sampling with replacement
             g_in_out_BS = np.array(random.choices(g_in_out_pairs, k=N_g_in_unique))
             # fitting
-            m1c1, err1 = optimize.curve_fit(mcFitFunc, xdata=g_in_out_BS[:, 0], ydata=g_in_out_BS[:, 2], sigma=g_in_out_BS[:, 4])
+            m1c1, err1 = optimize.curve_fit(_mcFitFunc, xdata=g_in_out_BS[:, 0], ydata=g_in_out_BS[:, 2], sigma=g_in_out_BS[:, 4])
             sigma_m1_boots[BS_index] = m1c1[0] - m1
             sigma_c1_boots[BS_index] = m1c1[1] - c1
-            m2c2, err2 = optimize.curve_fit(mcFitFunc, xdata=g_in_out_BS[:, 1], ydata=g_in_out_BS[:, 3], sigma=g_in_out_BS[:, 4])
+            m2c2, err2 = optimize.curve_fit(_mcFitFunc, xdata=g_in_out_BS[:, 1], ydata=g_in_out_BS[:, 3], sigma=g_in_out_BS[:, 4])
             sigma_m2_boots[BS_index] = m2c2[0] - m2
             sigma_c2_boots[BS_index] = m2c2[1] - c2
         # choose the 1 sigma range
         name_boots = ['m1', 'm2', 'c1', 'c2']
         for i_name, sigma_boots in enumerate([sigma_m1_boots, sigma_m2_boots, sigma_c1_boots, sigma_c2_boots]):
-            name = name_boots['i_name']
+            name = name_boots[i_name]
             res[f'{name}_err_BS_16'] = np.abs(np.percentile(sigma_boots, 16))
             res[f'{name}_err_BS_84'] = np.abs(np.percentile(sigma_boots, 84))
 
@@ -152,6 +152,20 @@ def mcCalFunc_reweight_R_SNR(dataSim, dataReal, Nbin_SNR=20, Nbin_R=20, nboot=0,
     """
     Calculating the residual shear bias with data reweighting.
         The two bins performed in resolution parameter R & SNR.
+        Used columns and their names:
+            Simulation:
+                g1_in, g2_in: input shear
+                e1_out, e2_out: measured ellipticity
+                size_out: measured size (scalelength for lensfit)
+                shape_snr: shape measurement SNR
+                shape_weight: shape measurement weights
+                psf_Q11, psf_Q22, psf_Q12 (OR psf_size): PSF quadrupole moments (OR PSF size)
+            Data:
+                e1, e2: measured ellipticity
+                size: measured size (scalelength for lensfit)
+                shape_snr: shape measurement SNR
+                shape_weight: shape measurement weights
+                psf_Q11, psf_Q22, psf_Q12 (OR psf_size): PSF quadrupole moments (OR PSF size)
     """
 
     # parameters for binning
@@ -165,7 +179,7 @@ def mcCalFunc_reweight_R_SNR(dataSim, dataReal, Nbin_SNR=20, Nbin_R=20, nboot=0,
     except KeyError:
         size_psfSim = np.array(dataSim['psf_size'])
     ### resolution parameter
-    RSim = size_psfSim/(size_abSim**2+size_psfSim)
+    RSim = np.array(size_psfSim/(size_abSim**2+size_psfSim))
     ### SNR
     snrSim = np.array(dataSim['shape_snr'])
     ### weights
@@ -173,19 +187,19 @@ def mcCalFunc_reweight_R_SNR(dataSim, dataReal, Nbin_SNR=20, Nbin_R=20, nboot=0,
 
     ## Data
     ### circularised galaxy size
-    eReal = np.hypot(dataReal['bias_corrected_e1'], dataReal['bias_corrected_e2'])
-    size_abReal = np.array(dataReal['bias_corrected_scalelength_pixels']) * np.sqrt((1.-eReal)/(1.+eReal))
+    eReal = np.hypot(dataReal['e1'], dataReal['e2'])
+    size_abReal = np.array(dataReal['size']) * np.sqrt((1.-eReal)/(1.+eReal))
     ### PSF size
-    size_psfReal = np.sqrt(dataReal['PSF_Q11'] * dataReal['PSF_Q22'] - dataReal['PSF_Q12']**2)
+    size_psfReal = np.sqrt(dataReal['psf_Q11'] * dataReal['psf_Q22'] - dataReal['psf_Q12']**2)
     ### resolution parameter
-    RReal = size_psfReal/(size_abReal**2+size_psfReal)
+    RReal = np.array(size_psfReal/(size_abReal**2+size_psfReal))
     ### SNR
-    snrReal = np.array(dataReal['model_SNratio'])
+    snrReal = np.array(dataReal['shape_snr'])
     ### weights
-    wgReal = np.array(dataReal['recal_weight'])
+    wgReal = np.array(dataReal['shape_weight'])
 
     # 2D binning such that each bin contains equal sum of weights for simulation
-    bin_SNR_bounds, bin_R_bounds = WgBin2DFunc(snrSim, RSim, wgSim, Nbin_SNR, Nbin_R)
+    bin_SNR_bounds, bin_R_bounds = _WgBin2DFunc(snrSim, RSim, wgSim, Nbin_SNR, Nbin_R)
 
     # calculate mc in each bin
     wgRealSum = 0
