@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
-# @Last modified by:   lshuns
-# @Last modified time: 2021-03-04, 14:01:58
+# @Last modified by:   ssli
+# @Last modified time: 2021-03-08, 11:34:43
 
 ### main module to run the whole pipeline
 
@@ -686,7 +686,6 @@ if ('7' in taskIDs) or ('all' in taskIDs):
     start_time = time.time()
 
     # detection info
-    detection_band = configs_dict['sex']['detection_band']
     out_dir_detec = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
     if not os.path.exists(out_dir_detec):
         raise Exception('Detection files are not generated!\n\
@@ -729,7 +728,7 @@ if ('7' in taskIDs) or ('all' in taskIDs):
         for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
 
             # detection catalogue as the base
-            infile_tmp = os.path.join(out_dir_detec, f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
+            infile_tmp = glob.glob(os.path.join(out_dir_detec, f'tile{tile_label}_band*_rot{gal_rotation_angle:.0f}.feather'))[0]
             data_final = pd.read_feather(infile_tmp)
 
             # CrossMatch
@@ -755,8 +754,9 @@ if ('7' in taskIDs) or ('all' in taskIDs):
 
             # shape
             if HasShape:
-                for band in configs_dict['MS']['bands']:
-                    infile_tmp = os.path.join(out_dir_shape, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.feather')
+                file_list = glob.glob(os.path.join(out_dir_shape, f'tile{tile_label}_band*_rot{gal_rotation_angle:.0f}.feather'))
+                for infile_tmp in file_list:
+                    band = re.search(r'_band(.*)_rot', infile_tmp).group(1)
                     tmp_info = pd.read_feather(infile_tmp)
                     tmp_info = tmp_info.add_suffix(f'_{band}')
                     data_final = data_final.merge(tmp_info, left_on='NUMBER', right_on=f'id_detec_{band}', how='left')
