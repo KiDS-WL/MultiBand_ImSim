@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-01-29 17:15:39
-# @Last modified by:   lshuns
-# @Last modified time: 2021-03-04, 14:22:12
+# @Last modified by:   ssli
+# @Last modified time: 2021-03-08, 16:42:04
 #
 # usage: Run.py [-h] [--runTag RUNTAG] [--cosmic_shear COSMIC_SHEAR COSMIC_SHEAR]
 #               [-c config_file] [--threads number_threads] [--loglevel logging_level]
@@ -40,14 +40,4 @@
 
 #################### example scripts
 ### example1: only simple stacked image without observation patterns
-###      NOTE: if you want a segmentation map from SEXtractor, set checkimage_type = SEGMENTATION in the configuration file (example_single_band.ini)
 python ../modules/Run.py 1 3 7 --runTag test_simple --threads 1 --cosmic_shear 0.0 0.0 -c ./example_single_band.ini --sep_running_log
-
-### example2: KiDS-like observation patterns
-###     remember to adjust corresponding variables (survey = KiDS & image_type_list = sameExpo (or diffExpo)) in the configuration file (example_single_band.ini)
-# python ../modules/Run.py 1 2 3 7 --runTag test_KiDS_like --threads 1 --cosmic_shear 0.0 0.0 -c ./example_single_band.ini --sep_running_log
-
-
-### example3: KiDS-VIKING-like 9-band images and all the way to the shear catalogue
-###     NOTE: lensfit is slow
-# python ../modules/Run.py all --runTag test_9bands --threads 1 --cosmic_shear 0.0 0.0 -c ./example_nice_bands.ini --sep_running_log
