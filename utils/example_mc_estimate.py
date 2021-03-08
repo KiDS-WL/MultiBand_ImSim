@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-03-03, 18:19:42
-# @Last modified by:   lshuns
-# @Last modified time: 2021-03-04, 23:19:02
+# @Last modified by:   ssli
+# @Last modified time: 2021-03-08, 15:17:37
 
 ### an example to calculate the mc shear bias from simulated catalogues
 
@@ -28,15 +28,15 @@ rng_seed_boot = 201294
 # outpath
 ## set to 'show', if you only want to see the results on the screen
 ## otherwise, some file names for the txt output
-# out_path = 'show'
-out_path = './test/surfs_1psf.txt'
-
+out_path = 'show'
+# out_path = './test/surfs_1psfdiff.txt'
 
 # ============ simulation catalogue info
 # the input simulation catalogue
 ### supported formats: fits, csv, feather
 ###             guess from the file suffix
-in_file_sim = '/disks/shear15/ssli/ImSim/output/test_surfs_onePFSmean_combined.fits'
+# in_file_sim = '/disks/shear15/ssli/ImSim/output/test_surfs_onePFSdiff_combined.fits'
+in_file_sim = '/disks/shear15/ssli/ImSim/output/test_cosmos_onePFS_combined.feather'
 
 # the name of the mask column
 ### 0 for good
@@ -46,7 +46,7 @@ col_mask = 'MASK_gold'
 # column name for redshift bins
 ### comment it out, if tomographic binnning is not required
 ### the output zbin_id specify bins with 0 corresponding to all samples
-col_z_sim = 'Z_B'
+# col_z_sim = 'Z_B'
 
 # tomographic bin edges
 ### following KiDS fashion: (low, high]
@@ -60,7 +60,7 @@ z_bin_edges = [0.1, 0.3, 0.5, 0.7, 0.9, 1.2]
 ###         PSF quadrupole (psf_Q11, psf_Q22, psf_Q12) or PSF size (psf_size) [depends on psf_sizeORmoments_sim below]
 cols_sim = ['g1_in', 'g2_in',
             'e1_LF_r', 'e2_LF_r', 'scalelength_LF_r',
-            'SNR_LF_r', 'weight_LF_r',
+            'SNR_LF_r', 'weight_global_LF_r',
             'psf_Q11_LF_r', 'psf_Q22_LF_r', 'psf_Q12_LF_r']
 
 # use PSF moments or PSF size ?
@@ -104,12 +104,16 @@ elif file_type == 'its':
 else:
     raise Exception(f'Not supported input file type! {in_file_sim}')
 print('Number of sources in simulated catalogue', len(cata_sim))
-
 # selection
 if 'col_mask' in locals():
     cata_sim = cata_sim[cata_sim[col_mask]==0]
     cata_sim.reset_index(drop=True, inplace=True)
     print('Number of selected sources in simulated catalogue', len(cata_sim))
+# extract useable parameters
+if 'col_z_sim' in locals():
+    cata_sim = cata_sim[cols_sim+[col_z_sim]]
+else:
+    cata_sim = cata_sim[cols_sim]
 
 # rename column names
 cols_rename = {}
@@ -124,19 +128,6 @@ for i_col, col_name in enumerate(cols_sim):
      cols_rename[col_name] = cols_goodnames[i_col]
 cata_sim.rename(columns=cols_rename, inplace=True)
 
-# tomographic binning
-cata_sim_list = [cata_sim]
-if 'col_z_sim' in locals():
-    N_zbins = len(z_bin_edges)-1
-    print(f'Use {N_zbins} tomographic bins')
-    for i_zbin in range(N_zbins):
-        z_min_bin = z_bin_edges[i_zbin]
-        z_max_bin = z_bin_edges[i_zbin+1]
-        mask_zbin = (cata_sim[col_z_sim]>z_min_bin) & (cata_sim[col_z_sim]<=z_max_bin)
-        cata_sim_selec = cata_sim[mask_zbin]
-        cata_sim_selec.reset_index(drop=True, inplace=True)
-        cata_sim_list.append(cata_sim_selec)
-
 # output
 if out_path == 'show':
     f = sys.stdout
@@ -146,19 +137,50 @@ else:
 # simple without data re-weighting
 if not 'in_file_obs' in locals():
     print('Shear bias estimation without data re-weighting')
-    for i_cata, cata_sim_tmp in enumerate(cata_sim_list):
-        res = ShearBias.mcCalFunc_simple(cata_sim_tmp, nboot=nboot, rng_seed_boot=rng_seed_boot)
 
-        # print out some comments and column names
-        if i_cata == 0:
-            print('# zbin_id = 0 correspond to all samples, number increase towards high z bins', file=f)
-            # collect columns names
-            cols = '# ' + '    '.join(list(res.keys()) + ['zbin_id'])
-            print(cols, file=f)
+    # whole sample
+    res = ShearBias.mcCalFunc_simple(cata_sim, nboot=nboot, rng_seed_boot=rng_seed_boot)
 
-        # print out values
-        vals = '    '.join(["{0:0.4f}".format(val) for val in res.values()]) + f'    {i_cata}'
-        print(vals, file=f)
+    # print out some comments and column names
+    print('# zbin_id = 0 correspond to all samples, number increase towards high z bins', file=f)
+    # collect columns names
+    cols = '# ' + '    '.join(list(res.keys()) + ['zbin_id'])
+    print(cols, file=f)
+
+    # print out values
+    vals = '    '.join(["{0:0.4f}".format(val) for val in res.values()]) + '    0'
+    print(vals, file=f)
+
+    # print out mean values
+    m=(res['m1']+res['m2'])/2.
+    merr = (res['m1_err'] + res['m2_err'])/2.
+    merror_low = (res['m1_err_BS_16'] + res['m2_err_BS_16'])/2.
+    merror_high = (res['m1_err_BS_84'] + res['m2_err_BS_84'])/2.
+    print(f'### whole: m = {m:.4f}, merr = {merr:.4f}, merr_BS_16 = {merror_low:.4f}, merr_BS_84 = {merror_high:.4f}')
+
+    # tomographic binning
+    if 'col_z_sim' in locals():
+        N_zbins = len(z_bin_edges)-1
+        print(f'Use {N_zbins} tomographic bins')
+        for i_zbin in range(N_zbins):
+            z_min_bin = z_bin_edges[i_zbin]
+            z_max_bin = z_bin_edges[i_zbin+1]
+            mask_zbin = (cata_sim[col_z_sim]>z_min_bin) & (cata_sim[col_z_sim]<=z_max_bin)
+            cata_sim_selec = cata_sim[mask_zbin]
+            cata_sim_selec.reset_index(drop=True, inplace=True)
+
+            res = ShearBias.mcCalFunc_simple(cata_sim_selec, nboot=nboot, rng_seed_boot=rng_seed_boot)
+
+            # print out values
+            vals = '    '.join(["{0:0.4f}".format(val) for val in res.values()]) + f'    {i_zbin+1}'
+            print(vals, file=f)
+
+            # print out mean values
+            m=(res['m1']+res['m2'])/2.
+            merr = (res['m1_err'] + res['m2_err'])/2.
+            merror_low = (res['m1_err_BS_16'] + res['m2_err_BS_16'])/2.
+            merror_high = (res['m1_err_BS_84'] + res['m2_err_BS_84'])/2.
+            print(f'### bin {i_zbin+1}: m = {m:.4f}, merr = {merr:.4f}, merr_BS_16 = {merror_low:.4f}, merr_BS_84 = {merror_high:.4f}')
 
     # close what is opened
     if out_path != 'show':
@@ -177,6 +199,11 @@ elif file_type == 'its':
 else:
     raise Exception(f'Not supported input file type! {in_file_obs}')
 print('Number of sources in observation catalogue', len(cata_obs))
+# extract useable parameters
+if 'col_z_obs' in locals():
+    cata_obs = cata_obs[cols_obs+[col_z_obs]]
+else:
+    cata_obs = cata_obs[cols_obs]
 
 # rename column names
 cols_rename = {}
@@ -190,34 +217,56 @@ for i_col, col_name in enumerate(cols_obs):
      cols_rename[col_name] = cols_goodnames[i_col]
 cata_obs.rename(columns=cols_rename, inplace=True)
 
+# calculation
+print('Shear bias estimation with data re-weighting')
+
+# whole sample
+res = ShearBias.mcCalFunc_reweight_R_SNR(cata_sim, cata_obs, Nbin_SNR=20, Nbin_R=20, nboot=nboot, rng_seed_boot=rng_seed_boot)
+
+# print out some comments and column names
+print('# zbin_id = 0 correspond to all samples, number increase towards high z bins', file=f)
+# collect columns names
+cols = '# ' + '    '.join(list(res.keys()) + ['zbin_id'])
+print(cols, file=f)
+
+# print out values
+vals = '    '.join(["{0:0.4f}".format(val) for val in res.values()]) + '    0'
+print(vals, file=f)
+
+# print out mean values
+m=(res['m1']+res['m2'])/2.
+merr = (res['m1_err'] + res['m2_err'])/2.
+merror_low = (res['m1_err_BS_16'] + res['m2_err_BS_16'])/2.
+merror_high = (res['m1_err_BS_84'] + res['m2_err_BS_84'])/2.
+print(f'### whole: m = {m:.4f}, merr = {merr:.4f}, merr_BS_16 = {merror_low:.4f}, merr_BS_84 = {merror_high:.4f}')
+
 # tomographic binning
-cata_obs_list = [cata_obs]
-if 'col_z_obs' in locals():
+if 'col_z_sim' in locals():
     N_zbins = len(z_bin_edges)-1
+    print(f'Use {N_zbins} tomographic bins')
     for i_zbin in range(N_zbins):
         z_min_bin = z_bin_edges[i_zbin]
         z_max_bin = z_bin_edges[i_zbin+1]
+        mask_zbin = (cata_sim[col_z_sim]>z_min_bin) & (cata_sim[col_z_sim]<=z_max_bin)
+        cata_sim_selec = cata_sim[mask_zbin]
+        cata_sim_selec.reset_index(drop=True, inplace=True)
+
         mask_zbin = (cata_obs[col_z_obs]>z_min_bin) & (cata_obs[col_z_obs]<=z_max_bin)
         cata_obs_selec = cata_obs[mask_zbin]
         cata_obs_selec.reset_index(drop=True, inplace=True)
-        cata_obs_list.append(cata_obs_selec)
 
-# calculation
-print('Shear bias estimation with data re-weighting')
-for i_cata, cata_sim_tmp in enumerate(cata_sim_list):
-    cata_obs_tmp = cata_obs_list[i_cata]
-    res = ShearBias.mcCalFunc_reweight_R_SNR(cata_sim_tmp, cata_obs_tmp, Nbin_SNR=20, Nbin_R=20, nboot=nboot, rng_seed_boot=rng_seed_boot)
+        res = ShearBias.mcCalFunc_reweight_R_SNR(cata_sim_selec, cata_obs_selec, Nbin_SNR=20, Nbin_R=20, nboot=nboot, rng_seed_boot=rng_seed_boot)
 
-    # print out some comments and column names
-    if i_cata == 0:
-        print('# zbin_id = 0 correspond to all samples, number increase towards high z bins', file=f)
-        # collect columns names
-        cols = '# ' + '    '.join(list(res.keys()) + ['zbin_id'])
-        print(cols, file=f)
+        # print out values
+        vals = '    '.join(["{0:0.4f}".format(val) for val in res.values()]) + f'    {i_zbin+1}'
+        print(vals, file=f)
 
-    # print out values
-    vals = '    '.join(["{0:0.4f}".format(val) for val in res.values()]) + f'    {i_cata}'
-    print(vals, file=f)
+        # print out mean values
+        m=(res['m1']+res['m2'])/2.
+        merr = (res['m1_err'] + res['m2_err'])/2.
+        merror_low = (res['m1_err_BS_16'] + res['m2_err_BS_16'])/2.
+        merror_high = (res['m1_err_BS_84'] + res['m2_err_BS_84'])/2.
+        print(f'### bin {i_zbin+1}: m = {m:.4f}, merr = {merr:.4f}, merr_BS_16 = {merror_low:.4f}, merr_BS_84 = {merror_high:.4f}')
 
 # close what is opened
 if out_path != 'show':
