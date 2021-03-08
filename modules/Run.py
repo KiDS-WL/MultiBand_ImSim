@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   ssli
-# @Last modified time: 2021-03-08, 11:34:43
+# @Last modified time: 2021-03-08, 13:15:02
 
 ### main module to run the whole pipeline
 
@@ -301,6 +301,11 @@ if ('3' in taskIDs) or ('all' in taskIDs):
         out_dir_cross = os.path.join(configs_dict['work_dirs']['cata'], 'CrossMatch')
         if not os.path.exists(out_dir_cross):
             os.mkdir(out_dir_cross)
+    # CHECKIMAGE
+    if (configs_dict['sex']['checkimage_type'] is not None) and (configs_dict['sex']['checkimage_type'].upper() is not 'NONE'):
+        CHECKIMAGE_dir = os.path.join(in_dir_tmp, configs_dict['sex']['checkimage_type'])
+        if not os.path.exists(CHECKIMAGE_dir):
+            os.mkdir(CHECKIMAGE_dir)
 
     ## work pool
     N_sex = int(Nmax_proc/4.)
