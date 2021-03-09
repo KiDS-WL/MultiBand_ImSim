@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2021-01-13 19:27:48
-# @Last modified by:   lshuns
-# @Last modified time: 2021-02-18, 16:41:07
+# @Last modified by:   ssli
+# @Last modified time: 2021-03-08, 15:36:47
 
 ### Wrapper for GAaP code
 
@@ -380,7 +380,8 @@ class GAaPwrapper(object):
         logger.info('Combine GAaP catalogues with detection catalogue...')
 
         # the final catalogue
-        data_out = pd.DataFrame({'id_detec': np.array(SKYcata['NUMBER']).astype(int)})
+        data_out = pd.DataFrame({'id_detec': np.array(SKYcata['NUMBER']).astype(int),
+                                f'mask_{len(bands)}bands': np.zeros(len(SKYcata)).astype(int)})
 
         # loop over all bands
         for i_band, band in enumerate(bands):
@@ -413,6 +414,9 @@ class GAaPwrapper(object):
             data_out.loc[mask_false, 'MAG_GAAP_0p7_{:}'.format(band)] = 99.
             data_out.loc[mask_false, 'MAGERR_GAAP_0p7_{:}'.format(band)] = 99.
 
+            # mask undesired flux
+            data_out.loc[mask_false, f'mask_{len(bands)}bands'] += 1
+            
         data_out.to_feather(FinalFile)
 
         logger.info('Combined catalogues saved to {:}'.format(FinalFile))
