@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 11:46:17
+# @Last modified time: 2021-03-11, 17:13:10
 
 ### main module to run the whole pipeline
 
@@ -621,6 +621,9 @@ if ('6' in taskIDs) or ('all' in taskIDs):
                 head_dir = os.path.join(in_ima_dir_tmp, f'chips_tile{tile_label}_band{band}_head')
                 head_key = True
 
+                ### psf coefficients for lensfit
+                psf_coeff_dir = LensFit.LensfitShape_psf(configs_dict['MS']['lensfit_dir'], psf_dir)
+
                 for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
 
                     # check exists
@@ -666,7 +669,7 @@ if ('6' in taskIDs) or ('all' in taskIDs):
                     # run
                     proc = work_pool.apply_async(func=LensFit.LensfitShape,
                                 args=(configs_dict['MS']['lensfit_dir'],
-                                        input_catalog_tmp, input_file_lensfit, chip_dir, psf_dir, head_dir, weight_dir,
+                                        input_catalog_tmp, input_file_lensfit, chip_dir, psf_coeff_dir, head_dir, weight_dir,
                                         configs_dict['MS']['PSF_OVERSAMPLING'],
                                         configs_dict['MS']['PECUT'], configs_dict['MS']['PRCUT'], configs_dict['MS']['LCUT'],
                                         WAVEBAND, configs_dict['MS']['CAMERA'],

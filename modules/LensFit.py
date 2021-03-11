@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-10, 14:49:53
+# @Last modified time: 2021-03-11, 17:11:34
 
 ### Wrapper for lensfit code
 
@@ -56,8 +56,30 @@ def LensfitShape_head(chip_dir, head_dir=None):
                 print(line, file=f)
             f.close()
 
+def LensfitShape_psf(lensfit_dir, psf_dir):
+    """
+    prepare psf polynomial coefficients from psf image
+    """
+
+    psf_coeff_dir = os.path.join(psf_dir, os.path.basename(psf_dir) + '_coeff')
+    if not os.path.exists(psf_coeff_dir):
+        os.mkdir(psf_coeff_dir)
+
+    psfimage2coeffs_path = lensfit_dir + '/utils/psfimage2coeffs'
+    psf_imas = glob.glob(os.path.join(psf_dir, '*.fits'))
+
+    for psf_ima in psf_imas:
+
+        psf_coeff = os.path.join(psf_coeff_dir, os.path.basename(psf_ima).replace('.fits', '.psfcoeffs.fits'))
+        cmd = [psfimage2coeffs_path, psf_ima, psf_coeff]
+        # run
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    logger.info(f'PSF polynomial coefficients saved to {psf_coeff_dir}')
+    return psf_coeff_dir
+
 def LensfitShape(lensfit_dir,
-                    input_catalog, input_file, chip_dir, psf_dir, head_dir, weight_dir=None,
+                    input_catalog, input_file, chip_dir, psf_coeff_dir, head_dir, weight_dir=None,
                     PSF_OVERSAMPLING='1', PECUT='0.02', PRCUT='0.02', LCUT='0.05', WAVEBAND='R', CAMERA='KIDS',
                     postage_size='48', start_exposure='1', end_exposure='5', start_mag='20.0', end_mag='25.0',
                     output_file='output.feather', out_dir='./', tmp_dir='./tmp',
@@ -87,29 +109,7 @@ def LensfitShape(lensfit_dir,
         outLog = subprocess.PIPE
         errLog = subprocess.STDOUT
 
-    # ++++++++++++ 1. prepare psf polynomial coefficients from psf image
-    psf_coeff_dir = os.path.join(psf_dir, os.path.basename(psf_dir) + '_coeff')
-    if not os.path.exists(psf_coeff_dir):
-        os.mkdir(psf_coeff_dir)
-
-    psfimage2coeffs_path = lensfit_dir + '/utils/psfimage2coeffs'
-    psf_imas = glob.glob(os.path.join(psf_dir, '*.fits'))
-
-    for psf_ima in psf_imas:
-
-        psf_coeff = os.path.join(psf_coeff_dir, os.path.basename(psf_ima).replace('.fits', '.psfcoeffs.fits'))
-        cmd = [psfimage2coeffs_path, psf_ima, psf_coeff]
-
-        # run
-        print("########## psfimage2coeffs info start ##########\n", file=outLog)
-        print("########## psfimage2coeffs error start ##########\n", file=errLog)
-        proc = subprocess.run(cmd, stdout=outLog, stderr=errLog)
-        print("########## psfimage2coeffs info end ##########\n", file=outLog)
-        print("########## psfimage2coeffs error end ##########\n", file=errLog)
-
-    logger.info(f'PSF polynomial coefficients saved to {psf_coeff_dir}')
-
-    # ++++++++++++ 2. running lensfit to obtain shape info
+    # ++++++++++++ 1. run lensfit to obtain shape info
     lensfit_path = lensfit_dir + '/src/flensfit'
 
     # Environment variables
@@ -147,7 +147,7 @@ def LensfitShape(lensfit_dir,
         outLog.close()
         errLog.close()
 
-    # ++++++++++++ 3. build convenient feather file
+    # ++++++++++++ 2. build convenient feather file
     data = np.loadtxt(f'{output_path}.asc')
 
     data_out = pd.DataFrame({
