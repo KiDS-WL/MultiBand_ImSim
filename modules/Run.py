@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 17:13:10
+# @Last modified time: 2021-03-11, 19:09:38
 
 ### main module to run the whole pipeline
 
@@ -536,7 +536,7 @@ if ('5' in taskIDs) or ('all' in taskIDs):
                 running_log=running_log, log_dir=log_dir_tmp)
 
         ## work pool
-        N_BPZ = int(Nmax_proc/4)
+        N_BPZ = int(Nmax_proc/20)
         if N_BPZ < 1:
             N_BPZ = 1
         logger.info(f'Number of processes for BPZ: {N_BPZ}')
