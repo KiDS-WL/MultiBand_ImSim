@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 17:11:34
+# @Last modified time: 2021-03-11, 18:06:11
 
 ### Wrapper for lensfit code
 
@@ -149,6 +149,8 @@ def LensfitShape(lensfit_dir,
 
     # ++++++++++++ 2. build convenient feather file
     data = np.loadtxt(f'{output_path}.asc')
+    if data.size == 0:
+        raise Exception(f'Empty {output_path}.asc, something is wrong about lensfit!')
 
     data_out = pd.DataFrame({
         'id_detec': data[:, 28].astype(int),
