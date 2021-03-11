@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 20:24:14
+# @Last modified time: 2021-03-11, 22:39:57
 
 ### main module to run the whole pipeline
 
@@ -302,7 +302,7 @@ if ('3' in taskIDs) or ('all' in taskIDs):
         if not os.path.exists(out_dir_cross):
             os.mkdir(out_dir_cross)
     # CHECKIMAGE
-    if (configs_dict['sex']['checkimage_type'] is not None) and (configs_dict['sex']['checkimage_type'].upper() is not 'NONE'):
+    if (configs_dict['sex']['checkimage_type'] is not None) and (configs_dict['sex']['checkimage_type'].upper() != 'NONE'):
         CHECKIMAGE_dir = os.path.join(in_dir_tmp, configs_dict['sex']['checkimage_type'])
         if not os.path.exists(CHECKIMAGE_dir):
             os.mkdir(CHECKIMAGE_dir)

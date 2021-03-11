@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-08-17 14:26:07
-# @Last modified by:   ssli
-# @Last modified time: 2021-03-01, 17:24:42
+# @Last modified by:   lshuns
+# @Last modified time: 2021-03-11, 22:40:13
 
 ### Wrapper for astromatic codes
 
@@ -144,7 +144,7 @@ def SExtractorCatalogue(ImageFile1, CatalogueFile, pixel_scale, SeeingFWHM=1.0,
         errLog = subprocess.STDOUT
 
     # CHECKIMAGE
-    if (CHECKIMAGE_TYPE is not None) and (CHECKIMAGE_TYPE.upper() is not 'NONE') :
+    if (CHECKIMAGE_TYPE is not None) and (CHECKIMAGE_TYPE.upper() != 'NONE'):
         ima_dir = os.path.dirname(ImageFile1)
         CHECKIMAGE_dir = os.path.join(ima_dir, CHECKIMAGE_TYPE)
         if not os.path.exists(CHECKIMAGE_dir):
