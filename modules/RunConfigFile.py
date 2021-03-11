@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-04, 14:17:34
+# @Last modified time: 2021-03-11, 11:44:55
 
 ### module to generate an example configuration file
 
@@ -186,6 +186,9 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                         'detection_band': config_MP.get('detection_band'),
                         'bands': [x.strip() for x in config_MP.get('band_list').split(',')],
                         'image_label_list': [x.strip() for x in config_MP.get('image_label_list').split(',')]}
+        ## limiting magnitude dictionary
+        tmp_val = [float(x.strip()) for x in config_MP.get('band_1sigma_limits').split(',')]
+        MP_configs['band_1sigma_limits'] = dict(zip(MP_configs['bands'], tmp_val))
 
         ### GAaP
         if MP_method.lower() == 'gaap':
@@ -468,6 +471,10 @@ method =                GAaP                   # method for photometry measureme
 detection_band =        r                      # band with detection catalogue\n\
 band_list =             u, g, r, i, Z, Y, J, H, Ks\n\
                                                # bands being measured\n\
+band_1sigma_limits =    25.5, 26.3, 26.2, 24.9, 24.85, 24.1, 24.2, 23.3, 23.2\n\
+                                               # 1 sigma limiting magnitude\n\
+                                               # used for unmeasured objects' mag error\n\
+                                               # default value from KV450 median\n\
 image_label_list =      AW, AW, AW, AW, original, original, original, original, original\n\
                                                # a list of labels for the image types, can be either:\n\
                                                #    original (for original simulated images)\n\

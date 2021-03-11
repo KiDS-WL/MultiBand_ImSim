@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2021-01-13 19:27:48
-# @Last modified by:   ssli
-# @Last modified time: 2021-03-08, 15:36:47
+# @Last modified by:   lshuns
+# @Last modified time: 2021-03-11, 12:02:16
 
 ### Wrapper for GAaP code
 
@@ -45,6 +45,8 @@ class GAaPwrapper(object):
         Minimum aperture size.
     max_aper : float, optional (default: 2.0)
         Maximum aperture size.
+    mag_1sigma_limits : dictionary
+        1 sigma limiting magnitude, used for unmeasured objects' error
     running_log : bool, optional (default: True)
         save running info from external code
     clean_up_level : int, optional (default: 0)
@@ -58,6 +60,7 @@ class GAaPwrapper(object):
                 star_mag_cut=[16., 20.],
                 mag_zero=30.,
                 min_aper=0.7, max_aper=2.0,
+                mag_1sigma_limits={},
                 running_log=True, log_dir=None,
                 clean_up_level=0):
 
@@ -80,6 +83,9 @@ class GAaPwrapper(object):
         logger.info("Minimum aperture: %f", self._minaper)
         self._maxaper = max_aper
         logger.info("Maximum aperture: %f", self._maxaper)
+
+        self._1sigma_limits = mag_1sigma_limits
+        logger.info(f'1-sigma limiting magnitude: {mag_1sigma_limits}')
 
         self._running_log = running_log
         logger.info(f"Save running info: {self._running_log}")
@@ -377,11 +383,11 @@ class GAaPwrapper(object):
         combine all GAaP results with detection id to one feather catalogue
         """
 
-        logger.info('Combine GAaP catalogues with detection catalogue...')
+        logger.info('Combine original GAaP outputs...')
 
         # the final catalogue
         data_out = pd.DataFrame({'id_detec': np.array(SKYcata['NUMBER']).astype(int),
-                                f'mask_{len(bands)}bands': np.zeros(len(SKYcata)).astype(int)})
+                                f'mask_meas_{len(bands)}bands': np.zeros(len(SKYcata)).astype(int)})
 
         # loop over all bands
         for i_band, band in enumerate(bands):
@@ -412,11 +418,11 @@ class GAaPwrapper(object):
 
             ## assigning dummy values to undesired flux
             data_out.loc[mask_false, 'MAG_GAAP_0p7_{:}'.format(band)] = 99.
-            data_out.loc[mask_false, 'MAGERR_GAAP_0p7_{:}'.format(band)] = 99.
+            data_out.loc[mask_false, 'MAGERR_GAAP_0p7_{:}'.format(band)] = self._1sigma_limits[band]
 
             # mask undesired flux
-            data_out.loc[mask_false, f'mask_{len(bands)}bands'] += 1
-            
+            data_out.loc[mask_false, f'mask_meas_{len(bands)}bands'] += 1
+
         data_out.to_feather(FinalFile)
 
         logger.info('Combined catalogues saved to {:}'.format(FinalFile))

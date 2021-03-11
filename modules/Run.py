@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
-# @Last modified by:   ssli
-# @Last modified time: 2021-03-09, 14:18:52
+# @Last modified by:   lshuns
+# @Last modified time: 2021-03-11, 11:46:17
 
 ### main module to run the whole pipeline
 
@@ -440,6 +440,7 @@ if ('4' in taskIDs) or ('all' in taskIDs):
                 star_mag_cut=configs_dict['MP']['star_mag_cut'],
                 mag_zero=configs_dict['imsim']['mag_zero'],
                 min_aper=configs_dict['MP']['min_aper'], max_aper=configs_dict['MP']['max_aper'],
+                mag_1sigma_limits=configs_dict['MP']['band_1sigma_limits'],
                 running_log=running_log, log_dir=log_dir_tmp,
                 clean_up_level=configs_dict['MP']['clean_up_level'])
 
