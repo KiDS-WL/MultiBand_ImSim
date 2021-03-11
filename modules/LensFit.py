@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 23:21:58
+# @Last modified time: 2021-03-11, 23:40:18
 
 ### Wrapper for lensfit code
 
@@ -95,10 +95,7 @@ def LensfitShape(lensfit_dir,
         logger.info(f'End the process.')
         return 1
 
-    # tmp directory
-    if os.path.exists(tmp_dir):
-        shutil.rmtree(tmp_dir)
-    os.mkdir(tmp_dir)
+    ## output
     output_path = os.path.join(tmp_dir, 'output.fits')
 
     # running info
