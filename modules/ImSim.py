@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-02, 18:03:33
+# @Last modified time: 2021-03-11, 20:42:05
 
 ### main module of ImSim
 ###### dependence:
@@ -492,7 +492,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         if os.path.isfile(psf_ima_file_tmp):
             logger.info('PSF image already exist.')
         else:
-            if not os.path.exists(psf_dir_tmp):
+            if (i_expo==0) and (not os.path.exists(psf_dir_tmp)):
                 os.mkdir(psf_dir_tmp)
             PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
             psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=32)
@@ -511,7 +511,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
                 if n_files == 32:
                     logger.info(f'chips already exist for rot{gal_rotation_angle:.0f}.')
                 else:
-                    if not os.path.exists(chip_dir_tmp):
+                    if (i_expo==0) and (not os.path.exists(chip_dir_tmp)):
                         os.mkdir(chip_dir_tmp)
 
                     image_tile = galsim.fits.read(outpath_image_name)
@@ -613,7 +613,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
                 if save_image_chips:
                     image_chips = KiDSModule.getKiDSchips_tile(image_tile)
                     chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
-                    if not os.path.exists(chip_dir_tmp):
+                    if (i_expo==0) and (not os.path.exists(chip_dir_tmp)):
                         os.mkdir(chip_dir_tmp)
                     for i_chip, image_chip in enumerate(image_chips):
                         outpath_tmp = os.path.join(chip_dir_tmp, f'expo{i_expo}_chip{i_chip}.fits')
