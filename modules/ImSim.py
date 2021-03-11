@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 20:42:05
+# @Last modified time: 2021-03-11, 21:49:54
 
 ### main module of ImSim
 ###### dependence:
@@ -105,8 +105,6 @@ def _PSFNoisySkyImages_simple(para_list):
         if os.path.isfile(psf_ima_file_tmp):
             logger.info('PSF images already exist.')
         else:
-            if not os.path.exists(psf_dir_tmp):
-                os.mkdir(psf_dir_tmp)
             PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
             psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=32)
             psf_ima.write(psf_ima_file_tmp)
@@ -297,9 +295,6 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                 if n_files == 32:
                     logger.info(f'chips already exist for rot{gal_rotation_angle:.0f} expo{id_exposure}.')
                 else:
-                    if not os.path.exists(chip_dir_tmp):
-                        os.mkdir(chip_dir_tmp)
-
                     image_tile = galsim.fits.read(outpath_image_name)
                     image_chips = KiDSModule.getKiDSchips_tile(image_tile)
 
@@ -405,8 +400,6 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                 if save_image_chips:
                     image_chips = KiDSModule.getKiDSchips_tile(image_tile)
                     chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
-                    if not os.path.exists(chip_dir_tmp):
-                        os.mkdir(chip_dir_tmp)
                     for i_chip, image_chip in enumerate(image_chips):
                         outpath_tmp = os.path.join(chip_dir_tmp, f'expo{id_exposure}_chip{i_chip}.fits')
                         image_chip.write(outpath_tmp)
@@ -492,8 +485,6 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         if os.path.isfile(psf_ima_file_tmp):
             logger.info('PSF image already exist.')
         else:
-            if (i_expo==0) and (not os.path.exists(psf_dir_tmp)):
-                os.mkdir(psf_dir_tmp)
             PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
             psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=32)
             psf_ima.write(psf_ima_file_tmp)
@@ -509,11 +500,8 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
                 chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
                 n_files = len(glob.glob(os.path.join(chip_dir_tmp, f'expo{i_expo}_chip*.fits')))
                 if n_files == 32:
-                    logger.info(f'chips already exist for rot{gal_rotation_angle:.0f}.')
+                    logger.info(f'chips already exist for rot{gal_rotation_angle:.0f} expo{i_expo}.')
                 else:
-                    if (i_expo==0) and (not os.path.exists(chip_dir_tmp)):
-                        os.mkdir(chip_dir_tmp)
-
                     image_tile = galsim.fits.read(outpath_image_name)
                     image_chips = KiDSModule.getKiDSchips_tile(image_tile)
 
@@ -613,8 +601,6 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
                 if save_image_chips:
                     image_chips = KiDSModule.getKiDSchips_tile(image_tile)
                     chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
-                    if (i_expo==0) and (not os.path.exists(chip_dir_tmp)):
-                        os.mkdir(chip_dir_tmp)
                     for i_chip, image_chip in enumerate(image_chips):
                         outpath_tmp = os.path.join(chip_dir_tmp, f'expo{i_expo}_chip{i_chip}.fits')
                         image_chip.write(outpath_tmp)
@@ -858,12 +844,25 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, rng_seed, mag_zero,
             # save image chips or not
             if image_chips is not None:
                 save_image_chips = image_chips[i_band]
+
+                # make a directory if save
+                if save_image_chips:
+                    for gal_rotation_angle in gal_rotation_angles:
+                        chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
+                        if (not os.path.exists(chip_dir_tmp)):
+                            os.mkdir(chip_dir_tmp)
             else:
                 save_image_chips = False
 
             # save single psf image or not
             if image_PSF is not None:
                 save_image_PSF = image_PSF[i_band]
+
+                # make a directory if save
+                if save_image_PSF:
+                    psf_dir_tmp = os.path.join(outpath_dir, f'psf_tile{tile_label}_band{band}')
+                    if (not os.path.exists(psf_dir_tmp)):
+                        os.mkdir(psf_dir_tmp)
             else:
                 save_image_PSF = False
 
