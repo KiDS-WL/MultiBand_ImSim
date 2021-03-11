@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 19:09:38
+# @Last modified time: 2021-03-11, 20:24:14
 
 ### main module to run the whole pipeline
 
@@ -566,6 +566,9 @@ if ('5' in taskIDs) or ('all' in taskIDs):
 if ('6' in taskIDs) or ('all' in taskIDs):
     logger.info('====== Task 6: measure galaxy shapes === started ======')
     start_time = time.time()
+
+    # basic info
+    detection_band = configs_dict['MS']['detection_band']
 
     if configs_dict['MS']['method'].lower() == 'lensfit':
         logger.info('Use lensfit for shape measurement.')
