@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
-# @Last modified by:   ssli
-# @Last modified time: 2021-03-01, 15:50:22
+# @Last modified by:   lshuns
+# @Last modified time: 2021-03-10, 14:49:53
 
 ### Wrapper for lensfit code
 
@@ -56,13 +56,12 @@ def LensfitShape_head(chip_dir, head_dir=None):
                 print(line, file=f)
             f.close()
 
-def LensfitShape(lensfit_dir, python2_env,
+def LensfitShape(lensfit_dir,
                     input_catalog, input_file, chip_dir, psf_dir, head_dir, weight_dir=None,
                     PSF_OVERSAMPLING='1', PECUT='0.02', PRCUT='0.02', LCUT='0.05', WAVEBAND='R', CAMERA='KIDS',
                     postage_size='48', start_exposure='1', end_exposure='5', start_mag='20.0', end_mag='25.0',
                     output_file='output.feather', out_dir='./', tmp_dir='./tmp',
-                    running_log=True, log_dir=None,
-                    clean_up_level=0):
+                    running_log=True, log_dir=None):
     """
         Lensfit wrapper
     """
@@ -143,26 +142,13 @@ def LensfitShape(lensfit_dir, python2_env,
 
     logger.info(f'Lensfit shape info saved as {output_path}')
 
-    # ++++++++++++ 3. correct weights for ellipticity dependence
-    weights_recal_path = lensfit_dir + '/utils/apply2dtheta.py'
-
-    cmd = [python2_env, weights_recal_path, f'--input={output_path}.asc']
-
-    print("########## apply2dtheta info start ##########\n", file=outLog)
-    print("########## apply2dtheta error start ##########\n", file=errLog)
-    proc = subprocess.run(cmd, stdout=outLog, stderr=errLog, cwd=tmp_dir)
-    print("########## apply2dtheta info end ##########\n", file=outLog)
-    print("########## apply2dtheta error end ##########\n", file=errLog)
-
-    logger.info(f'Lensfit reweighting results saved as {output_path}.asc.scheme2b_corr')
-
     # running info
     if running_log:
         outLog.close()
         errLog.close()
 
-    # ++++++++++++ 4. build convenient feather file
-    data = np.loadtxt(f'{output_path}.asc.scheme2b_corr')
+    # ++++++++++++ 3. build convenient feather file
+    data = np.loadtxt(f'{output_path}.asc')
 
     data_out = pd.DataFrame({
         'id_detec': data[:, 28].astype(int),
@@ -170,8 +156,7 @@ def LensfitShape(lensfit_dir, python2_env,
         'e2_LF': data[:, 3].astype(float),
         'SNR_LF': data[:, 10].astype(float),
         'scalelength_LF': data[:, 6].astype(float), # bias-corrected scalelength /pixels
-        'weight_LF': data[:, 4].astype(float),
-        'oldweight_LF': data[:, 29].astype(float),
+        'oldweight_LF': data[:, 4].astype(float),
         'psf_e1_LF': data[:, 12].astype(float),
         'psf_e2_LF': data[:, 13].astype(float),
         'psf_strehl_LF': data[:, 14].astype(float), # <PSF>-Strehl-ratio
@@ -193,10 +178,5 @@ def LensfitShape(lensfit_dir, python2_env,
     data_out.to_feather(output_feather)
 
     logger.info(f'Final catalogue saved as {output_feather}')
-
-    # ++++++++++++ -1. clean up
-    if clean_up_level:
-        logger.info('Clean up tmp directory')
-        shutil.rmtree(tmp_dir)
 
     return 0

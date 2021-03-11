@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   ssli
-# @Last modified time: 2021-03-08, 13:15:02
+# @Last modified time: 2021-03-09, 14:18:52
 
 ### main module to run the whole pipeline
 
@@ -568,6 +568,7 @@ if ('6' in taskIDs) or ('all' in taskIDs):
 
     if configs_dict['MS']['method'].lower() == 'lensfit':
         logger.info('Use lensfit for shape measurement.')
+        logger.info('   NOTE: the original lensfit weights need to be globally recalibrated.')
 
         ## I/O
         in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
@@ -663,7 +664,7 @@ if ('6' in taskIDs) or ('all' in taskIDs):
 
                     # run
                     proc = work_pool.apply_async(func=LensFit.LensfitShape,
-                                args=(configs_dict['MS']['lensfit_dir'], configs_dict['MS']['python2_cmd'],
+                                args=(configs_dict['MS']['lensfit_dir'],
                                         input_catalog_tmp, input_file_lensfit, chip_dir, psf_dir, head_dir, weight_dir,
                                         configs_dict['MS']['PSF_OVERSAMPLING'],
                                         configs_dict['MS']['PECUT'], configs_dict['MS']['PRCUT'], configs_dict['MS']['LCUT'],
@@ -672,8 +673,7 @@ if ('6' in taskIDs) or ('all' in taskIDs):
                                         configs_dict['MS']['start_exposure'], configs_dict['MS']['end_exposure'],
                                         configs_dict['MS']['start_mag'], configs_dict['MS']['end_mag'],
                                         output_file, out_dir_tmp, tmp_dir_tmp_tmp,
-                                        running_log, log_dir_tmp,
-                                        configs_dict['MS']['clean_up_level']))
+                                        running_log, log_dir_tmp))
                     proc_list.append(proc)
 
         work_pool.close()
