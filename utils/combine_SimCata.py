@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-03-03, 18:21:04
 # @Last modified by:   ssli
-# @Last modified time: 2021-03-05, 16:09:16
+# @Last modified time: 2021-03-13, 16:06:54
 
 ### a simple script to combine catalogues produced by the main pipeline
 ###     it can be used to combine catalogues from different running_tags
@@ -17,6 +17,7 @@
 import os
 import re
 import glob
+import argparse
 
 import numpy as np
 import pandas as pd
@@ -24,50 +25,51 @@ import pandas as pd
 from astropy.io import fits
 from astropy.table import Table
 
-# +++++++++++++++++++++++++++++ the only variables you want to modify
-# where to save the final catalogue
-### supported formats: fits, csv, feather
-###             guess from the file suffix
-out_path = '/disks/shear15/ssli/ImSim/output/test_surfs_onePFSmean_combined.fits'
+# +++++++++++++++++++++++++++++ parser for command-line interfaces
+parser = argparse.ArgumentParser(
+    description=f"combine_SimCata.py: combine catalogues from different cosmic shear realization.",
+    formatter_class=argparse.RawTextHelpFormatter)
+parser.add_argument(
+    "--main_dir", type=str,
+### NOTE: different sub-directories have identical galaxies&noise but different shear inputs
+    help="the top directory containing all simulation outputs.")
+parser.add_argument(
+    "--final_format", type=str, choices=['fits', 'feather', 'csv'], default='fits',
+    help="file format of the final catalogue. Supported formats: fits, feather, csv")
+parser.add_argument(
+    "--photoz_tag", type=str, default=None,
+    help="The tag name of which contains photoz info. \n\
+    Not mandatory. \n\
+    If not provided, no assignment of photoz will be performed.")
 
-# where to find the input catalogues
-in_dir = '/disks/shear15/ssli/ImSim/output/'
+## arg parser
+args = parser.parse_args()
+main_dir = args.main_dir
+final_format = args.final_format
+photoz_tag = args.photoz_tag
 
-# a list of running tags being combined
-run_tag_list = ['test_surfs_onePFSmean', 'test_surfs_onePFSmean1', 'test_surfs_onePFSmean2', 'test_surfs_onePFSmean3',
-                    'test_surfs_onePFSmean4', 'test_surfs_onePFSmean5', 'test_surfs_onePFSmean6', 'test_surfs_onePFSmean7']
-
-# assign photo-z ?
-### NOTE: if that is set to True, the first run_tag should contain the photo-z info
-assign_photoz = True
-
-# apply selections ?
-### supported choices: none (without selection), KiDS-lensfit (KiDS-lensfit-like selection)
-### it produce a MASK_gold column with 0 for selected sample
-mask_gold = 'KiDS-lensfit'
-
+# +++++++++++++++++++++++++++++ the only variables you may want to modify
 # desired columns
 ###  its too large and unnecessary to preserve all the columns
 ###  'id_input' is the reference, therefore, should always be provided
-cols_final = ['NUMBER', 'X_WORLD', 'Y_WORLD', 'MAG_AUTO', 'perfect_flag_star', 'id_input', 'Z_B',
-                'e1_LF_r', 'e2_LF_r', 'SNR_LF_r', 'scalelength_LF_r', 'weight_LF_r', 'psf_Q11_LF_r', 'psf_Q22_LF_r', 'psf_Q12_LF_r', 'class_LF_r', 'contamination_radius_LF_r']
-
+cols_final = ['NUMBER', 'X_WORLD', 'Y_WORLD', 'MAG_AUTO', 'FLUX_RADIUS', 'perfect_flag_star', 'id_input', 'Z_B', 'mask_meas_9bands',
+                'e1_LF_r', 'e2_LF_r', 'SNR_LF_r', 'scalelength_LF_r', 'weight_global_LF_r', 'psf_Q11_LF_r', 'psf_Q22_LF_r', 'psf_Q12_LF_r', 'class_LF_r', 'contamination_radius_LF_r']
 
 # +++++++++++++++++++++++++++++ workhorse
 
 # === assign photoz
 ### should match catalogue in tile level
-if assign_photoz:
+if photoz_tag is not None:
     print('Assign photoz to catalogues')
+    print(f'     Use photoz from {photoz_tag}')
     print('     NOTE: catalogues from different run_tag should have same input galaxies and same rotations and same noise')
     print('             the only difference is the shear input')
 
-    # the fist tag is the reference with photoz
-    run_tag0 = run_tag_list[0]
-    file_list = glob.glob(os.path.join(in_dir, run_tag0, 'catalogues', '*_combined.*'))
+    # the tag with photoz is the reference
+    file_list = glob.glob(os.path.join(main_dir, photoz_tag, 'catalogues', '*_combined.*'))
     if not file_list:
-        raise Exception('Cannot find any catalogues from the main pipeline!\n\
-        make sure the main pipeline ended properly to the end (taskID=7 is required)!')
+        raise Exception(f'Cannot find any combined catalogues in tag {photoz_tag}!\n\
+        make sure taskID=7 is performed in the main pipeline!')
     # get rotations
     rotations = np.unique([re.search(r'_rot(\d+)', file).group(1) for file in file_list])
     # get tiles (noise realization)
@@ -75,13 +77,18 @@ if assign_photoz:
     print(f'Number of files in each run_tag: {len(file_list)} (={len(tiles)} tiles * {len(rotations)} rotations)' )
 
     # loop over all tags
+    subdirs = [x for x in glob.glob(os.path.join(main_dir, '*')) if (os.path.isdir(x) and os.path.basename(x)!=photoz_tag)]
+    subdirs = [os.path.join(main_dir, photoz_tag)] + subdirs
+    print('Number of subdirs:', len(subdirs))
+    print('     NOTE: this should match with the number of input shear realizations.')
     cata_final = []
-    for run_tag in run_tag_list:
+    for subdir in subdirs:
+
+        run_tag = os.path.basename(subdir)
 
         # basic info for input shear values
-        opened_file = open(os.path.join(in_dir, run_tag, 'basic_info.txt'), 'r')
-        all_lines = opened_file.readlines()
-        opened_file.close()
+        with open(os.path.join(subdir, 'basic_info.txt'), 'r') as opened_file:
+            all_lines = opened_file.readlines()
         useful_line = [line for line in all_lines if 'g_cosmic' in line][0]
         try:
             g1 = float(useful_line.split()[2])
@@ -91,12 +98,12 @@ if assign_photoz:
 
         # main catalogues within the tag
         if not 'cata_z_tag' in locals():
-            cata_z_tag = [] # to save z info, not used if assign_photoz=False
+            cata_z_tag = [] # to save z info
         i_file = 0
         for tile in tiles:
             for rot in rotations:
 
-                file = glob.glob(os.path.join(in_dir, run_tag, 'catalogues', f'tile{tile}_rot{rot}_combined.*'))[0]
+                file = glob.glob(os.path.join(subdir, 'catalogues', f'tile{tile}_rot{rot}_combined.*'))[0]
 
                 # load catalogue
                 file_type = file[-3:]
@@ -113,6 +120,7 @@ if assign_photoz:
                     cata = cata[cols_final]
                 except KeyError:
                     cols_final.remove('Z_B')
+                    cols_final.remove('mask_meas_9bands')
                     cata = cata[cols_final]
 
                 # discard false-detections
@@ -127,8 +135,8 @@ if assign_photoz:
                 cata.set_index('id_input', inplace=True)
 
                 # assign photoz
-                if run_tag == run_tag0:
-                    cata_withz = cata[['Z_B']]
+                if run_tag == photoz_tag:
+                    cata_withz = cata[['Z_B', 'mask_meas_9bands']]
                     cata_z_tag.append(cata_withz)
                 else:
                     cata = cata.join(cata_z_tag[i_file], how='left')
@@ -143,14 +151,17 @@ if assign_photoz:
 
 else:
     print('easy combine without assigning photoz')
-    # easy combine without assign photoz
+    subdirs = [x for x in glob.glob(os.path.join(main_dir, '*')) if os.path.isdir(x)]
+    print('Number of subdirs:', len(subdirs))
+    print('     NOTE: this should match with the number of input shear realizations.')
     cata_final = []
-    for run_tag in run_tag_list:
+    for subdir in subdirs:
+
+        run_tag = os.path.basename(subdir)
 
         # basic info for input shear values
-        opened_file = open(os.path.join(in_dir, run_tag, 'basic_info.txt'), 'r')
-        all_lines = opened_file.readlines()
-        opened_file.close()
+        with open(os.path.join(subdir, 'basic_info.txt'), 'r') as opened_file:
+            all_lines = opened_file.readlines()
         useful_line = [line for line in all_lines if 'g_cosmic' in line][0]
         try:
             g1 = float(useful_line.split()[2])
@@ -159,10 +170,10 @@ else:
         g2 = float(useful_line.split()[3])
 
         # main catalogues from simulation
-        file_list = glob.glob(os.path.join(in_dir, run_tag, 'catalogues', '*_combined.*'))
+        file_list = glob.glob(os.path.join(subdir, 'catalogues', '*_combined.*'))
         if not file_list:
-            raise Exception('Cannot find any catalogues from the main pipeline!\n\
-            make sure the main pipeline ended properly to the end (taskID=7 is required)!')
+            raise Exception(f'Cannot find any combined catalogues in tag {run_tag}!\n\
+            make sure taskID=7 is performed in the main pipeline!')
         print(f'Number of files in {run_tag}: {len(file_list)}' )
         for file in file_list:
             file_type = file[-3:]
@@ -191,42 +202,19 @@ else:
     cata_final = pd.concat(cata_final)
     print(f'Total number of source {len(cata_final)}')
 
-# apply selections
-if mask_gold == 'none':
-    pass
-elif mask_gold == 'KiDS-lensfit':
-
-    ## mask
-    mask_gal = (cata_final['perfect_flag_star']==0)
-    # lensfit cuts with 0 means no issue and -9 means large galaxies
-    fitcuts = ((cata_final['class_LF_r']==0) | (cata_final['class_LF_r']==-9))
-    # remove invalid measurements
-    weight_cuts = (cata_final['weight_LF_r']>0)
-    # remove potentially blended sources
-    blend_cuts = (cata_final['contamination_radius_LF_r']>4.25)
-    # remove unresolved binary stars
-    binary_star_cuts = ((np.hypot(cata_final['e1_LF_r'], cata_final['e2_LF_r'])<=0.8) | (cata_final['scalelength_LF_r']>=0.5*np.exp(0.65788*(24.2-cata_final['MAG_AUTO']))))
-
-    # apply
-    cata_final.loc[(mask_gal & fitcuts & weight_cuts & blend_cuts & binary_star_cuts), 'MASK_gold'] = 0
-    print(f'Number after lensfit selection {np.sum(mask_gal & fitcuts & weight_cuts & blend_cuts & binary_star_cuts)}')
-else:
-    raise Exception(f'Unsupported mask_gold type! {mask_gold}')
-
 cata_final.reset_index(drop=False, inplace=True)
 # dummy values for nan
 cata_final.fillna(-999, inplace=True)
-cata_final = cata_final.astype({'MASK_gold': int})
 
 # save
-file_type = out_path[-3:]
-if file_type == 'her':
+out_path = os.path.join(main_dir, f'final_combined.{final_format}')
+if final_format == 'feather':
     cata_final.to_feather(out_path)
-elif file_type == 'csv':
+elif final_format == 'csv':
     cata_final.to_csv(out_path, index=False)
-elif file_type == 'its':
+elif final_format == 'fits':
     Table.from_pandas(cata_final).write(out_path, format='fits')
 else:
-    raise Exception(f'Not supported output file type! {out_path}')
+    raise Exception(f'Not supported output file type! {final_format}')
 
 print(f'Combined catalogue saved as {out_path}')

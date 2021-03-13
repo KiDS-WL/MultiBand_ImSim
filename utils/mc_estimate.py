@@ -1,9 +1,11 @@
 # @Author: lshuns
 # @Date:   2021-03-03, 18:19:42
 # @Last modified by:   ssli
-# @Last modified time: 2021-03-08, 15:17:37
+# @Last modified time: 2021-03-13, 16:38:14
 
-### an example to calculate the mc shear bias from simulated catalogues
+### a script to calculate the mc shear bias from combined simulated catalogues
+
+import argparse
 
 import numpy as np
 import pandas as pd
@@ -17,42 +19,48 @@ import sys
 sys.path.insert(0,os.path.realpath('../'))
 from modules import ShearBias
 
-# +++++++++++++++++++++++++++++ the only variables you want to modify
+# +++++++++++++++++++++++++++++ parser for command-line interfaces
+parser = argparse.ArgumentParser(
+    description=f"mc_estimate.py: estimate mc shear bias from simulated catalogue.",
+    formatter_class=argparse.RawTextHelpFormatter)
+parser.add_argument(
+    "--in_file_sim", type=str,
+    help="the input simulation catalogue.\n\
+    supported formats: fits, csv, feather\n\
+        guess from the file suffix")
+parser.add_argument(
+    "--in_file_obs", type=str, default=None,
+    help="the input observation catalogue.\n\
+        If not set, data-reweighting will not be performed.\n\
+        If provided, make sure galaxies have already been selected.")
+parser.add_argument(
+    "--out_path", type=str, default='show',
+    help="where to save the final results. \n\
+    If not provided, results will be shown on the screen.")
+parser.add_argument(
+    "--use_tomographic", action="store_true",
+    help="calculate shear bias tomographically")
 
-# ============  general
+## arg parser
+args = parser.parse_args()
+in_file_sim = args.in_file_sim
+in_file_obs = args.in_file_obs
+out_path = args.out_path
+use_tomographic = args.use_tomographic
+
+# +++++++++++++++++++++++++++++ the only variables may you want to modify
+
 # Bootstrap for errors
 ## set nboot=0, if that is not needed
 nboot = 50
 rng_seed_boot = 201294
 
-# outpath
-## set to 'show', if you only want to see the results on the screen
-## otherwise, some file names for the txt output
-out_path = 'show'
-# out_path = './test/surfs_1psfdiff.txt'
-
-# ============ simulation catalogue info
-# the input simulation catalogue
-### supported formats: fits, csv, feather
-###             guess from the file suffix
-# in_file_sim = '/disks/shear15/ssli/ImSim/output/test_surfs_onePFSdiff_combined.fits'
-in_file_sim = '/disks/shear15/ssli/ImSim/output/test_cosmos_onePFS_combined.feather'
-
-# the name of the mask column
-### 0 for good
-### comment it out, if mask is not required
-col_mask = 'MASK_gold'
-
-# column name for redshift bins
-### comment it out, if tomographic binnning is not required
-### the output zbin_id specify bins with 0 corresponding to all samples
-# col_z_sim = 'Z_B'
-
 # tomographic bin edges
 ### following KiDS fashion: (low, high]
-### not used, if col_z is not set
+### not used, if use_tomographic is not set
 z_bin_edges = [0.1, 0.3, 0.5, 0.7, 0.9, 1.2]
 
+# ============ simulation catalogue info
 # column names for the desired parameters
 ### order: input shear (g1_in, g2_in),
 ###         measured e (e1_out, e2_out), measured shape (size_out),
@@ -63,16 +71,16 @@ cols_sim = ['g1_in', 'g2_in',
             'SNR_LF_r', 'weight_global_LF_r',
             'psf_Q11_LF_r', 'psf_Q22_LF_r', 'psf_Q12_LF_r']
 
+# column name for redshift bins
+## the output zbin_id specify bins with 0 corresponding to all samples
+### not used, if use_tomographic is not set
+col_z_sim = 'Z_B'
+
 # use PSF moments or PSF size ?
 # psf_sizeORmoments_sim = 'size'
 psf_sizeORmoments_sim = 'moments'
 
 # ============ observation catalogue info
-# the input observation catalogue
-### comment it out, if reweighting is not required
-### if provided, make sure galaxies have been selected
-in_file_obs = '/disks/shear15/ssli/KV450/combined/KV450_reweight_3x4x4_v2_good_combined_selected.feather'
-
 # column names for the desired parameters
 ### order: measured e (e1, e2), measured shape (size),
 ###         SNR for shape measurement (shape_snr), weights for shape measurement (shape_weight)
@@ -82,8 +90,8 @@ cols_obs = ['bias_corrected_e1', 'bias_corrected_e2', 'bias_corrected_scalelengt
             'PSF_Q11', 'PSF_Q22', 'PSF_Q12']
 
 # column name for redshift bins
-### comment it out, if tomographic binnning is not required
 ### the output zbin_id specify bins with 0 corresponding to all samples
+### not used, if use_tomographic is not set
 col_z_obs = 'Z_B'
 
 # use PSF moments or PSF size ?
@@ -105,12 +113,25 @@ else:
     raise Exception(f'Not supported input file type! {in_file_sim}')
 print('Number of sources in simulated catalogue', len(cata_sim))
 # selection
-if 'col_mask' in locals():
-    cata_sim = cata_sim[cata_sim[col_mask]==0]
-    cata_sim.reset_index(drop=True, inplace=True)
-    print('Number of selected sources in simulated catalogue', len(cata_sim))
+# lensfit cuts with 0 means no issue and -9 means large galaxies
+fitcuts = ((cata_sim['class_LF_r']==0) | (cata_sim['class_LF_r']==-9))
+# # remove invalid measurements
+weight_cuts = (cata_sim['weight_global_LF_r']>0)
+# remove too good sources
+# snr_cuts = (cata_sim['SNR_LF_r']<210)
+# remove potentially blended sources
+blend_cuts = (cata_sim['contamination_radius_LF_r']>4.25)
+# remove unresolved binary stars
+binary_star_cuts = ((np.hypot(cata_sim['e1_LF_r'], cata_sim['e2_LF_r'])<=0.8) | (cata_sim['scalelength_LF_r']>=0.5*np.exp(0.65788*(24.2-cata_sim['MAG_AUTO']))))
+# remove stars
+star_cuts = (cata_sim['perfect_flag_star']==0)
+# cata_sim = cata_sim[fitcuts & weight_cuts & snr_cuts & blend_cuts & binary_star_cuts & star_cuts]
+cata_sim = cata_sim[fitcuts & weight_cuts & blend_cuts & binary_star_cuts & star_cuts]
+cata_sim.reset_index(drop=True, inplace=True)
+print('Number of selected sources in simulated catalogue', len(cata_sim))
+
 # extract useable parameters
-if 'col_z_sim' in locals():
+if use_tomographic:
     cata_sim = cata_sim[cols_sim+[col_z_sim]]
 else:
     cata_sim = cata_sim[cols_sim]
@@ -135,7 +156,7 @@ else:
     f = open(out_path, 'w')
 
 # simple without data re-weighting
-if not 'in_file_obs' in locals():
+if in_file_obs is None:
     print('Shear bias estimation without data re-weighting')
 
     # whole sample
@@ -152,14 +173,14 @@ if not 'in_file_obs' in locals():
     print(vals, file=f)
 
     # print out mean values
-    m=(res['m1']+res['m2'])/2.
+    m = (res['m1']+res['m2'])/2.
     merr = (res['m1_err'] + res['m2_err'])/2.
     merror_low = (res['m1_err_BS_16'] + res['m2_err_BS_16'])/2.
     merror_high = (res['m1_err_BS_84'] + res['m2_err_BS_84'])/2.
     print(f'### whole: m = {m:.4f}, merr = {merr:.4f}, merr_BS_16 = {merror_low:.4f}, merr_BS_84 = {merror_high:.4f}')
 
     # tomographic binning
-    if 'col_z_sim' in locals():
+    if use_tomographic:
         N_zbins = len(z_bin_edges)-1
         print(f'Use {N_zbins} tomographic bins')
         for i_zbin in range(N_zbins):
@@ -175,15 +196,19 @@ if not 'in_file_obs' in locals():
             vals = '    '.join(["{0:0.4f}".format(val) for val in res.values()]) + f'    {i_zbin+1}'
             print(vals, file=f)
 
+            # print out source number info
+            print(f'### bin {i_zbin+1}: N = {len(cata_sim_selec)}, frac = {len(cata_sim_selec)/len(cata_sim)}')
+
             # print out mean values
-            m=(res['m1']+res['m2'])/2.
+            m = (res['m1']+res['m2'])/2.
             merr = (res['m1_err'] + res['m2_err'])/2.
             merror_low = (res['m1_err_BS_16'] + res['m2_err_BS_16'])/2.
             merror_high = (res['m1_err_BS_84'] + res['m2_err_BS_84'])/2.
-            print(f'### bin {i_zbin+1}: m = {m:.4f}, merr = {merr:.4f}, merr_BS_16 = {merror_low:.4f}, merr_BS_84 = {merror_high:.4f}')
+            print(f'### m = {m:.4f}, merr = {merr:.4f}, merr_BS_16 = {merror_low:.4f}, merr_BS_84 = {merror_high:.4f}')
 
     # close what is opened
     if out_path != 'show':
+        print(f'results saved to {out_path}')
         f.close()
     sys.exit()
 
@@ -200,7 +225,7 @@ else:
     raise Exception(f'Not supported input file type! {in_file_obs}')
 print('Number of sources in observation catalogue', len(cata_obs))
 # extract useable parameters
-if 'col_z_obs' in locals():
+if use_tomographic:
     cata_obs = cata_obs[cols_obs+[col_z_obs]]
 else:
     cata_obs = cata_obs[cols_obs]
@@ -234,14 +259,14 @@ vals = '    '.join(["{0:0.4f}".format(val) for val in res.values()]) + '    0'
 print(vals, file=f)
 
 # print out mean values
-m=(res['m1']+res['m2'])/2.
+m = (res['m1']+res['m2'])/2.
 merr = (res['m1_err'] + res['m2_err'])/2.
 merror_low = (res['m1_err_BS_16'] + res['m2_err_BS_16'])/2.
 merror_high = (res['m1_err_BS_84'] + res['m2_err_BS_84'])/2.
 print(f'### whole: m = {m:.4f}, merr = {merr:.4f}, merr_BS_16 = {merror_low:.4f}, merr_BS_84 = {merror_high:.4f}')
 
 # tomographic binning
-if 'col_z_sim' in locals():
+if use_tomographic:
     N_zbins = len(z_bin_edges)-1
     print(f'Use {N_zbins} tomographic bins')
     for i_zbin in range(N_zbins):
@@ -261,12 +286,16 @@ if 'col_z_sim' in locals():
         vals = '    '.join(["{0:0.4f}".format(val) for val in res.values()]) + f'    {i_zbin+1}'
         print(vals, file=f)
 
+        # print out source number info
+        print(f'### bin {i_zbin+1}: N_sim = {len(cata_sim_selec)}, frac_sim = {len(cata_sim_selec)/len(cata_sim)}')
+        print(f'                    N_obs = {len(cata_obs_selec)}, frac_obs = {len(cata_obs_selec)/len(cata_obs)}')
+
         # print out mean values
-        m=(res['m1']+res['m2'])/2.
+        m = (res['m1']+res['m2'])/2.
         merr = (res['m1_err'] + res['m2_err'])/2.
         merror_low = (res['m1_err_BS_16'] + res['m2_err_BS_16'])/2.
         merror_high = (res['m1_err_BS_84'] + res['m2_err_BS_84'])/2.
-        print(f'### bin {i_zbin+1}: m = {m:.4f}, merr = {merr:.4f}, merr_BS_16 = {merror_low:.4f}, merr_BS_84 = {merror_high:.4f}')
+        print(f'### m = {m:.4f}, merr = {merr:.4f}, merr_BS_16 = {merror_low:.4f}, merr_BS_84 = {merror_high:.4f}')
 
 # close what is opened
 if out_path != 'show':
