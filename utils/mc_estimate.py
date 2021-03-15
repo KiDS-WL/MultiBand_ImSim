@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-03-03, 18:19:42
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-15, 22:30:20
+# @Last modified time: 2021-03-15, 22:32:20
 
 ### a script to calculate the mc shear bias from combined simulated catalogues
 
@@ -51,6 +51,7 @@ in_file_obs = args.in_file_obs
 out_path = args.out_path
 use_tomographic = args.use_tomographic
 col_z_sim = args.col_z_sim
+print('photoz columns', col_z_sim)
 
 # +++++++++++++++++++++++++++++ the only variables may you want to modify
 
