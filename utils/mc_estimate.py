@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-03-03, 18:19:42
-# @Last modified by:   ssli
-# @Last modified time: 2021-03-13, 16:38:14
+# @Last modified by:   lshuns
+# @Last modified time: 2021-03-15, 22:30:20
 
 ### a script to calculate the mc shear bias from combined simulated catalogues
 
@@ -40,6 +40,9 @@ parser.add_argument(
 parser.add_argument(
     "--use_tomographic", action="store_true",
     help="calculate shear bias tomographically")
+parser.add_argument(
+    "--col_z_sim", type=str, default='Z_B',
+    help="column name of photoz in simulation")
 
 ## arg parser
 args = parser.parse_args()
@@ -47,6 +50,7 @@ in_file_sim = args.in_file_sim
 in_file_obs = args.in_file_obs
 out_path = args.out_path
 use_tomographic = args.use_tomographic
+col_z_sim = args.col_z_sim
 
 # +++++++++++++++++++++++++++++ the only variables may you want to modify
 
@@ -70,11 +74,6 @@ cols_sim = ['g1_in', 'g2_in',
             'e1_LF_r', 'e2_LF_r', 'scalelength_LF_r',
             'SNR_LF_r', 'weight_global_LF_r',
             'psf_Q11_LF_r', 'psf_Q22_LF_r', 'psf_Q12_LF_r']
-
-# column name for redshift bins
-## the output zbin_id specify bins with 0 corresponding to all samples
-### not used, if use_tomographic is not set
-col_z_sim = 'Z_B'
 
 # use PSF moments or PSF size ?
 # psf_sizeORmoments_sim = 'size'

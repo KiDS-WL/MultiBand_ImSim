@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-03-03, 18:21:04
 # @Last modified by:   ssli
-# @Last modified time: 2021-03-13, 16:06:54
+# @Last modified time: 2021-03-15, 17:21:57
 
 ### a simple script to combine catalogues produced by the main pipeline
 ###     it can be used to combine catalogues from different running_tags
@@ -53,7 +53,7 @@ photoz_tag = args.photoz_tag
 ###  its too large and unnecessary to preserve all the columns
 ###  'id_input' is the reference, therefore, should always be provided
 cols_final = ['NUMBER', 'X_WORLD', 'Y_WORLD', 'MAG_AUTO', 'FLUX_RADIUS', 'perfect_flag_star', 'id_input', 'Z_B', 'mask_meas_9bands',
-                'e1_LF_r', 'e2_LF_r', 'SNR_LF_r', 'scalelength_LF_r', 'weight_global_LF_r', 'psf_Q11_LF_r', 'psf_Q22_LF_r', 'psf_Q12_LF_r', 'class_LF_r', 'contamination_radius_LF_r']
+                'e1_LF_r', 'e2_LF_r', 'SNR_LF_r', 'scalelength_LF_r', 'oldweight_LF_r', 'weight_global_LF_r', 'psf_Q11_LF_r', 'psf_Q22_LF_r', 'psf_Q12_LF_r', 'class_LF_r', 'contamination_radius_LF_r']
 
 # +++++++++++++++++++++++++++++ workhorse
 
