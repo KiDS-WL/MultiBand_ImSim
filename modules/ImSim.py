@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
-# @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 21:49:54
+# @Last modified by:   ssli
+# @Last modified time: 2021-03-16, 15:55:19
 
 ### main module of ImSim
 ###### dependence:
@@ -760,7 +760,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, rng_seed, mag_zero,
             gals_info_selec.loc[:, 'DEC'] = Y_gals
 
         ## output info
-        output_col_tmp = ['index', 'RA', 'DEC'] + bands
+        output_col_tmp = ['index', 'RA', 'DEC', 'position_angles'] + bands
         output_tmp = gals_info_selec[output_col_tmp]
         outpath_tmp = os.path.join(outpath_dir, f'gals_info_tile{tile_label}.feather')
         output_tmp.to_feather(outpath_tmp)
