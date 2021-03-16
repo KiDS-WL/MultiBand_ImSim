@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-08-17 14:26:07
-# @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 22:40:13
+# @Last modified by:   ssli
+# @Last modified time: 2021-03-16, 17:41:01
 
 ### Wrapper for astromatic codes
 
@@ -173,7 +173,8 @@ def SExtractorCatalogue(ImageFile1, CatalogueFile, pixel_scale, SeeingFWHM=1.0,
         logger.info('Running SEXtractor in dual mode...')
 
     if (WeightFile is not None):
-        cmd.extend(['-WEIGHT_IMAGE', WeightFile])
+        cmd.extend(['-WEIGHT_IMAGE', WeightFile, '-WEIGHT_TYPE', 'MAP_WEIGHT'])
+        logger.info(f'Use MAP_WEIGHT')
     logger.info(f'Config file {ConfigFile}')
 
     # run
