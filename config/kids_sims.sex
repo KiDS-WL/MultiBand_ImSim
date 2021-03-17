@@ -10,7 +10,7 @@ PARAMETERS_NAME /specified/in/each/run  # name of the file containing catalog co
 
 #------------------------------- Extraction ----------------------------------
 DETECT_TYPE     CCD                     # "CCD" or "PHOTO" (*)
-DETECT_MINAREA  3                       # minimum number of pixels above threshold
+DETECT_MINAREA  4                       # minimum number of pixels above threshold
 DETECT_THRESH   1.5                     # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
 ANALYSIS_THRESH 1.5                     # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
 
@@ -18,43 +18,37 @@ FILTER          Y                       # apply filter for detection ("Y" or "N"
 FILTER_NAME     /specified/in/each/run  # name of the file containing the filter
 
 DEBLEND_NTHRESH 32                      # Number of deblending sub-thresholds
-DEBLEND_MINCONT 0.002                   # Minimum contrast parameter for deblending
+DEBLEND_MINCONT 0.001                   # Minimum contrast parameter for deblending
 
 CLEAN           Y                       # Clean spurious detections? (Y or N)?
-CLEAN_PARAM     1.0                     # Cleaning efficiency
+CLEAN_PARAM     3.0                     # Cleaning efficiency
 
 MASK_TYPE       CORRECT                 # type of detection MASKing: can be one of "NONE", "BLANK" or "CORRECT"
 
 #------------------------------ Photometry -----------------------------------
-#PHOT_APERTURES  2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.5, 30.0, 32.0, 34.0, 36.0, 38.0, 40.0, 42.0, 44.0, 46.0, 48.0, 50.0, 100.0, 200.0
-                                        # MAG_APER aperture diameter(s) in pixels
-PHOT_APERTURES  10.0
-PHOT_AUTOAPERS  0.0, 0.0
-PHOT_AUTOPARAMS 2.5, 3.5                # MAG_AUTO parameters: <Kron_fact>,<min_radius>
-
-SATUR_LEVEL     3.469705445e4           # level (in ADUs) at which arises saturation
+PHOT_APERTURES		6.5			# MAG_APER aperture diameter(s) in pixels
+PHOT_AUTOPARAMS		2.5, 3.5	# MAG_AUTO parameters: <Kron_fact>,<min_radius>
+SATUR_LEVEL     50000.0                 # level (in ADUs) at which arises saturation
 MAG_ZEROPOINT   /specified/in/each/run  # magnitude zero-point
 MAG_GAMMA       4.0                     # gamma of emulsion (for photographic scans)
-GAIN            1e+20                   # The huge GAIN value is intended to fool SExtractor.
-PIXEL_SCALE     /specified/in/each/run  # size of pixel in arcsec
+GAIN			0.0				# detector gain in e-/ADU.
+PIXEL_SCALE     0.214           # size of pixel in arcsec
 
 #------------------------- Star/Galaxy Separation ----------------------------
 SEEING_FWHM     /specified/in/each/run  # stellar FWHM in arcsec
 STARNNW_NAME    /specified/in/each/run  # Neural-Network_Weight table filename
 
 #------------------------------ Background -----------------------------------
-BACK_SIZE       256                     # Background mesh: <size> or <width>,<height>
+BACK_SIZE       64                     # Background mesh: <size> or <width>,<height>
 BACK_FILTERSIZE 3                       # Background filter: <size> or <width>,<height>
-BACKPHOTO_TYPE  LOCAL                   # can be "GLOBAL" or "LOCAL" (*)
+BACKPHOTO_TYPE  GLOBAL                   # can be "GLOBAL" or "LOCAL" (*)
 BACKPHOTO_THICK 24                      # thickness of the background LOCAL annulus (*)
-BACK_TYPE  MANUAL
-BACK_VALUE  0.0, 0.0
 
 #------------------------------- Weighting -----------------------------------
-WEIGHT_TYPE     BACKGROUND      # the science image itself is used to compute internally a variance map
+WEIGHT_TYPE     NONE
 
 #------------------------------ Check Image ----------------------------------
-CHECKIMAGE_TYPE "NONE"                  # can be one of "NONE", "BACKGROUND",
+CHECKIMAGE_TYPE  NONE                  # can be one of "NONE", "BACKGROUND",
                                         # "MINIBACKGROUND", "-BACKGROUND", "OBJECTS",
                                         # "-OBJECTS", "SEGMENTATION", "APERTURES",
                                         # or "FILTERED" (*)
@@ -63,8 +57,7 @@ CHECKIMAGE_NAME check.fits              # Filename for the check-image (*)
 #--------------------- Memory (change with caution!) -------------------------
 MEMORY_OBJSTACK 20000                   # number of objects in stack
 MEMORY_PIXSTACK 10000000                # number of pixels in stack
-MEMORY_BUFSIZE  1024                    # number of lines in buffer
+MEMORY_BUFSIZE  20048                    # number of lines in buffer
 
 #----------------------------- Miscellaneous ---------------------------------
 VERBOSE_TYPE    NORMAL                  # can be "QUIET", "NORMAL" or "FULL" (*)
-THRESH_TYPE  RELATIVE
