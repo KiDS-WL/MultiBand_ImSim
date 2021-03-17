@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-03-03, 18:21:04
-# @Last modified by:   ssli
-# @Last modified time: 2021-03-15, 17:21:57
+# @Last modified by:   lshuns
+# @Last modified time: 2021-03-17, 22:30:01
 
 ### a simple script to combine catalogues produced by the main pipeline
 ###     it can be used to combine catalogues from different running_tags
@@ -34,8 +34,9 @@ parser.add_argument(
 ### NOTE: different sub-directories have identical galaxies&noise but different shear inputs
     help="the top directory containing all simulation outputs.")
 parser.add_argument(
-    "--final_format", type=str, choices=['fits', 'feather', 'csv'], default='fits',
-    help="file format of the final catalogue. Supported formats: fits, feather, csv")
+    "--out_path", type=str, default='final_combined.fits',
+    help="The out path for the combined file. \n\
+    File format inferred from the suffix. Supported formats: fits, feather, csv")
 parser.add_argument(
     "--photoz_tag", type=str, default=None,
     help="The tag name of which contains photoz info. \n\
@@ -45,7 +46,7 @@ parser.add_argument(
 ## arg parser
 args = parser.parse_args()
 main_dir = args.main_dir
-final_format = args.final_format
+out_path = args.out_path
 photoz_tag = args.photoz_tag
 
 # +++++++++++++++++++++++++++++ the only variables you may want to modify
@@ -207,14 +208,15 @@ cata_final.reset_index(drop=False, inplace=True)
 cata_final.fillna(-999, inplace=True)
 
 # save
-out_path = os.path.join(main_dir, f'final_combined.{final_format}')
-if final_format == 'feather':
+out_path = os.path.join(main_dir, out_path)
+
+if out_path[-3:] == 'her':
     cata_final.to_feather(out_path)
-elif final_format == 'csv':
+elif out_path[-3:] == 'csv':
     cata_final.to_csv(out_path, index=False)
-elif final_format == 'fits':
+elif out_path[-3:] == 'its':
     Table.from_pandas(cata_final).write(out_path, format='fits')
 else:
-    raise Exception(f'Not supported output file type! {final_format}')
+    raise Exception(f'Not supported output file type! {out_path}')
 
 print(f'Combined catalogue saved as {out_path}')
