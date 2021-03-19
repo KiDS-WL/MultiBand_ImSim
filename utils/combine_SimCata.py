@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-03-03, 18:21:04
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-17, 22:30:01
+# @Last modified time: 2021-03-17, 22:53:24
 
 ### a simple script to combine catalogues produced by the main pipeline
 ###     it can be used to combine catalogues from different running_tags
@@ -42,18 +42,23 @@ parser.add_argument(
     help="The tag name of which contains photoz info. \n\
     Not mandatory. \n\
     If not provided, no assignment of photoz will be performed.")
+parser.add_argument(
+    "--save_all_cols", action="store_true",
+    help="preserve all the columns.")
 
 ## arg parser
 args = parser.parse_args()
 main_dir = args.main_dir
 out_path = args.out_path
 photoz_tag = args.photoz_tag
+save_all_cols = args.save_all_cols
 
 # +++++++++++++++++++++++++++++ the only variables you may want to modify
 # desired columns
 ###  its too large and unnecessary to preserve all the columns
 ###  'id_input' is the reference, therefore, should always be provided
-cols_final = ['NUMBER', 'X_WORLD', 'Y_WORLD', 'MAG_AUTO', 'FLUX_RADIUS', 'perfect_flag_star', 'id_input', 'Z_B', 'mask_meas_9bands',
+if not save_all_cols:
+    cols_final = ['NUMBER', 'X_WORLD', 'Y_WORLD', 'MAG_AUTO', 'FLUX_RADIUS', 'perfect_flag_star', 'id_input', 'Z_B', 'mask_meas_9bands',
                 'e1_LF_r', 'e2_LF_r', 'SNR_LF_r', 'scalelength_LF_r', 'oldweight_LF_r', 'weight_global_LF_r', 'psf_Q11_LF_r', 'psf_Q22_LF_r', 'psf_Q12_LF_r', 'class_LF_r', 'contamination_radius_LF_r']
 
 # +++++++++++++++++++++++++++++ workhorse
@@ -117,12 +122,13 @@ if photoz_tag is not None:
                         cata = Table(hdul[1].data).to_pandas()
                 else:
                     raise Exception(f'Not supported input file type! {file}')
-                try:
-                    cata = cata[cols_final]
-                except KeyError:
-                    cols_final.remove('Z_B')
-                    cols_final.remove('mask_meas_9bands')
-                    cata = cata[cols_final]
+                if 'cols_final' in locals():
+                    try:
+                        cata = cata[cols_final]
+                    except KeyError:
+                        cols_final.remove('Z_B')
+                        cols_final.remove('mask_meas_9bands')
+                        cata = cata[cols_final]
 
                 # discard false-detections
                 mask_true = (cata['id_input']>-999)
@@ -188,7 +194,8 @@ else:
             else:
                 raise Exception(f'Not supported input file type! {file}')
 
-            cata = cata[cols_final]
+            if 'cols_final' in locals():
+                cata = cata[cols_final]
 
             # assign cosmic shear
             cata.loc[:, 'g1_in'] = g1
