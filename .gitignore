@@ -21,6 +21,8 @@ develop/
 original/
 trivial/
 plot/
+plots/
+diagnostic/
 .ipynb_checkpoints/
 
 .DS_Store
