@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
-# @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 23:40:18
+# @Last modified by:   ssli
+# @Last modified time: 2021-03-21, 11:41:47
 
 ### Wrapper for lensfit code
 
@@ -97,6 +97,9 @@ def LensfitShape(lensfit_dir,
 
     ## output
     output_path = os.path.join(tmp_dir, 'output.fits')
+    #### check existence
+    if os.path.isfile(output_path):
+        os.remove(output_path)
 
     # running info
     if running_log:

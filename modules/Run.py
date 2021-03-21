@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
-# @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 22:39:57
+# @Last modified by:   ssli
+# @Last modified time: 2021-03-21, 15:16:10
 
 ### main module to run the whole pipeline
 
@@ -639,19 +639,13 @@ if ('6' in taskIDs) or ('all' in taskIDs):
 
                     ### tmp directory
                     tmp_dir_tmp_tmp = os.path.join(tmp_dir_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
-                    if not os.path.exists(tmp_dir_tmp_tmp):
-                        os.mkdir(tmp_dir_tmp_tmp)
+                    if os.path.exists(tmp_dir_tmp_tmp):
+                        shutil.rmtree(tmp_dir_tmp_tmp)
+                    os.mkdir(tmp_dir_tmp_tmp)
 
                     ### prepare detection catalogue
                     CatalogueFile = os.path.join(in_cata_dir_tmp, f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
                     cata_ori = pd.read_feather(CatalogueFile)
-                    #### select galaxies
-                    try:
-                        mask_gals = (cata_ori['perfect_flag_star'] == 0)
-                        cata_ori = cata_ori[mask_gals]
-                        cata_ori.reset_index(drop=True, inplace=True)
-                    except KeyError:
-                        cata_ori = cata_ori
                     #### desired info
                     reduced_data = np.array([cata_ori['X_WORLD'], cata_ori['Y_WORLD'], cata_ori['MAG_AUTO'], cata_ori['NUMBER']]).T
                     #### save
