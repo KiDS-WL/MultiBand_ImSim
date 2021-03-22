@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-03-10, 14:30:50
 # @Last modified by:   ssli
-# @Last modified time: 2021-03-21, 16:31:58
+# @Last modified time: 2021-03-22, 9:57:26
 
 ### re-calibrate the lensfit weights
 ###     calibration is done for the combined catalogue from all shear inputs
@@ -121,26 +121,27 @@ for tile_name in tile_info:
         N_lines_record += N_lines
 
     # ++++++++++++ 4. save back to combined files (if combined catalogues exist)
-    tmp_combined_files = glob.glob(os.path.join(subdir, 'catalogues', f'tile{tile_name}_*_combined.feather'))
-    if tmp_combined_files:
-        for tmp_combined_file in tmp_combined_files:
-            # get rotation
-            rot = re.search(r'_rot(\d+)', os.path.basename(tmp_combined_file)).group(1)
+    for subdir in subdirs:
+        tmp_combined_files = glob.glob(os.path.join(subdir, 'catalogues', f'tile{tile_name}_*_combined.feather'))
+        if tmp_combined_files:
+            for tmp_combined_file in tmp_combined_files:
+                # get rotation
+                rot = re.search(r'_rot(\d+)', os.path.basename(tmp_combined_file)).group(1)
 
-            # get data
-            data_final = pd.read_feather(tmp_combined_file)
+                # get data
+                data_final = pd.read_feather(tmp_combined_file)
 
-            # corresponding shape file
-            tmp_shape = glob.glob(os.path.join(subdir, 'catalogues', 'shapes', f'tile{tile_name}_*_rot{rot}.feather'))[0]
-            band = re.search(r'_band(.*)_rot', os.path.basename(tmp_shape)).group(1)
-            tmp_info = pd.read_feather(tmp_shape)[['id_detec', 'weight_global_LF']]
-            tmp_info = tmp_info.add_suffix(f'_{band}')
-            data_final = data_final.merge(tmp_info, left_on='NUMBER', right_on=f'id_detec_{band}', how='left')
-            data_final.drop(columns=[f'id_detec_{band}'], inplace=True)
+                # corresponding shape file
+                tmp_shape = glob.glob(os.path.join(subdir, 'catalogues', 'shapes', f'tile{tile_name}_*_rot{rot}.feather'))[0]
+                band = re.search(r'_band(.*)_rot', os.path.basename(tmp_shape)).group(1)
+                tmp_info = pd.read_feather(tmp_shape)[['id_detec', 'weight_global_LF']]
+                tmp_info = tmp_info.add_suffix(f'_{band}')
+                data_final = data_final.merge(tmp_info, left_on='NUMBER', right_on=f'id_detec_{band}', how='left')
+                data_final.drop(columns=[f'id_detec_{band}'], inplace=True)
 
-            # save
-            data_final.to_feather(tmp_combined_file)
-            print(f'Lensfit weight_global_LF saved back to {tmp_combined_file}')
+                # save
+                data_final.to_feather(tmp_combined_file)
+                print(f'Lensfit weight_global_LF saved back to {tmp_combined_file}')
 
     # ++++++++++++ -1. clean up
     if clean_up:
