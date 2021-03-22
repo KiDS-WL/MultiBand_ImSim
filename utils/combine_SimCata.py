@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-03-03, 18:21:04
-# @Last modified by:   lshuns
-# @Last modified time: 2021-03-17, 22:53:24
+# @Last modified by:   ssli
+# @Last modified time: 2021-03-22, 13:39:13
 
 ### a simple script to combine catalogues produced by the main pipeline
 ###     it can be used to combine catalogues from different running_tags
@@ -216,6 +216,9 @@ cata_final.fillna(-999, inplace=True)
 
 # save
 out_path = os.path.join(main_dir, out_path)
+## check existence
+if os.path.isfile(out_path):
+    os.remove(out_path)
 
 if out_path[-3:] == 'her':
     cata_final.to_feather(out_path)
