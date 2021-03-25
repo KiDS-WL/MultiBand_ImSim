@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
-# @Last modified by:   ssli
-# @Last modified time: 2021-03-16, 15:55:19
+# @Last modified by:   lshuns
+# @Last modified time: 2021-03-24, 12:27:56
 
 ### main module of ImSim
 ###### dependence:
@@ -75,7 +75,7 @@ def _PSFNoisySkyImages_simple(para_list):
                 continue
         except FileNotFoundError:
             continue
-        except KeyError:
+        except (KeyError, OSError) as e:
             pass
         os.remove(outpath_image_name)
     ## psf map
@@ -92,7 +92,7 @@ def _PSFNoisySkyImages_simple(para_list):
                     continue
             except FileNotFoundError:
                 continue
-            except KeyError:
+            except (KeyError, OSError) as e:
                 pass
             os.remove(outpath_PSF_name)
     else:
@@ -239,7 +239,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                 continue
         except FileNotFoundError:
             continue
-        except KeyError:
+        except (KeyError, OSError) as e:
             pass
         os.remove(outpath_image_name)
 
@@ -257,7 +257,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                     continue
             except FileNotFoundError:
                 continue
-            except KeyError:
+            except (KeyError, OSError) as e:
                 pass
             os.remove(outpath_PSF_name)
     else:
@@ -454,7 +454,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
                 continue
         except FileNotFoundError:
             continue
-        except KeyError:
+        except (KeyError, OSError) as e:
             pass
         os.remove(outpath_image_name)
 
@@ -472,7 +472,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
                     continue
             except FileNotFoundError:
                 continue
-            except KeyError:
+            except (KeyError, OSError) as e:
                 pass
             os.remove(outpath_PSF_name)
     else:

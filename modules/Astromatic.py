@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-08-17 14:26:07
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-17, 12:08:05
+# @Last modified time: 2021-03-24, 17:58:13
 
 ### Wrapper for astromatic codes
 
@@ -43,7 +43,7 @@ def SwarpImage(image_in, swarp_config_file,
             return 1
     except FileNotFoundError:
         pass
-    except KeyError:
+    except (KeyError, OSError) as e:
         os.remove(image_out)
         logger.info("Remove existing images.")
 
