@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-08-17 14:26:07
 # @Last modified by:   ssli
-# @Last modified time: 2021-03-29, 18:16:09
+# @Last modified time: 2021-03-29, 18:24:40
 
 ### Wrapper for astromatic codes
 
@@ -61,7 +61,10 @@ def SwarpImage(image_in, swarp_config_file,
 
     # build command
     cmd = [swarp_path]
-    cmd.extend(image_in) # in case image_in containing multiple inputs
+    if isinstance(image_in, str):
+        cmd.append(image_in)
+    else:
+        cmd.extend(image_in) # in case image_in containing multiple inputs
     if only_resample:
         cmd.extend(['-c', swarp_config_file,
             '-RESAMPLE_DIR', RESAMPLE_DIR])
