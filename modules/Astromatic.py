@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-08-17 14:26:07
-# @Last modified by:   lshuns
-# @Last modified time: 2021-03-24, 17:58:13
+# @Last modified by:   ssli
+# @Last modified time: 2021-03-29, 18:16:09
 
 ### Wrapper for astromatic codes
 
@@ -83,7 +83,7 @@ def SwarpImage(image_in, swarp_config_file,
 
     # rename for only resampling
     if only_resample:
-        basename = os.path.basename(image_out)
+        basename = os.path.basename(image_in)
         os.rename(os.path.join(RESAMPLE_DIR, basename.replace('.fits', '.resamp.fits')), image_out)
         logger.info(f"Swarp resampled image saved as {image_out}")
     else:
