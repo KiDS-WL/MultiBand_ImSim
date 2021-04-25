@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   ssli
-# @Last modified time: 2021-03-21, 15:16:10
+# @Last modified time: 2021-04-25, 13:10:47
 
 ### main module to run the whole pipeline
 
@@ -202,6 +202,15 @@ if ('2' in taskIDs) or ('all' in taskIDs):
             os.mkdir(log_dir_tmp)
     else:
         log_dir_tmp = None
+    ### output directory
+    for label_tmp in configs_dict['swarp']['image_label_list']:
+        out_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], label_tmp)
+        if not os.path.exists(out_dir_tmp):
+            os.mkdir(out_dir_tmp)
+        if configs_dict['imsim']['PSF_map']:
+            out_dir_psf_tmp =  os.path.join(out_dir_tmp, 'psf_map')
+            if not os.path.exists(out_dir_psf_tmp):
+                os.mkdir(out_dir_psf_tmp)
 
     ## work pool
     N_swarp = int(Nmax_proc/12.)
@@ -222,12 +231,8 @@ if ('2' in taskIDs) or ('all' in taskIDs):
         clean_up_level_tmp = configs_dict['swarp']['clean_up_levels'][i_group]
 
         out_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], configs_dict['swarp']['image_label_list'][i_group])
-        if not os.path.exists(out_dir_tmp):
-            os.mkdir(out_dir_tmp)
         if configs_dict['imsim']['PSF_map']:
             out_dir_psf_tmp =  os.path.join(out_dir_tmp, 'psf_map')
-            if not os.path.exists(out_dir_psf_tmp):
-                os.mkdir(out_dir_psf_tmp)
 
         for tile_label in tile_labels:
 
