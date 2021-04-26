@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-03-03, 18:21:04
 # @Last modified by:   ssli
-# @Last modified time: 2021-03-22, 13:39:13
+# @Last modified time: 2021-04-26, 16:55:56
 
 ### a simple script to combine catalogues produced by the main pipeline
 ###     it can be used to combine catalogues from different running_tags
@@ -210,7 +210,7 @@ else:
     cata_final = pd.concat(cata_final)
     print(f'Total number of source {len(cata_final)}')
 
-cata_final.reset_index(drop=False, inplace=True)
+cata_final.reset_index(drop=True, inplace=True)
 # dummy values for nan
 cata_final.fillna(-999, inplace=True)
 
