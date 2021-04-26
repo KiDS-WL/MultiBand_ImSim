@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-03-03, 18:21:04
-# @Last modified by:   ssli
-# @Last modified time: 2021-04-26, 16:55:56
+# @Last modified by:   lshuns
+# @Last modified time: 2021-04-26, 20:44:24
 
 ### a simple script to combine catalogues produced by the main pipeline
 ###     it can be used to combine catalogues from different running_tags
@@ -11,6 +11,8 @@
 ###                     and same noise, same rotations
 ###                     that is the only difference is the shear input
 ###     it removes false detections (those not matched with the input catalogue)
+###     it includes a tile_label column for noise info
+###     it includes a gal_rot column for rotation info
 ###     it only preserves specified columns
 ###     it can generate mask (MASK_gold) for desired selections
 
@@ -34,8 +36,8 @@ parser.add_argument(
 ### NOTE: different sub-directories have identical galaxies&noise but different shear inputs
     help="the top directory containing all simulation outputs.")
 parser.add_argument(
-    "--out_path", type=str, default='final_combined.fits',
-    help="The out path for the combined file. \n\
+    "--outfile_name", type=str, default='final_combined.fits',
+    help="The file name for the combined file. \n\
     File format inferred from the suffix. Supported formats: fits, feather, csv")
 parser.add_argument(
     "--photoz_tag", type=str, default=None,
@@ -45,13 +47,24 @@ parser.add_argument(
 parser.add_argument(
     "--save_all_cols", action="store_true",
     help="preserve all the columns.")
+parser.add_argument(
+    "--ori_cata_file", type=str, default=None,
+    help="The original catalogue used by ImSim. \n\
+    Not mandatory. \n\
+    If not provided, no cross-match will be performed.")
+parser.add_argument(
+    "--ori_cata_id", type=str, default='index',
+    help="The unique galaxy ID in the original catalogue. \n\
+    Not used if ori_cata_file is not provided.")
 
 ## arg parser
 args = parser.parse_args()
 main_dir = args.main_dir
-out_path = args.out_path
+outfile_name = args.outfile_name
 photoz_tag = args.photoz_tag
 save_all_cols = args.save_all_cols
+ori_cata_file = args.ori_cata_file
+ori_cata_id = args.ori_cata_id
 
 # +++++++++++++++++++++++++++++ the only variables you may want to modify
 # desired columns
@@ -138,8 +151,13 @@ if photoz_tag is not None:
                 cata.loc[:, 'g1_in'] = g1
                 cata.loc[:, 'g2_in'] = g2
 
+                # assign noise info
+                cata.loc[:, 'tile_label'] = tile
+                # assign rotation info
+                cata.loc[:, 'gal_rot'] = float(rot)
+
                 # for fast join
-                cata.set_index('id_input', inplace=True)
+                cata.set_index('id_input', drop=False, inplace=True)
 
                 # assign photoz
                 if run_tag == photoz_tag:
@@ -201,6 +219,11 @@ else:
             cata.loc[:, 'g1_in'] = g1
             cata.loc[:, 'g2_in'] = g2
 
+            # assign noise info
+            cata.loc[:, 'tile_label'] = re.search(r'tile(.*)_rot', file).group(1)
+            # assign rotation info
+            cata.loc[:, 'gal_rot'] = float(re.search(r'_rot(\d+)', file).group(1))
+            
             # discard false-detections
             mask_true = (cata['id_input']>-999)
             cata = cata[mask_true]
@@ -214,8 +237,31 @@ cata_final.reset_index(drop=True, inplace=True)
 # dummy values for nan
 cata_final.fillna(-999, inplace=True)
 
+# cross-match with the original cata
+if ori_cata_file is not None:
+    # load catalogue
+    file_type = ori_cata_file[-3:]
+    if file_type == 'csv':
+        ori_cata = pd.read_csv(ori_cata_file)
+    elif file_type == 'her':
+        ori_cata = pd.read_feather(ori_cata_file)
+    elif file_type == 'its':
+        with fits.open(ori_cata_file) as hdul:
+            ori_cata = Table(hdul[1].data).to_pandas()
+    else:
+        raise Exception(f'Not supported input file type! {ori_cata_file}')
+
+    # cross match based on the index
+    ## for fast join
+    ori_cata.set_index(ori_cata_id, drop=False, inplace=True)
+    cata_final.set_index('id_input', drop=False, inplace=True)
+    ## join
+    cata_final = cata_final.join(ori_cata, how='left')
+    ## reset index
+    cata_final.reset_index(drop=True, inplace=True)
+
 # save
-out_path = os.path.join(main_dir, out_path)
+out_path = os.path.join(main_dir, outfile_name)
 ## check existence
 if os.path.isfile(out_path):
     os.remove(out_path)
