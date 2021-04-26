@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-08-17 14:26:07
 # @Last modified by:   ssli
-# @Last modified time: 2021-03-29, 18:24:40
+# @Last modified time: 2021-04-26, 16:13:28
 
 ### Wrapper for astromatic codes
 
@@ -88,15 +88,18 @@ def SwarpImage(image_in, swarp_config_file,
     if only_resample:
         basename = os.path.basename(image_in)
         os.rename(os.path.join(RESAMPLE_DIR, basename.replace('.fits', '.resamp.fits')), image_out)
-        logger.info(f"Swarp resampled image saved as {image_out}")
-    else:
-        logger.info(f"Swarp coadded image saved as {image_out}")
 
     # mark success to the header
     with fits.open(image_out, mode='update') as hdul:
         head_tmp = hdul[0].header
         ## update info
         head_tmp['flag_sim'] = 2
+
+    # saving info
+    if only_resample:
+        logger.info(f"Swarp resampled image saved as {image_out}")
+    else:
+        logger.info(f"Swarp coadded image saved as {image_out}")
 
     if clean_up_level:
         try:
