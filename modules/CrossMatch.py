@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-09-24 17:42:47
-# @Last modified by:   lshuns
-# @Last modified time: 2021-02-20, 14:10:09
+# @Last modified by:   ssli
+# @Last modified time: 2021-04-26, 16:50:37
 
 ### cross-match catalogues based on object positions using KDTree
 
@@ -159,11 +159,11 @@ def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
     tmp_matched_cata = pd.DataFrame({
                     'id_detec': id_detec[flag_matched],
                     'id_input': id_input[ind_matched],
-                    'distance': dist[flag_matched],
-                    'dmag': np.abs(mag_input[ind_matched]-mag_detec[flag_matched])
+                    'distance_CM': dist[flag_matched],
+                    'dmag_CM': np.abs(mag_input[ind_matched]-mag_detec[flag_matched])
                     })
     ## magnitude cut
-    matched_cata = tmp_matched_cata[(tmp_matched_cata['dmag']<dmag_max)].copy()
+    matched_cata = tmp_matched_cata[(tmp_matched_cata['dmag_CM']<dmag_max)].copy()
     matched_cata.reset_index(drop=True, inplace=True)
     if running_info:
         logger.info('Number of matched {:}'.format(len(matched_cata)))
@@ -174,11 +174,11 @@ def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
     false_cata = pd.DataFrame({
                     'id_detec': id_false,
                     'id_input': np.full(len(id_false), -999).astype(int),
-                    'distance': np.full(len(id_false), -999).astype(int),
-                    'dmag': np.full(len(id_false), -999.).astype(float)
+                    'distance_CM': np.full(len(id_false), -999).astype(int),
+                    'dmag_CM': np.full(len(id_false), -999.).astype(float)
                     })
     ## dmag does not meet requirement
-    tmp_cata = tmp_matched_cata[(tmp_matched_cata['dmag']>=dmag_max)].copy()
+    tmp_cata = tmp_matched_cata[(tmp_matched_cata['dmag_CM']>=dmag_max)].copy()
     false_cata = pd.concat([false_cata, tmp_cata])
     false_cata.reset_index(drop=True, inplace=True)
     if running_info:
@@ -192,11 +192,11 @@ def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
     miss_cata = pd.DataFrame({
                     'id_detec': np.full(len(id_miss), -999).astype(int),
                     'id_input': id_miss,
-                    'distance': np.full(len(id_miss), -999).astype(float),
-                    'dmag': np.full(len(id_miss), -999).astype(float)
+                    'distance_CM': np.full(len(id_miss), -999).astype(float),
+                    'dmag_CM': np.full(len(id_miss), -999).astype(float)
                     })
     ## dmag does not meet requirement
-    tmp_cata = tmp_matched_cata[(tmp_matched_cata['dmag']>=dmag_max)].copy()
+    tmp_cata = tmp_matched_cata[(tmp_matched_cata['dmag_CM']>=dmag_max)].copy()
     miss_cata = pd.concat([miss_cata, tmp_cata])
     miss_cata.reset_index(drop=True, inplace=True)
     if running_info:
