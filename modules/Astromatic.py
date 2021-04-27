@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-08-17 14:26:07
 # @Last modified by:   ssli
-# @Last modified time: 2021-04-26, 16:13:28
+# @Last modified time: 2021-04-27, 17:55:22
 
 ### Wrapper for astromatic codes
 
@@ -112,10 +112,11 @@ def SwarpImage(image_in, swarp_config_file,
     logger.info('SWarp finished.')
     return 0
 
-def SExtractorCatalogue(ImageFile1, CatalogueFile, pixel_scale, SeeingFWHM=1.0,
-                        ImageFile2=None, WeightFile=None,
-                        running_log=True, log_dir=None,
-                        SexPath='sex', ConfigFile='../config/kids_sims.sex', ParamFile='../config/sex_image.param',
+def SExtractorCatalogue(CatalogueFile, pixel_scale, SeeingFWHM,
+                        ImageFile1, WeightFile1=None,
+                        ImageFile2=None, WeightFile2=None,
+                        running_log=True, log_dir='./',
+                        SexPath='sex', ConfigFile='../config/kids_sims_dr4.sex', ParamFile='../config/sex_image.param',
                         FilterName='../config/default.conv', StarnnwName='../config/default.nnw',
                         CHECKIMAGE_TYPE=None,
                         mag_zero=30.,
@@ -164,23 +165,28 @@ def SExtractorCatalogue(ImageFile1, CatalogueFile, pixel_scale, SeeingFWHM=1.0,
 
     # build command
     if (ImageFile2 is None):
+        logger.info('Running SEXtractor in single mode...')
         cmd = [SexPath, ImageFile1, '-CATALOG_NAME', CatalogueFile, '-c', ConfigFile, '-PARAMETERS_NAME', ParamFile,
                 '-PIXEL_SCALE', str(pixel_scale), '-SEEING_FWHM', str(SeeingFWHM),
                 '-FILTER_NAME', FilterName, '-STARNNW_NAME', StarnnwName,
                 '-CHECKIMAGE_TYPE', CHECKIMAGE_TYPE, '-CHECKIMAGE_NAME', CHECKIMAGE_NAME,
                 '-MAG_ZEROPOINT', str(mag_zero)]
-        logger.info('Running SEXtractor in single mode...')
+        if (WeightFile1 is not None):
+            cmd.extend(['-WEIGHT_IMAGE', WeightFile1, '-WEIGHT_TYPE', 'MAP_WEIGHT'])
+            logger.info(f'Use MAP_WEIGHT')
     else:
-        cmd = [SexPath, ImageFile1, ImageFile2, '-CATALOG_NAME', CatalogueFile, '-c', ConfigFile, '-PARAMETERS_NAME', ParamFile,
+        logger.info('Running SEXtractor in dual mode...')
+        cmd = [SexPath, f'{ImageFile1},{ImageFile2}', '-CATALOG_NAME', CatalogueFile, '-c', ConfigFile, '-PARAMETERS_NAME', ParamFile,
                 '-PIXEL_SCALE', str(pixel_scale), '-SEEING_FWHM', str(SeeingFWHM),
                 '-FILTER_NAME', FilterName, '-STARNNW_NAME', StarnnwName,
                 '-CHECKIMAGE_TYPE', CHECKIMAGE_TYPE, '-CHECKIMAGE_NAME', CHECKIMAGE_NAME,
                 '-MAG_ZEROPOINT', str(mag_zero)]
-        logger.info('Running SEXtractor in dual mode...')
+        if (WeightFile1 is not None) and (WeightFile2 is not None):
+            cmd.extend(['-WEIGHT_IMAGE', f'{WeightFile1},{WeightFile2}', '-WEIGHT_TYPE', 'MAP_WEIGHT'])
+            logger.info(f'Use MAP_WEIGHT')
+        elif ((WeightFile1 is not None) and (WeightFile2 is None)) or ((WeightFile1 is None) and (WeightFile2 is not None)):
+            raise Exception('Do not know how to deal with only one weight image in the dual mode...')
 
-    if (WeightFile is not None):
-        cmd.extend(['-WEIGHT_IMAGE', WeightFile, '-WEIGHT_TYPE', 'MAP_WEIGHT'])
-        logger.info(f'Use MAP_WEIGHT')
     logger.info(f'Config file {ConfigFile}')
 
     # run

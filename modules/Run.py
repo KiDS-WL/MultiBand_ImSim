@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
-# @Last modified by:   ssli
-# @Last modified time: 2021-04-25, 13:10:47
+# @Last modified by:   lshuns
+# @Last modified time: 2021-04-27, 22:50:16
 
 ### main module to run the whole pipeline
 
@@ -327,17 +327,18 @@ if ('3' in taskIDs) or ('all' in taskIDs):
 
             ### input
             ImageFile1 = os.path.join(in_dir_tmp, f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.fits')
-            WeightFile = ImageFile1.replace('.fits', '.weight.fits')
-            if not os.path.isfile(WeightFile):
-                WeightFile = None
+            WeightFile1 = ImageFile1.replace('.fits', '.weight.fits')
+            if not os.path.isfile(WeightFile1):
+                WeightFile1 = None
 
             ### output
             CatalogueFile = os.path.join(out_dir_tmp, os.path.basename(ImageFile1).replace('.fits', '.sex'))
 
             ### running
             proc = work_pool.apply_async(func=Astromatic.SExtractorCatalogue,
-                                    args=(ImageFile1, CatalogueFile, pixel_scale, SeeingFWHM,
-                                            None, WeightFile,
+                                    args=(CatalogueFile, pixel_scale, SeeingFWHM,
+                                            ImageFile1, WeightFile1
+                                            None, None,
                                             running_log, log_dir_tmp,
                                             configs_dict['sex']['cmd'], configs_dict['sex']['config_file'], configs_dict['sex']['param_file'],
                                             configs_dict['sex']['filter_file'], configs_dict['sex']['starNNW_file'],
