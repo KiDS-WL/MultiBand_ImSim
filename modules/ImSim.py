@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
-# @Last modified by:   lshuns
-# @Last modified time: 2021-03-24, 12:27:56
+# @Last modified by:   ssli
+# @Last modified time: 2021-04-27, 16:38:22
 
 ### main module of ImSim
 ###### dependence:
@@ -215,16 +215,23 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         outpath_dir) = para_list
     logger.info(f'Simulating KiDS_sameExpo image for tile {tile_label} band {band}...')
 
+    # number of exposures
+    if band == 'u':
+        n_exposures = 4
+    elif band in ['g', 'r', 'i']:
+        n_exposures = 5
+    else:
+        raise Exception(f'{band} is not in OmegaCAM! Cannot use KiDS_sameExpo!')
+
     # outpath
-    ## 5 exposures
     outpath_image_name_list = [outpath_image_basename + f'_rot{gal_rotation_angle:.0f}_expo{i_expo}.fits'
                                                                 for gal_rotation_angle in gal_rotation_angles
-                                                                for i_expo in range(5)]
+                                                                for i_expo in range(n_exposures)]
 
     if (outpath_PSF_basename is not None):
         outpath_PSF_name_list = [outpath_PSF_basename + f'_rot{gal_rotation_angle:.0f}_expo{i_expo}.fits'
                                                                 for gal_rotation_angle in gal_rotation_angles
-                                                                for i_expo in range(5)]
+                                                                for i_expo in range(n_exposures)]
 
     # first check if already exist
     outpath_image_exist_list = np.zeros_like(outpath_image_name_list, dtype=bool)
@@ -267,7 +274,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
     if save_image_PSF:
         psf_dir_tmp = os.path.join(outpath_dir, f'psf_tile{tile_label}_band{band}')
         n_files = len(glob.glob(os.path.join(psf_dir_tmp, f'expo*.fits')))
-        if n_files == 5:
+        if n_files == n_exposures:
             logger.info('PSF images already exist.')
         else:
             if os.path.exists(psf_dir_tmp):
@@ -277,7 +284,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
             PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
             psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=32)
 
-            for i_expo in range(5):
+            for i_expo in range(n_exposures):
                 outpath_tmp = os.path.join(psf_dir_tmp, f'expo{i_expo}.fits')
                 psf_ima.write(outpath_tmp)
             logger.info(f'PSF images saved to {psf_dir_tmp}')
@@ -315,7 +322,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
     # +++ background noise
     noise_list = [NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle+94*i_expo))
                                                         for gal_rotation_angle in gal_rotation_angles
-                                                        for i_expo in range(5)]
+                                                        for i_expo in range(n_exposures)]
 
     # +++ PSF map
     if (False in outpath_PSF_exist_list):
@@ -385,7 +392,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
 
                 ## exposures
                 id_exposure = int(re.search(r'_expo(\d+)', outpath_image_name).group(1))
-                image_tile, weights_tile = KiDSModule.getKiDStile(image_galaxies, id_exposure=id_exposure, n_exposures=5)
+                image_tile, weights_tile = KiDSModule.getKiDStile(image_galaxies, id_exposure=id_exposure)
 
                 ## save the noisy image
                 image_tile.write(outpath_image_name)
@@ -586,7 +593,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
                 image_galaxies.addNoise(noise_tmp)
 
                 ## exposures
-                image_tile, weights_tile = KiDSModule.getKiDStile(image_galaxies, id_exposure=i_expo, n_exposures=5)
+                image_tile, weights_tile = KiDSModule.getKiDStile(image_galaxies, id_exposure=i_expo)
 
                 ## save the noisy image
                 image_tile.write(outpath_image_name)
@@ -889,7 +896,16 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, rng_seed, mag_zero,
 
             if image_type.lower() == 'diffexpo':
                 if survey.lower() == 'kids':
-                    for i_expo in range(5):
+                    # number of exposures
+                    if band == 'u':
+                        n_exposures = 4
+                    elif band in ['g', 'r', 'i']:
+                        n_exposures = 5
+                    else:
+                        raise Exception(f'{band} is not in OmegaCAM! Cannot use KiDS_diffExpo!')
+
+                    # get noise info for each exposure
+                    for i_expo in range(n_exposures):
                         # noise info
                         rms = noise_info_tile[f'rms_{band}_expo{i_expo}']
                         seeing = noise_info_tile[f'seeing_{band}_expo{i_expo}']

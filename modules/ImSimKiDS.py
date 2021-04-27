@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-11-30 16:54:44
-# @Last Modified by:   lshuns
-# @Last Modified time: 2021-01-29 16:22:49
+# @Last modified by:   ssli
+# @Last modified time: 2021-04-27, 16:28:39
 
 ### Everything about KiDS observations (instrumental setup & data acquisition procedure)
 ###### reference: https://www.eso.org/sci/facilities/paranal/instruments/omegacam/doc/VST-MAN-OCM-23100-3110_p107_v2.pdf
@@ -23,11 +23,12 @@ Npix_x = Nchips_x*Npix_chip_x + 7*GAP_x  # total number of pixels each tile (x-a
 Npix_y = Nchips_y*Npix_chip_y + GAP_y_narrow + 2*GAP_y_wide # total number of pixels each tile (y-axis)
 
 # some observation values
-N_exposures = 5 # number of exposures
+# N_exposures_gri = 5 # number of exposures in gri-bands
+# N_exposures_u = 4 # number of exposures in u-band
 Dither_x = 25./0.214 # pix # dither step along RA
 Dither_y = 85./0.214 # pix # dither step along dec
 
-def getKiDStile(image_ori, id_exposure=0, n_exposures=5):
+def getKiDStile(image_ori, id_exposure=0):
     """
     Get OmegaCAM-like tile: cut (dither) + gaps
         The WCS will be handled by GalSim automatically.
@@ -38,8 +39,6 @@ def getKiDStile(image_ori, id_exposure=0, n_exposures=5):
         The original image.
     id_exposure: int, optional (default: 0)
         ID for exposure (start with 0)
-    n_exposures: int, optional (default: 5)
-        Number of exposures.
 
     Returns
     -------
@@ -58,12 +57,12 @@ def getKiDStile(image_ori, id_exposure=0, n_exposures=5):
     y_min = y_shift - Npix_y/2.
     y_max = y_shift + Npix_y/2.
     bounds = galsim.BoundsI(xmin=int(x_min), xmax=int(x_max)-1, ymin=int(y_min), ymax=int(y_max)-1)
-    
+
     # cut out the new image
     image_tile = image_ori[bounds].copy()
     ## associated weight image
     weights_tile = image_tile.copy()
-    weights_tile.fill(1./n_exposures)
+    weights_tile.fill(1.)
 
     # gaps
     ## between the long sides of the CCDs
@@ -86,7 +85,7 @@ def getKiDStile(image_ori, id_exposure=0, n_exposures=5):
     row_gap_start = 3*Npix_chip_y + GAP_y_wide + GAP_y_narrow
     image_tile.array[row_gap_start:(row_gap_start+GAP_y_wide), :] = 0.
     weights_tile.array[row_gap_start:(row_gap_start+GAP_y_wide), :] = 0.
-    
+
     return image_tile, weights_tile
 
 
@@ -107,17 +106,17 @@ def getKiDSchips_ori(image_ori, id_exposure=0):
         OmegaCAM-like chips.
     """
 
-    # bounds due to the dither 
+    # bounds due to the dither
     center_ori = image_ori.center
     x_shift = center_ori.x - (id_exposure-2)*Dither_x
     y_shift = center_ori.y - (id_exposure-2)*Dither_y
     x_min = int(x_shift - Npix_x/2.)
     y_min = int(y_shift - Npix_y/2.)
-    
+
     # y start point for each row of chips
-    y_start_list = [y_min, 
-                        y_min + Npix_chip_y + GAP_y_wide, 
-                        y_min + 2*Npix_chip_y + GAP_y_wide + GAP_y_narrow, 
+    y_start_list = [y_min,
+                        y_min + Npix_chip_y + GAP_y_wide,
+                        y_min + 2*Npix_chip_y + GAP_y_wide + GAP_y_narrow,
                         y_min + 3*Npix_chip_y + 2*GAP_y_wide + GAP_y_narrow]
 
     # chips
@@ -154,11 +153,11 @@ def getKiDSchips_tile(image_tile):
     bounds = image_tile.bounds
     x_min = bounds.getXMin()
     y_min = bounds.getYMin()
-    
+
     # y start point for each row of chips
-    y_start_list = [y_min, 
-                        y_min + Npix_chip_y + GAP_y_wide, 
-                        y_min + 2*Npix_chip_y + GAP_y_wide + GAP_y_narrow, 
+    y_start_list = [y_min,
+                        y_min + Npix_chip_y + GAP_y_wide,
+                        y_min + 2*Npix_chip_y + GAP_y_wide + GAP_y_narrow,
                         y_min + 3*Npix_chip_y + 2*GAP_y_wide + GAP_y_narrow]
 
     # chips
@@ -174,4 +173,3 @@ def getKiDSchips_tile(image_tile):
             image_chips.append(image_chip)
 
     return image_chips
-
