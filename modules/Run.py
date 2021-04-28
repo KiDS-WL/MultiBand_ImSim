@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   lshuns
-# @Last modified time: 2021-04-28, 24:17:30
+# @Last modified time: 2021-04-28, 18:32:57
 
 ### main module to run the whole pipeline
 
@@ -185,7 +185,7 @@ if ('1' in taskIDs) or ('all' in taskIDs):
                                             PSF_map=configs_dict['imsim']['PSF_map'], N_PSF=100, sep_PSF=120,
                                             image_chips=configs_dict['imsim']['image_chips'], image_PSF=configs_dict['imsim']['image_PSF'])
 
-    logger.info(f'====== Task 1: simulate images === finished in {time.time()-start_time} s ======')
+    logger.info(f'====== Task 1: simulate images === finished in {(time.time()-start_time)/3600.} h ======')
 
 # 2: swarp images
 if ('2' in taskIDs) or ('all' in taskIDs):
@@ -268,7 +268,7 @@ if ('2' in taskIDs) or ('all' in taskIDs):
     for proc in proc_list:
         proc.get()
 
-    logger.info(f'====== Task 2: swarp images === finished in {time.time()-start_time} s ======')
+    logger.info(f'====== Task 2: swarp images === finished in {(time.time()-start_time)/3600.} h ======')
 
 # 3: detect objects
 if ('3' in taskIDs) or ('all' in taskIDs):
@@ -418,7 +418,7 @@ if ('3' in taskIDs) or ('all' in taskIDs):
                                                     outDir=out_dir_cross, basename=basename_cross, save_matched=configs_dict['sex']['save_matched'], save_false=configs_dict['sex']['save_false'], save_missed=configs_dict['sex']['save_missed'],
                                                     dmag_max=configs_dict['sex']['dmag_max'], r_max=configs_dict['sex']['r_max']/3600., k=4, running_info=False)
 
-    logger.info(f'====== Task 3: detect objects === finished in {time.time()-start_time} s ======')
+    logger.info(f'====== Task 3: detect objects === finished in {(time.time()-start_time)/3600.} h ======')
 
 # 4: measure photometry
 if ('4' in taskIDs) or ('all' in taskIDs):
@@ -506,7 +506,7 @@ if ('4' in taskIDs) or ('all' in taskIDs):
         for proc in proc_list:
             proc.get()
 
-    logger.info(f'====== Task 4: measure photometry === finished in {time.time()-start_time} s ======')
+    logger.info(f'====== Task 4: measure photometry === finished in {(time.time()-start_time)/3600.} h ======')
 
 # 5: measure photo-z
 if ('5' in taskIDs) or ('all' in taskIDs):
@@ -566,7 +566,7 @@ if ('5' in taskIDs) or ('all' in taskIDs):
         for proc in proc_list:
             proc.get()
 
-    logger.info(f'====== Task 5: measure photo-z === finished in {time.time()-start_time} s ======')
+    logger.info(f'====== Task 5: measure photo-z === finished in {(time.time()-start_time)/3600.} h ======')
 
 # 6: measure galaxy shapes
 if ('6' in taskIDs) or ('all' in taskIDs):
@@ -689,7 +689,7 @@ if ('6' in taskIDs) or ('all' in taskIDs):
         for proc in proc_list:
             proc.get()
 
-    logger.info(f'====== Task 6: measure galaxy shapes === finished in {time.time()-start_time} s ======')
+    logger.info(f'====== Task 6: measure galaxy shapes === finished in {(time.time()-start_time)/3600.} h ======')
 
 # 7: create a combined catalogue
 if ('7' in taskIDs) or ('all' in taskIDs):
@@ -797,10 +797,10 @@ if ('7' in taskIDs) or ('all' in taskIDs):
             if os.path.exists(dir_tmp):
                 shutil.rmtree(dir_tmp)
 
-    logger.info(f'====== Task 7: create a combined catalogue === finished in {time.time()-start_time} s ======')
+    logger.info(f'====== Task 7: create a combined catalogue === finished in {(time.time()-start_time)/3600.} h ======')
 
 logger.info(f'~~~~~~~~~~~~ {__version__} finished ~~~~~~~~~~~~')
-logger.info(f'~~~~~~~~~~~~ total running time {time.time()-start_time0} s ~~~~~~~~~~~~')
+logger.info(f'~~~~~~~~~~~~ total running time {(time.time()-start_time)/3600.} h ~~~~~~~~~~~~')
 tmp = configs_dict['work_dirs']['main']
 logger.info(f'~~~~~~~~~~~~ All outputs saved in {tmp}')
 logger.info(f'~~~~~~~~~~~~ Enjoy the science ~~~~~~~~~~~~')
