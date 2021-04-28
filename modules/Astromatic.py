@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-08-17 14:26:07
-# @Last modified by:   ssli
-# @Last modified time: 2021-04-27, 17:55:22
+# @Last modified by:   lshuns
+# @Last modified time: 2021-04-27, 23:44:42
 
 ### Wrapper for astromatic codes
 
@@ -116,7 +116,7 @@ def SExtractorCatalogue(CatalogueFile, pixel_scale, SeeingFWHM,
                         ImageFile1, WeightFile1=None,
                         ImageFile2=None, WeightFile2=None,
                         running_log=True, log_dir='./',
-                        SexPath='sex', ConfigFile='../config/kids_sims_dr4.sex', ParamFile='../config/sex_image.param',
+                        SexPath='sex', ConfigFile='../config/kids_sims_theli.sex', ParamFile='../config/sex_image.param',
                         FilterName='../config/default.conv', StarnnwName='../config/default.nnw',
                         CHECKIMAGE_TYPE=None,
                         mag_zero=30.,

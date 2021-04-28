@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   lshuns
-# @Last modified time: 2021-04-27, 22:50:16
+# @Last modified time: 2021-04-28, 24:17:30
 
 ### main module to run the whole pipeline
 
@@ -337,7 +337,7 @@ if ('3' in taskIDs) or ('all' in taskIDs):
             ### running
             proc = work_pool.apply_async(func=Astromatic.SExtractorCatalogue,
                                     args=(CatalogueFile, pixel_scale, SeeingFWHM,
-                                            ImageFile1, WeightFile1
+                                            ImageFile1, WeightFile1,
                                             None, None,
                                             running_log, log_dir_tmp,
                                             configs_dict['sex']['cmd'], configs_dict['sex']['config_file'], configs_dict['sex']['param_file'],
