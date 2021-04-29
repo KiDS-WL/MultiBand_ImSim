@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-11-26 16:03:10
-# @Last Modified by:   lshuns
-# @Last Modified time: 2021-01-30 19:57:14
+# @Last modified by:   lshuns
+# @Last modified time: 2021-04-29, 14:06:10
 
 ### Everything about celestial objects
 
@@ -13,18 +13,18 @@ import numpy as np
 ## size cut
 ### (back to bulge/disk profile)
 RE_CUT = [1e-2, 10.] # arcsec
-## sersic cut for sersic profile 
+## sersic cut for sersic profile
 ### (back to bulge/disk profile)
 SERSIC_N_CUT = [0.2, 8.]
 ## axis raito limits
 ### (larger or smaller values are set to equal the limiting values)
 Q_MIN, Q_MAX = 0.05, 1.0
-## sersic index limiting set by GalSim 
+## sersic index limiting set by GalSim
 ### (larger or smaller values are set to equal the limiting values)
 SERSIC_N_MIN, SERSIC_N_MAX = 0.3, 6.2
 ## truncate the profile
 ### (for faster calculation)
-TRUNC_FACTOR = 5 
+TRUNC_FACTOR = 5
 
 def WCS(RA_min, RA_max, DEC_min, DEC_max, pixel_scale):
     """
@@ -36,8 +36,8 @@ def WCS(RA_min, RA_max, DEC_min, DEC_max, pixel_scale):
     DEC0 = (DEC_min + DEC_max) / 2.
 
     # decide bounds
-    xmax = (RA_max - RA_min) * 3600. / pixel_scale
-    ymax = (DEC_max - DEC_min) * 3600. / pixel_scale
+    xmax = (RA_max - RA_min) * 3600. / pixel_scale + 36./pixel_scale # 18 arcsec in both sides to avoid edge effects
+    ymax = (DEC_max - DEC_min) * 3600. / pixel_scale + 36./pixel_scale
     bounds = galsim.BoundsI(xmin=0, xmax=int(xmax), ymin=0, ymax=int(ymax))
 
     # build the wcs
@@ -58,7 +58,7 @@ def WCS(RA_min, RA_max, DEC_min, DEC_max, pixel_scale):
 
 def GalaxiesImage(bounds, wcs, band, pixel_scale, PSF,
                     gals_info, gal_rotation_angle=0., g_cosmic=[0, 0]):
-    """ 
+    """
     Generate pure sky image with only galaxies
 
     Parameters
@@ -109,7 +109,7 @@ def GalaxiesImage(bounds, wcs, band, pixel_scale, PSF,
         ## offset
         dx = x_gal - ix_gal
         dy = y_gal - iy_gal
-        offset_gal = galsim.PositionD(dx, dy) 
+        offset_gal = galsim.PositionD(dx, dy)
 
         # flux
         flux_gal = gal_info[band]
@@ -135,11 +135,11 @@ def GalaxiesImage(bounds, wcs, band, pixel_scale, PSF,
                 q_gal = float(np.where(q_gal<Q_MIN, Q_MIN, Q_MAX))
                 # print(f'...........assign {q_gal} for now!')
             re_gal *= (q_gal)**0.5 # account for the ellipticity
-            galaxy = galsim.Sersic(n=n_gal, half_light_radius=re_gal, flux=flux_gal, trunc=TRUNC_FACTOR*re_gal, flux_untruncated=True)            
+            galaxy = galsim.Sersic(n=n_gal, half_light_radius=re_gal, flux=flux_gal, trunc=TRUNC_FACTOR*re_gal, flux_untruncated=True)
             # intrinsic ellipticity
             galaxy = galaxy.shear(q=q_gal, beta=PA_gal*galsim.degrees)
         else:
-            ### bulge + disk 
+            ### bulge + disk
             # bulge
             bulge_fraction = gal_info['bulge_fractions']
             bulge_n = gal_info['bulge_n']
@@ -171,7 +171,7 @@ def GalaxiesImage(bounds, wcs, band, pixel_scale, PSF,
 
         # cosmic shear
         galaxy = galaxy.shear(g1=g_cosmic[0], g2=g_cosmic[1])
-        
+
         # convolve with the PSF
         galaxy = galsim.Convolve(galaxy, PSF)
 
@@ -185,11 +185,11 @@ def GalaxiesImage(bounds, wcs, band, pixel_scale, PSF,
         overlap = stamp_gal.bounds & full_image.bounds
         full_image[overlap] += stamp_gal[overlap]
 
-    return full_image    
+    return full_image
 
 def StarsImage(bounds, wcs, band, pixel_scale, PSF,
                     stars_info):
-    """ 
+    """
     Generate pure sky image with only stars
 
     Parameters
@@ -236,12 +236,12 @@ def StarsImage(bounds, wcs, band, pixel_scale, PSF,
         ## offset
         dx = x_star - ix_star
         dy = y_star - iy_star
-        offset_star = galsim.PositionD(dx, dy) 
+        offset_star = galsim.PositionD(dx, dy)
 
         # flux
         flux_star = star_info[band]
 
-        # draw star 
+        # draw star
         star = flux_star * PSF
 
         ## draw stamp
@@ -254,6 +254,4 @@ def StarsImage(bounds, wcs, band, pixel_scale, PSF,
         overlap = stamp_star.bounds & full_image.bounds
         full_image[overlap] += stamp_star[overlap]
 
-    return full_image    
-
-
+    return full_image

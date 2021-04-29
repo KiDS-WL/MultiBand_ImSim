@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
-# @Last modified by:   ssli
-# @Last modified time: 2021-04-27, 16:38:22
+# @Last modified by:   lshuns
+# @Last modified time: 2021-04-29, 14:31:56
 
 ### main module of ImSim
 ###### dependence:
@@ -19,6 +19,7 @@ import re
 import os
 import sys
 import glob
+import math
 import time
 import random
 import shutil
@@ -750,21 +751,24 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, rng_seed, mag_zero,
             logger.info('Galaxies are placed in a grid.')
             Ngal = len(gals_info_selec)
             apart = 18./3600. # apart 18arcsec for each galaxy
-            Nrow = int(Ngal**0.5)
-            X_gals = np.arange(apart, apart+Nrow*apart, apart)
-            Y_gals = np.repeat(X_gals, Nrow)
-            X_gals = np.tile(X_gals, Nrow)
-            ### check outliers
-            Nrow = Ngal - len(X_gals)
-            if Nrow > 0:
-                X_gals = np.concatenate([X_gals, np.arange(apart, apart+Nrow*apart, apart)])
-                Y_gals = np.concatenate([Y_gals, np.full(Nrow, Y_gals[-1]+apart)])
-            elif Nrow < 0:
-                X_gals = X_gals[:Ngal]
-                Y_gals = Y_gals[:Ngal]
+            # how many row and column needed to place all galaxies
+            N_rows = math.ceil(Ngal**0.5)
+            N_cols = math.ceil(Ngal/N_rows)
+            X_gals = np.arange(0, apart+(N_cols-1)*apart, apart)
+            Y_gals = np.arange(0, apart+(N_rows-1)*apart, apart)
+            X_gals, Y_gals = np.meshgrid(X_gals, Y_gals)
+            X_gals = X_gals.flatten()
+            Y_gals = Y_gals.flatten()
+            # random order to avoid systematic patterns
+            random.seed(rng_seed_tile)
+            index_selected = random.sample(range(len(X_gals)), Ngal)
             ### over-write
-            gals_info_selec.loc[:, 'RA'] = X_gals
-            gals_info_selec.loc[:, 'DEC'] = Y_gals
+            gals_info_selec.loc[:, 'RA'] = X_gals[index_selected]
+            gals_info_selec.loc[:, 'DEC'] = Y_gals[index_selected]
+            ### delete useless variables
+            del index_selected
+            del X_gals
+            del Y_gals
 
         ## output info
         output_col_tmp = ['index', 'RA', 'DEC', 'position_angles'] + bands
