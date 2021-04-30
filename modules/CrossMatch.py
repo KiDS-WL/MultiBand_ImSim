@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-09-24 17:42:47
-# @Last modified by:   ssli
-# @Last modified time: 2021-04-26, 16:50:37
+# @Last modified by:   lshuns
+# @Last modified time: 2021-04-30, 15:06:11
 
 ### cross-match catalogues based on object positions using KDTree
 
@@ -17,7 +17,7 @@ import scipy.spatial as sst
 
 logger = logging.getLogger(__name__)
 
-def KDTreeFunc(X1, X2, max_distance=np.inf, unique=True, k=1, leafsize=100):
+def KDTreeFunc(X1, X2, max_distance=np.inf, unique=True, k=1, second_base=[], leafsize=100):
     """
     Cross-match the values between X1 and X2 using a KD Tree.
 
@@ -34,6 +34,10 @@ def KDTreeFunc(X1, X2, max_distance=np.inf, unique=True, k=1, leafsize=100):
         return unique X2 index
     k : list of integer or integer
         The list of k-th nearest neighbors to return. If k is an integer it is treated as a list of [1, … k] (range(1, k+1)). Note that the counting starts from 1.
+    second_base : a list of array_like (optional: None)
+        [array4X1, array4X2]
+        the second values except for position used to match in case for duplicated matching
+        If not provided, choose the nearest one
 
     Returns
     -------
@@ -57,71 +61,71 @@ def KDTreeFunc(X1, X2, max_distance=np.inf, unique=True, k=1, leafsize=100):
     kdt = sst.cKDTree(X2, leafsize=leafsize)
 
     # query
+    dist, ind = kdt.query(X1, k=k, distance_upper_bound=max_distance)
+
+    # make a one-one match if desired
     if unique:
-        ## return one-one match
-        ### original returns
-        dist, ind = kdt.query(X1, k=k, distance_upper_bound=max_distance)
-        if k==1:
-            ### find duplicated matched
-            u_ind, c_ind = np.unique(ind, return_counts=True)
+        ### return one list of entries by iterating all neighbors
+        dist_final = np.full(len(dist), np.inf)
+        ind_final = np.full(len(ind), len(X2))
+
+        for i_k in range(k):
+            ### the layer of neighbors
+            try:
+                dist_i = dist[:,i_k]
+                ind_i = ind[:, i_k]
+            except IndexError:
+                dist_i = dist
+                ind_i = ind
+            ### copy to final list of entry (if it is empty)
+            flag_empty = (dist_final==np.inf)
+            dist_final = np.where(flag_empty, dist_i, dist_final)
+            ind_final = np.where(flag_empty, ind_i, ind_final)
+
+            ### find duplicated match
+            u_ind, c_ind = np.unique(ind_final, return_counts=True)
             ind_duplicated = u_ind[c_ind>1]
-            ### pick nearest
+
+            ### pick
             for ind_tmp in ind_duplicated:
                 ### mis-matched are passed
                 if ind_tmp != len(X2):
                     ### which ind is duplicated
-                    flag_duplicated = (ind == ind_tmp)
-                    ### distance for duplicated ind
-                    dist_tmp = dist[flag_duplicated]
-                    dist_min = np.min(dist_tmp)
-                    flag_wrong = (dist>dist_min)
-                    ### only min dist is remained
-                    ind[flag_duplicated & flag_wrong] = len(X2)
-                    dist[flag_duplicated & flag_wrong] = np.inf
-        else:
-            ### return one list of entries by iterating all neighbors
-            dist_final = np.full(len(dist), np.inf)
-            ind_final = np.full(len(ind), len(X2))
-            for i_k in range(k):
-                ### the layer of neighbors
-                dist_i = dist[:,i_k]
-                ind_i = ind[:, i_k]
-                ### copy to final list of entry (if it is empty)
-                flag_empty = (dist_final==np.inf)
-                dist_final = np.where(flag_empty, dist_i, dist_final)
-                ind_final = np.where(flag_empty, ind_i, ind_final)
+                    flag_duplicated = (ind_final == ind_tmp)
 
-                ### find duplicated matched
-                u_ind, c_ind = np.unique(ind_final, return_counts=True)
-                ind_duplicated = u_ind[c_ind>1]
-                ### pick nearest
-                for ind_tmp in ind_duplicated:
-                    ### mis-matched are passed
-                    if ind_tmp != len(X2):
-                        ### which ind is duplicated
-                        flag_duplicated = (ind_final == ind_tmp)
+                    ### pick using other values
+                    if second_base:
+                        # value difference
+                        dv_tmp = np.abs(second_base[0][flag_duplicated]-second_base[1][ind_tmp])
+                        flag_wrong = (dv_tmp>np.min(dv_tmp))
+                        index_wrong = np.argwhere(flag_duplicated == True)[flag_wrong]
+                        ### only min difference is remained
+                        ind_final[index_wrong] = len(X2)
+                        dist_final[index_wrong] = np.inf
+                    ### pick nearest one
+                    else:
                         ### distance for duplicated ind
-                        dist_tmp = dist_final[flag_duplicated]
-                        dist_min = np.min(dist_tmp)
+                        dist_min = np.min(dist_final[flag_duplicated])
                         flag_wrong = (dist_final>dist_min)
                         ### only min dist is remained
                         ind_final[flag_duplicated & flag_wrong] = len(X2)
                         dist_final[flag_duplicated & flag_wrong] = np.inf
-            ind = ind_final
-            dist = dist_final
-
-    else:
-        ## simply return query results
-        dist, ind = kdt.query(X1, k=k, distance_upper_bound=max_distance)
+        ind = ind_final
+        dist = dist_final
 
     return dist, ind
 
 def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
                     outDir=None, basename=None, save_matched=False, save_false=False, save_missed=False,
-                    dmag_max=0.5, r_max=0.5/3600., k=4, running_info=True):
+                    r_max=0.6/3600., k=4, mag_closest=True, running_info=True):
     """
     Run cross-match based on positions.
         output files only include the unique id from both catalogues (and distance).
+
+    mag_closest:
+        True (default): choose the magnitude-closest one in case of multiple matching
+        False: choose the distance-closest one in case of multiple matching
+
     """
 
     if running_info:
@@ -134,6 +138,11 @@ def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
     # magnitude
     mag_input = np.array(input_cata[mag_list[0]], dtype=float)
     mag_detec = np.array(detec_cata[mag_list[1]], dtype=float)
+    ## use magnitude to select or not
+    if mag_closest:
+        second_base = [mag_detec, mag_input]
+    else:
+        second_base = []
 
     # location
     xy_input = np.empty((len(id_input), 2), dtype=float)
@@ -149,38 +158,26 @@ def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
         logger.info('Number of detections {:}'.format(len(id_detec)))
 
     # KDTree match
-    dist, ind = KDTreeFunc(xy_detec, xy_input, max_distance=r_max, unique=True, k=k, leafsize=100)
+    dist, ind = KDTreeFunc(xy_detec, xy_input, max_distance=r_max, unique=True, k=k, second_base=second_base, leafsize=100)
     ##
     flag_matched = ind<len(id_input)
     flag_false = np.invert(flag_matched)
     ind_matched = ind[flag_matched]
 
     # matched catalogue
-    tmp_matched_cata = pd.DataFrame({
+    matched_cata = pd.DataFrame({
                     'id_detec': id_detec[flag_matched],
                     'id_input': id_input[ind_matched],
                     'distance_CM': dist[flag_matched],
-                    'dmag_CM': np.abs(mag_input[ind_matched]-mag_detec[flag_matched])
+                    'dmag_CM': (mag_input[ind_matched]-mag_detec[flag_matched])
                     })
-    ## magnitude cut
-    matched_cata = tmp_matched_cata[(tmp_matched_cata['dmag_CM']<dmag_max)].copy()
-    matched_cata.reset_index(drop=True, inplace=True)
     if running_info:
         logger.info('Number of matched {:}'.format(len(matched_cata)))
         logger.info('matched/detections {:}'.format(len(matched_cata)/len(id_detec)))
 
     # false detection
     id_false = id_detec[flag_false]
-    false_cata = pd.DataFrame({
-                    'id_detec': id_false,
-                    'id_input': np.full(len(id_false), -999).astype(int),
-                    'distance_CM': np.full(len(id_false), -999).astype(int),
-                    'dmag_CM': np.full(len(id_false), -999.).astype(float)
-                    })
-    ## dmag does not meet requirement
-    tmp_cata = tmp_matched_cata[(tmp_matched_cata['dmag_CM']>=dmag_max)].copy()
-    false_cata = pd.concat([false_cata, tmp_cata])
-    false_cata.reset_index(drop=True, inplace=True)
+    false_cata = pd.DataFrame({'id_detec': id_false})
     if running_info:
         logger.info('Number of false detections {:}'.format(len(false_cata)))
         logger.info('false_detec/detections {:}'.format(len(false_cata)/len(id_detec)))
@@ -189,16 +186,7 @@ def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
     mask_tmp = np.ones(len(id_input), np.bool)
     mask_tmp[ind_matched] = 0
     id_miss = id_input[mask_tmp]
-    miss_cata = pd.DataFrame({
-                    'id_detec': np.full(len(id_miss), -999).astype(int),
-                    'id_input': id_miss,
-                    'distance_CM': np.full(len(id_miss), -999).astype(float),
-                    'dmag_CM': np.full(len(id_miss), -999).astype(float)
-                    })
-    ## dmag does not meet requirement
-    tmp_cata = tmp_matched_cata[(tmp_matched_cata['dmag_CM']>=dmag_max)].copy()
-    miss_cata = pd.concat([miss_cata, tmp_cata])
-    miss_cata.reset_index(drop=True, inplace=True)
+    miss_cata = pd.DataFrame({'id_input': id_miss})
     if running_info:
         logger.info('Number of missed inputs {:}'.format(len(miss_cata)))
         logger.info('miss_input/input {:}'.format(len(miss_cata)/len(id_input)))

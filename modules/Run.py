@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   lshuns
-# @Last modified time: 2021-04-30, 10:56:18
+# @Last modified time: 2021-04-30, 15:45:00
 
 ### main module to run the whole pipeline
 
@@ -372,13 +372,13 @@ if ('3' in taskIDs) or ('all' in taskIDs):
                 detec_file = os.path.join(out_dir_tmp, f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
                 detec_cata = pd.read_feather(detec_file)
 
-                id_list = ['index', 'NUMBER']
-                position_list = [['RA', 'DEC'], ['X_WORLD', 'Y_WORLD']]
-                mag_list = [detection_band, 'MAG_AUTO']
+                id_list = ['index_input', 'NUMBER']
+                position_list = [['RA_input', 'DEC_input'], ['X_WORLD', 'Y_WORLD']]
+                mag_list = [f'{detection_band}_input', 'MAG_AUTO']
 
                 matched_cata, _, _ = CrossMatch.run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
-                                                    outDir=None, basename=None, save_matched=False, save_false=False, save_missed=False,
-                                                    dmag_max=0.3, r_max=0.5/3600., k=4, running_info=False)
+                                    outDir=None, basename=None, save_matched=False, save_false=False, save_missed=False,
+                                    r_max=0.6/3600., k=4, mag_closest=True, running_info=False)
 
                 mask_stars = detec_cata['NUMBER'].isin(matched_cata['id_detec'])
                 detec_cata.loc[mask_stars, 'perfect_flag_star'] = 1
@@ -396,7 +396,7 @@ if ('3' in taskIDs) or ('all' in taskIDs):
             input_cata = pd.read_feather(os.path.join(ori_cata_dir_tmp, f'gals_info_tile{tile_label}.feather'))
 
             ## magnitude pre-selection
-            input_cata = input_cata[input_cata[detection_band]<=configs_dict['sex']['mag_faint_cut']]
+            input_cata = input_cata[input_cata[f'{detection_band}_input']<=configs_dict['sex']['mag_faint_cut']]
             input_cata.reset_index(drop=True, inplace=True)
 
             for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
@@ -416,12 +416,12 @@ if ('3' in taskIDs) or ('all' in taskIDs):
                 basename_cross =  f'tile{tile_label}_rot{gal_rotation_angle:.0f}'
 
                 # cross-match
-                id_list = ['index', 'NUMBER']
-                position_list = [['RA', 'DEC'], ['X_WORLD', 'Y_WORLD']]
-                mag_list = [detection_band, 'MAG_AUTO']
+                id_list = ['index_input', 'NUMBER']
+                position_list = [['RA_input', 'DEC_input'], ['X_WORLD', 'Y_WORLD']]
+                mag_list = [f'{detection_band}_input', 'MAG_AUTO']
                 _, _, _ = CrossMatch.run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
-                                                    outDir=out_dir_cross, basename=basename_cross, save_matched=configs_dict['sex']['save_matched'], save_false=configs_dict['sex']['save_false'], save_missed=configs_dict['sex']['save_missed'],
-                                                    dmag_max=configs_dict['sex']['dmag_max'], r_max=configs_dict['sex']['r_max']/3600., k=4, running_info=False)
+                                    outDir=out_dir_cross, basename=basename_cross, save_matched=configs_dict['sex']['save_matched'], save_false=configs_dict['sex']['save_false'], save_missed=configs_dict['sex']['save_missed'],
+                                    r_max=configs_dict['sex']['r_max']/3600., k=4, mag_closest=configs_dict['sex']['mag_closest'], running_info=True)
 
     logger.info(f'====== Task 3: detect objects === finished in {(time.time()-start_time)/3600.} h ======')
 
@@ -762,8 +762,9 @@ if ('7' in taskIDs) or ('all' in taskIDs):
                 ## input info
                 infile_tmp = os.path.join(out_dir_input, f'gals_info_tile{tile_label}.feather')
                 tmp_info = pd.read_feather(infile_tmp)
-                ### better naming
-                tmp_info = tmp_info.add_suffix(f'_input')
+                ### rename
+                tmp_info.rename(columns={f'e1_input_rot{int(gal_rotation_angle)}': 'e1_input', f'e2_input_rot{int(gal_rotation_angle)}': 'e2_input'}, inplace=True)
+                tmp_info.drop(columns=[s for s in tmp_info.columns if ("e1_input_" in s) or ("e2_input_" in s)], inplace=True)
                 ### merge
                 data_final = data_final.merge(tmp_info, left_on='id_input', right_on='index_input', how='left')
                 data_final.drop(columns=['index_input'], inplace=True)

@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-01-13 19:27:48
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 12:02:16
+# @Last modified time: 2021-04-30, 15:43:01
 
 ### Wrapper for GAaP code
 
@@ -165,12 +165,12 @@ class GAaPwrapper(object):
                                             'MAG_AUTO': self._magzero-2.5*np.log10(detec_cata_ori[:, 2])})
 
                 ## Match
-                id_list = ['index', 'NUMBER']
-                position_list = [['RA', 'DEC'], ['X_WORLD', 'Y_WORLD']]
-                mag_list = [band, 'MAG_AUTO']
+                id_list = ['index_input', 'NUMBER']
+                position_list = [['RA_input', 'DEC_input'], ['X_WORLD', 'Y_WORLD']]
+                mag_list = [f'{band}_input', 'MAG_AUTO']
                 matched_cata, _, _ = run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
-                                                                        outDir=None, basename=None, save_matched=False, save_false=False, save_missed=False,
-                                                                        dmag_max=0.3, r_max=0.5/3600., k=4, running_info=False)
+                                    outDir=None, basename=None, save_matched=False, save_false=False, save_missed=False,
+                                    r_max=0.6/3600., k=2, mag_closest=True, running_info=False)
 
                 ## stars
                 id_stars = matched_cata['id_detec'].values

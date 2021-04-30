@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last modified by:   lshuns
-# @Last modified time: 2021-04-29, 17:01:49
+# @Last modified time: 2021-04-30, 14:26:59
 
 ### module to generate an example configuration file
 
@@ -172,7 +172,7 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             sex_configs['save_matched'] = config_cross.getboolean('save_matched')
             sex_configs['save_false'] = config_cross.getboolean('save_false')
             sex_configs['save_missed'] = config_cross.getboolean('save_missed')
-            sex_configs['dmag_max'] = config_cross.getfloat('dmag_max')
+            sex_configs['mag_closest'] = config_cross.getboolean('mag_closest')
             sex_configs['r_max'] = config_cross.getfloat('r_max')
 
         ### collect
@@ -462,7 +462,7 @@ mag_faint_cut =         26                     # faintest sources can be possibl
 save_matched =          True                   # save the matched object info\n\
 save_false =            True                   # save false-detected object info\n\
 save_missed =           True                   # save the missed object info\n\
-dmag_max =              0.5                    # allowed maximum magnitude difference\n\
+mag_closest =           True                   # use magnitude to select for duplicated match\n\
 r_max =                 1.0                    # (arcsec) allowed maximum separation\n\
 \n\n\
 ################################## MeasurePhotometry ########################################################\n\
