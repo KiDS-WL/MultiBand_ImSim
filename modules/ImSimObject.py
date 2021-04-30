@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-11-26 16:03:10
 # @Last modified by:   lshuns
-# @Last modified time: 2021-04-29, 14:06:10
+# @Last modified time: 2021-04-29, 16:40:09
 
 ### Everything about celestial objects
 
@@ -115,7 +115,7 @@ def GalaxiesImage(bounds, wcs, band, pixel_scale, PSF,
         flux_gal = gal_info[band]
 
         # position angle
-        PA_gal = gal_info['position_angles']
+        PA_gal = gal_info['position_angle']
         ## rotating position angle for shape noise cancellation
         PA_gal += gal_rotation_angle
 
@@ -129,7 +129,7 @@ def GalaxiesImage(bounds, wcs, band, pixel_scale, PSF,
                 # print(f'Warning...........n_gal {n_gal} outrange of ({SERSIC_N_MIN}, {SERSIC_N_MAX})!')
                 n_gal = float(np.where(n_gal<SERSIC_N_MIN, SERSIC_N_MIN, SERSIC_N_MAX))
                 # print(f'...........assign {n_gal} for now!')
-            q_gal = gal_info['axis_ratios']
+            q_gal = gal_info['axis_ratio']
             if  (q_gal < Q_MIN) or (q_gal > Q_MAX):
                 # print(f"Warning...........q_gal {q_gal} outrange of ({Q_MIN}, {Q_MAX})!")
                 q_gal = float(np.where(q_gal<Q_MIN, Q_MIN, Q_MAX))
@@ -141,9 +141,9 @@ def GalaxiesImage(bounds, wcs, band, pixel_scale, PSF,
         else:
             ### bulge + disk
             # bulge
-            bulge_fraction = gal_info['bulge_fractions']
+            bulge_fraction = gal_info['bulge_fraction']
             bulge_n = gal_info['bulge_n']
-            bulge_q = gal_info['bulge_axis_ratios']
+            bulge_q = gal_info['bulge_axis_ratio']
             if  (bulge_q < Q_MIN) or (bulge_q > Q_MAX):
                 bulge_q = float(np.where(bulge_q<Q_MIN, Q_MIN, Q_MAX))
             bulge_Re = gal_info['bulge_Re'] * (bulge_q)**0.5 # account for the ellipticity
@@ -156,7 +156,7 @@ def GalaxiesImage(bounds, wcs, band, pixel_scale, PSF,
 
             # disk
             if bulge_fraction < 1:
-                disk_q = gal_info['disk_axis_ratios']
+                disk_q = gal_info['disk_axis_ratio']
                 if  (disk_q < Q_MIN) or (disk_q > Q_MAX):
                     disk_q = float(np.where(disk_q<Q_MIN, Q_MIN, Q_MAX))
                 disk_Re = gal_info['disk_Re'] * (disk_q)**0.5 # account for the ellipticity

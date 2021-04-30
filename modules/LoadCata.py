@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-01-07 16:24:17
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-02, 20:51:17
+# @Last modified time: 2021-04-29, 16:56:28
 
 ### Everything about input catalogue
 
@@ -17,7 +17,7 @@ def GalInfo(cata_pathfile, bands,
             id_name, primary_mag_name, mag_name_list,
             RaDec_names,
             shape_names,
-            rng_seed=940120, mag_min_cut=0):
+            rng_seed=940120, mag_min_cut=0, size_max_cut=99.):
     """
     Get galaxy information from the input catalogue.
 
@@ -43,10 +43,13 @@ def GalInfo(cata_pathfile, bands,
         Seed for random number generator.
     mag_min_cut (optional) : float (default: 0)
         Min value of the primary band (the brightest galaxies will be simulated).
+    size_max_cut (optional) : float (default: 99)
+        Max value of the effective radius in arcsec (the largest galaxies will be simulated).
     """
     logger.info('Collect galaxy info from input catalogue...')
     logger.info(f'Query bands {bands}, the detection band {primary_mag_name}')
     logger.info(f"Magnitude brightest cut in {mag_min_cut}")
+    logger.info(f"size largest cut in {size_max_cut}")
 
     # load file
     file_type = cata_pathfile[-3:]
@@ -63,8 +66,9 @@ def GalInfo(cata_pathfile, bands,
 
     # pre-selection based on magnitude
     ### only magnitude > mag_min_cut is simulated
-    mask_mag = cata[primary_mag_name] > mag_min_cut
-    cata = cata[mask_mag]
+    mask_tmp = (cata[primary_mag_name] > mag_min_cut)
+    cata = cata[mask_tmp]
+    del mask_tmp
     if isinstance(cata, pd.DataFrame):
         cata.reset_index(drop=True, inplace=True)
 
@@ -76,7 +80,7 @@ def GalInfo(cata_pathfile, bands,
     Ngal = len(index)
     logger.debug(f'Number of sources {Ngal}')
 
-    # shape info
+    # name for the shape info
     name_Re, name_n, name_ar, name_PA, name_bf, name_bs, name_bar, name_bn, name_ds, name_dar = shape_names
 
     ## sersic profile
@@ -97,7 +101,7 @@ def GalInfo(cata_pathfile, bands,
     try:
         position_angles = cata[name_PA]
     except KeyError:
-        position_angles = np.random.uniform(low=-180., high=180., size=Ngal)
+        position_angles = np.random.uniform(low=0., high=180., size=Ngal)
 
     ## bulge
     try:
@@ -141,11 +145,19 @@ def GalInfo(cata_pathfile, bands,
                 np.array(disk_Re).astype(float), np.array(disk_axis_ratios).astype(float)] + mag_list
     data = np.transpose(data)
     name = ['index','RA','DEC',
-                'sersic_n','Re','axis_ratios','position_angles',
-                'bulge_fractions','bulge_Re','bulge_axis_ratios','bulge_n',
-                'disk_Re','disk_axis_ratios'] + bands
+                'sersic_n','Re','axis_ratio','position_angle',
+                'bulge_fraction','bulge_Re','bulge_axis_ratio','bulge_n',
+                'disk_Re','disk_axis_ratio'] + bands
     gals_info = pd.DataFrame(data=data, columns=name)
     gals_info = gals_info.astype({'index': int})
+
+    # select based on size
+    ### only size < size_max_cut is simulated
+    mask_tmp = (gals_info['Re'] < size_max_cut) & (gals_info['bulge_Re'] < size_max_cut) & (gals_info['disk_Re'] < size_max_cut)
+    gals_info = gals_info[mask_tmp]
+    del mask_tmp
+    gals_info.reset_index(drop=True, inplace=True)
+
     logger.debug('Desired info collected to DataFrame.')
 
     return gals_info

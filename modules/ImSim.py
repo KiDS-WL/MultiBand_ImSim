@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last modified by:   lshuns
-# @Last modified time: 2021-04-29, 14:31:56
+# @Last modified time: 2021-04-30, 10:55:56
 
 ### main module of ImSim
 ###### dependence:
@@ -623,7 +623,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
     logger.info(f'Finished for tile {tile_label} band {band} expo {i_expo}...')
     return 0
 
-def RunParallel_PSFNoisySkyImages(survey, outpath_dir, rng_seed, mag_zero,
+def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, mag_zero,
                                             Nmax_proc,
                                             N_tiles, bands, pixel_scale_list, image_type_list,
                                             noise_info,
@@ -771,10 +771,19 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, rng_seed, mag_zero,
             del Y_gals
 
         ## output info
-        output_col_tmp = ['index', 'RA', 'DEC', 'position_angles'] + bands
+        output_col_tmp = ['index', 'RA', 'DEC', 'Re', 'axis_ratio', 'position_angle'] + bands
         output_tmp = gals_info_selec[output_col_tmp]
-        outpath_tmp = os.path.join(outpath_dir, f'gals_info_tile{tile_label}.feather')
+        ### add ellipticity based on q and beta
+        g_tmp = (1-output_tmp['axis_ratio'])/(1+output_tmp['axis_ratio'])
+        for gal_rotation_angle in gal_rotation_angles:
+            true_pa_tmp = output_tmp['position_angle'] + gal_rotation_angle
+            output_tmp.loc[:, f'e1_input_rot{gal_rotation_angle}'] = g_tmp * np.cos(2. * (true_pa_tmp/180.*np.pi))
+            output_tmp.loc[:, f'e2_input_rot{gal_rotation_angle}'] = g_tmp * np.sin(2. * (true_pa_tmp/180.*np.pi))
+        del g_tmp
+        del true_pa_tmp
+        outpath_tmp = os.path.join(outcata_dir, f'gals_info_tile{tile_label}.feather')
         output_tmp.to_feather(outpath_tmp)
+        del output_tmp
         logger.info(f'galaxy info saved to {outpath_tmp}')
 
         ## magnitude to flux
@@ -815,8 +824,9 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, rng_seed, mag_zero,
             ## output info
             output_col_tmp = ['index', 'RA', 'DEC'] + bands
             output_tmp = stars_info_selec[output_col_tmp]
-            outpath_tmp = os.path.join(outpath_dir, f'stars_info_tile{tile_label}.feather')
+            outpath_tmp = os.path.join(outcata_dir, f'stars_info_tile{tile_label}.feather')
             output_tmp.to_feather(outpath_tmp)
+            del output_tmp
             logger.info(f'star info saved to {outpath_tmp}')
 
             ## magnitude to flux
@@ -886,9 +896,9 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, rng_seed, mag_zero,
 
             # galaxies
             name = ['RA','DEC',
-                'sersic_n','Re','axis_ratios','position_angles',
-                'bulge_fractions','bulge_Re','bulge_axis_ratios','bulge_n',
-                'disk_Re','disk_axis_ratios', band]
+                'sersic_n','Re','axis_ratio','position_angle',
+                'bulge_fraction','bulge_Re','bulge_axis_ratio','bulge_n',
+                'disk_Re','disk_axis_ratio', band]
             gals_info_band = gals_info_tile[name]
 
             # stars

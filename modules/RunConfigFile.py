@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last modified by:   lshuns
-# @Last modified time: 2021-03-11, 11:44:55
+# @Last modified time: 2021-04-29, 17:01:49
 
 ### module to generate an example configuration file
 
@@ -68,6 +68,7 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
     gal_configs = {'file': config_gal.get('cata_file'),
                     'position_type': config_gal.get('position_type'),
                     'mag_min_cut': config_gal.getfloat('mag_min_cut'),
+                    'Re_max_cut': config_gal.getfloat('Re_max_cut'),
                     'id_name': config_gal.get('id_name'),
                     'detection_mag_name': config_gal.get('detection_mag_name'),
                     'mag_name_list': [x.strip() for x in config_gal.get('mag_name_list').split(',')],
@@ -334,6 +335,7 @@ position_type =         true                   # position to be used\n\
                                                #    true (use positions from the input catalogue)\n\
                                                #    grid (put in a grid)\n\
 mag_min_cut =           16                     # brightest galaxies to be simulated\n\
+Re_max_cut =            10                      # the largest galaxies to be simulated\n\
 # catalogue column names to the desired info\n\
 id_name =               index                  # unique galaxy id\n\
 detection_mag_name =    r                      # correspond to the `detection_band` in [ImSim] \n\
@@ -442,7 +444,7 @@ mask_stars =            True                   # mask stars using input info\n\
 cross_match =           True                   # cross-match with the input catalogue\n\
                                                #    in which case, catalogues with match info will be saved\n\
                                                #    see next section for configuration\n\
-config_file =           kids_sims.sex          # SExtractor configuration file\n\
+config_file =           kids_sims_theli.sex          # SExtractor configuration file\n\
 param_file =            sex_image.param        # SExtractor parameter file\n\
 filter_file =           default.conv           # SExtractor filter file\n\
 starNNW_file =          default.nnw            # SExtractor Neural-Network_Weight table file\n\

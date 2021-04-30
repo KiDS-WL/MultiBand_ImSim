@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   lshuns
-# @Last modified time: 2021-04-28, 18:32:57
+# @Last modified time: 2021-04-30, 10:56:18
 
 ### main module to run the whole pipeline
 
@@ -151,16 +151,21 @@ if ('1' in taskIDs) or ('all' in taskIDs):
     start_time = time.time()
 
     ## I/O
+    ### for images
     out_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], 'original')
     if not os.path.exists(out_dir_tmp):
         os.mkdir(out_dir_tmp)
+    ### for catalogues
+    outcata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'input')
+    if not os.path.exists(outcata_dir_tmp):
+        os.mkdir(outcata_dir_tmp)
 
     ## load galaxy info
     gals_info = LoadCata.GalInfo(configs_dict['gal']['file'], configs_dict['imsim']['bands'],
                         configs_dict['gal']['id_name'], configs_dict['gal']['detection_mag_name'], configs_dict['gal']['mag_name_list'],
                         configs_dict['gal']['RaDec_names'],
                         configs_dict['gal']['shape_names'],
-                        rng_seed=configs_dict['imsim']['rng_seed'], mag_min_cut=configs_dict['gal']['mag_min_cut'])
+                        rng_seed=configs_dict['imsim']['rng_seed'], mag_min_cut=configs_dict['gal']['mag_min_cut'], size_max_cut=configs_dict['gal']['Re_max_cut'])
 
     ## load star info
     if configs_dict['star']['file']:
@@ -176,7 +181,7 @@ if ('1' in taskIDs) or ('all' in taskIDs):
         star_position_type = None
 
     ## running
-    ImSim.RunParallel_PSFNoisySkyImages(configs_dict['imsim']['survey'], out_dir_tmp, configs_dict['imsim']['rng_seed'], configs_dict['imsim']['mag_zero'],
+    ImSim.RunParallel_PSFNoisySkyImages(configs_dict['imsim']['survey'], out_dir_tmp, outcata_dir_tmp, configs_dict['imsim']['rng_seed'], configs_dict['imsim']['mag_zero'],
                                             Nmax_proc,
                                             configs_dict['imsim']['N_tiles'], configs_dict['imsim']['bands'], configs_dict['imsim']['pixel_scale_list'], configs_dict['imsim']['image_type_list'],
                                             noise_info,
@@ -291,7 +296,7 @@ if ('3' in taskIDs) or ('all' in taskIDs):
     SeeingFWHM_list = SeeingFWHM_list[:N_tiles]
 
     ## I/O
-    ori_ima_dir = os.path.join(configs_dict['work_dirs']['ima'], 'original')
+    ori_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'input')
     in_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], image_label)
     out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
     if not os.path.exists(out_dir_tmp):
@@ -360,7 +365,7 @@ if ('3' in taskIDs) or ('all' in taskIDs):
 
         for tile_label in tile_labels:
 
-            input_cata = pd.read_feather(os.path.join(ori_ima_dir, f'stars_info_tile{tile_label}.feather'))
+            input_cata = pd.read_feather(os.path.join(ori_cata_dir_tmp, f'stars_info_tile{tile_label}.feather'))
 
             for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
 
@@ -388,7 +393,7 @@ if ('3' in taskIDs) or ('all' in taskIDs):
 
         for tile_label in tile_labels:
 
-            input_cata = pd.read_feather(os.path.join(ori_ima_dir, f'gals_info_tile{tile_label}.feather'))
+            input_cata = pd.read_feather(os.path.join(ori_cata_dir_tmp, f'gals_info_tile{tile_label}.feather'))
 
             ## magnitude pre-selection
             input_cata = input_cata[input_cata[detection_band]<=configs_dict['sex']['mag_faint_cut']]
@@ -429,7 +434,7 @@ if ('4' in taskIDs) or ('all' in taskIDs):
         logger.info('Use GAaP for photometry measurement.')
 
         ## I/O
-        ori_ima_dir = os.path.join(configs_dict['work_dirs']['ima'], 'original')
+        ori_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'input')
         in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
         out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photometry')
         if not os.path.exists(out_dir_tmp):
@@ -457,7 +462,7 @@ if ('4' in taskIDs) or ('all' in taskIDs):
 
             ### star info for psf estimation
             if not configs_dict['MP']['use_PSF_map']:
-                star_info_file = os.path.join(ori_ima_dir, f'stars_info_tile{tile_label}.feather')
+                star_info_file = os.path.join(ori_cata_dir_tmp, f'stars_info_tile{tile_label}.feather')
                 star_info = pd.read_feather(star_info_file)
             else:
                 star_info = None
@@ -707,9 +712,13 @@ if ('7' in taskIDs) or ('all' in taskIDs):
     out_dir_cross = os.path.join(configs_dict['work_dirs']['cata'], 'CrossMatch')
     if os.path.exists(out_dir_cross):
         CrossMatched = True
+        # input info
+        out_dir_input = os.path.join(configs_dict['work_dirs']['cata'], 'input')
+        if not os.path.exists(out_dir_input):
+            raise Exception('There is no input info, something very bad happened!')
     else:
         CrossMatched = False
-        logger.warning('CrossMatch is not performed, the final catalogue will not contain input object IDs.')
+        logger.warning('CrossMatch is not performed, the final catalogue will not contain input info.')
 
     # photometry info
     out_dir_photometry = os.path.join(configs_dict['work_dirs']['cata'], 'photometry')
@@ -750,6 +759,15 @@ if ('7' in taskIDs) or ('all' in taskIDs):
                 data_final = data_final.merge(tmp_info, left_on='NUMBER', right_on='id_detec', how='left')
                 data_final.drop(columns=['id_detec'], inplace=True)
 
+                ## input info
+                infile_tmp = os.path.join(out_dir_input, f'gals_info_tile{tile_label}.feather')
+                tmp_info = pd.read_feather(infile_tmp)
+                ### better naming
+                tmp_info = tmp_info.add_suffix(f'_input')
+                ### merge
+                data_final = data_final.merge(tmp_info, left_on='id_input', right_on='index_input', how='left')
+                data_final.drop(columns=['index_input'], inplace=True)
+
             # photometry
             if HasPhotometry:
                 infile_tmp = os.path.join(out_dir_photometry, f'tile{tile_label}_rot{gal_rotation_angle:.0f}.feather')
@@ -787,6 +805,8 @@ if ('7' in taskIDs) or ('all' in taskIDs):
                 data_final.to_csv(outfile, index=False)
             elif configs_dict['CC']['format'] == 'fits':
                 outfile = os.path.join(configs_dict['work_dirs']['cata'], f'tile{tile_label}_rot{gal_rotation_angle:.0f}_combined.fits')
+                if os.path.isfile(outfile):
+                    os.remove(outfile)
                 Table.from_pandas(data_final).write(outfile, format='fits')
             logger.info(f'Combined catalogue saved as {outfile}')
 
