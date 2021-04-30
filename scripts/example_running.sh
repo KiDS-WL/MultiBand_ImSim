@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-01-29 17:15:39
-# @Last modified by:   ssli
-# @Last modified time: 2021-03-08, 16:42:04
+# @Last modified by:   lshuns
+# @Last modified time: 2021-04-30, 14:28:38
 #
 # usage: Run.py [-h] [--runTag RUNTAG] [--cosmic_shear COSMIC_SHEAR COSMIC_SHEAR]
 #               [-c config_file] [--threads number_threads] [--loglevel logging_level]
@@ -39,5 +39,8 @@
 #   --version             The pipeline version.
 
 #################### example scripts
-### example1: only simple stacked image without observation patterns
+# ### example1: only simple stacked image without observation patterns
 python ../modules/Run.py 1 3 7 --runTag test_simple --threads 1 --cosmic_shear 0.0 0.0 -c ./example_single_band.ini --sep_running_log
+
+### example2: put galaxies in a grid
+python ../modules/Run.py 1 3 7 --runTag test_simple_grid --threads 1 --cosmic_shear 0.0 0.0 -c ./example_single_band_grid.ini --sep_running_log
