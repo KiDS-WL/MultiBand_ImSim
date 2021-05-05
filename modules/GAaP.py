@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2021-01-13 19:27:48
-# @Last modified by:   lshuns
-# @Last modified time: 2021-04-30, 15:43:01
+# @Last modified by:   ssli
+# @Last modified time: 2021-05-02, 12:05:20
 
 ### Wrapper for GAaP code
 
@@ -153,7 +153,7 @@ class GAaPwrapper(object):
                 # +++++++++ cross match to find stars
 
                 ## star info
-                mask_good = (star_info[band] > self._star_mag_cut[0]) & (star_info[band] < self._star_mag_cut[1])
+                mask_good = (star_info[f'{band}_input'] > self._star_mag_cut[0]) & (star_info[f'{band}_input'] < self._star_mag_cut[1])
                 input_cata = star_info[mask_good].copy()
                 input_cata.reset_index(drop=True, inplace=True)
 

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
-# @Last modified by:   lshuns
-# @Last modified time: 2021-04-30, 15:41:49
+# @Last modified by:   ssli
+# @Last modified time: 2021-05-03, 17:30:31
 
 ### main module of ImSim
 ###### dependence:
@@ -304,7 +304,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                     logger.info(f'chips already exist for rot{gal_rotation_angle:.0f} expo{id_exposure}.')
                 else:
                     image_tile = galsim.fits.read(outpath_image_name)
-                    image_chips = KiDSModule.getKiDSchips_tile(image_tile)
+                    image_chips = KiDSModule.getKiDSchips(image_tile, id_exposure=id_exposure)
 
                     for i_chip, image_chip in enumerate(image_chips):
                         outpath_tmp = os.path.join(chip_dir_tmp, f'expo{id_exposure}_chip{i_chip}.fits')
@@ -406,7 +406,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
 
                 # produce chips if required
                 if save_image_chips:
-                    image_chips = KiDSModule.getKiDSchips_tile(image_tile)
+                    image_chips = KiDSModule.getKiDSchips(image_tile, id_exposure=id_exposure)
                     chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
                     for i_chip, image_chip in enumerate(image_chips):
                         outpath_tmp = os.path.join(chip_dir_tmp, f'expo{id_exposure}_chip{i_chip}.fits')
@@ -511,7 +511,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
                     logger.info(f'chips already exist for rot{gal_rotation_angle:.0f} expo{i_expo}.')
                 else:
                     image_tile = galsim.fits.read(outpath_image_name)
-                    image_chips = KiDSModule.getKiDSchips_tile(image_tile)
+                    image_chips = KiDSModule.getKiDSchips(image_tile, id_exposure=i_expo)
 
                     for i_chip, image_chip in enumerate(image_chips):
                         outpath_tmp = os.path.join(chip_dir_tmp, f'expo{i_expo}_chip{i_chip}.fits')
@@ -607,7 +607,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
 
                 # produce chips if required
                 if save_image_chips:
-                    image_chips = KiDSModule.getKiDSchips_tile(image_tile)
+                    image_chips = KiDSModule.getKiDSchips(image_tile, id_exposure=i_expo)
                     chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
                     for i_chip, image_chip in enumerate(image_chips):
                         outpath_tmp = os.path.join(chip_dir_tmp, f'expo{i_expo}_chip{i_chip}.fits')
@@ -649,6 +649,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         raise Exception(f'tiles in noise_info is not enough for desired N_tiles: {len(noise_info)}<{N_tiles}')
     # select tiles from noise_info
     noise_info_selec = noise_info.iloc[:N_tiles]
+    del noise_info
 
     # save psf map or not
     if PSF_map:
@@ -662,15 +663,9 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         # area for each tile
         area_ra = (area_tot)**0.5
         area_dec = area_ra
-        # path diff for overlapping tiles
-        darea_ra = 0
-        darea_dec = 0
     elif survey.lower() == 'kids':
-        # area taking account of the dither pattern
-        area_ra = 1.05 # degree
-        area_dec = 1.12 # degree
-        darea_ra = 0.05
-        darea_dec = 0.12
+        area_ra = 1. # degree
+        area_dec = 1. # degree
     elif survey.lower() == 'one_tile':
         # area same as the input
         ra_min0 = np.min(gals_info['RA'])
@@ -680,8 +675,6 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         ## 0.999 is 1
         area_ra = (ra_max0 - ra_min0) + 0.0005
         area_dec = (dec_max0 - dec_min0) + 0.0005
-        darea_ra = 0.
-        darea_dec = 0.
     else:
         raise Exception(f'Unsupported survey type: {survey}!')
 
@@ -697,47 +690,45 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
     # check if the total area is enough for one tile
     if (area_ra0 < area_ra) or (area_dec0 < area_dec):
-        raise Exception(f'Input galaxy catalogue is not enough for producing one tile!\n\
+        logger.warning(f'Input galaxy catalogue is not enough for producing one tile.\n\
+        Use the whole input catalogue.\n\
         dRA_tile={area_ra}, dRA_cata={area_ra0}; dDEC_tile={area_dec}, dDEC_cata={area_dec0}')
+        area_ra = area_ra0
+        area_dec = area_dec0
 
     # number of tiles along RA direction
-    N_ra = int(area_ra0/(area_ra - darea_ra))
+    N_ra = int(area_ra0/area_ra)
     # number along dec direction
-    N_dec = int(area_dec0/(area_dec - darea_dec))
+    N_dec = int(area_dec0/area_dec)
     # check if the total area is enough for chopping
     if (N_ra*N_dec) < N_tiles:
         logger.warning(f'Input galaxy catalogue is not enough for required number of tiles: {N_ra}*{N_dec}<{N_tiles}')
         logger.warning(f'   repeating patterns will be produced')
 
     # chop input catalogue to tiles
-    gals_info_list = []
-    rng_seed_list = []
-    i_ra = 0
-    i_dec = 0
     if (stars_info is not None):
         # how many stars in each tile
         if (area_ra*area_dec) > stars_area:
             raise Exception(f'Input star catalogue is not enough for required tile area: {area_ra}*{area_dec}<{stars_area} !')
         Nstar_even = int(len(stars_info) / stars_area * (area_ra*area_dec))
         stars_info_list = []
-    for tile_label in noise_info_selec['label']:
+    gals_info_list = []
+    rng_seed_list = []
+    i_ra = 0
+    i_dec = 0
+    for i_tile, tile_label in enumerate(noise_info_selec['label']):
+
+        if (i_tile!=0) and (i_ra==0) and (i_dec==0):
+            logger.warning(f'repeating patterns started from tile {tile_label}')
 
         # rng seed associated with tile labels
         rng_seed_tile = rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=np.int).sum()
         rng_seed_list.append(rng_seed_tile)
 
         # sky area for a tile
-        if (i_ra == 0):
-            dstep = 0
-        else:
-            dstep = (area_ra - darea_ra) * i_ra - darea_ra
-        ra_min = ra_min0 + dstep
+        ra_min = ra_min0 + area_ra * i_ra
         ra_max = ra_min + area_ra
-        if (i_dec == 0):
-            dstep = 0
-        else:
-            dstep = (area_dec - darea_dec) * i_dec - darea_dec
-        dec_min = dec_min0 + dstep
+        dec_min = dec_min0 + area_dec * i_dec
         dec_max = dec_min + area_dec
 
         # select galaxies
@@ -847,6 +838,9 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             i_dec += 1
             if i_dec == N_dec:
                 i_dec = 0
+
+    # release some space
+    del gals_info
 
     # collect parameters for workers
     para_lists = []
@@ -965,6 +959,12 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                 para_lists.append(para_list)
                 # label
                 image_type_labels.append(image_type)
+
+    # release some space
+    del noise_info_selec, rng_seed_list
+    del gals_info_list, gals_info_tile, gals_info_band
+    if (stars_info is not None):
+        del stars_info_list, stars_info_tile, stars_info_band
 
     # start parallel running
     N_tasks = len(para_lists)

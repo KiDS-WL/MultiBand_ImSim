@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-09-24 17:42:47
-# @Last modified by:   lshuns
-# @Last modified time: 2021-04-30, 15:06:11
+# @Last modified by:   ssli
+# @Last modified time: 2021-05-03, 9:55:56
 
 ### cross-match catalogues based on object positions using KDTree
 
@@ -102,6 +102,15 @@ def KDTreeFunc(X1, X2, max_distance=np.inf, unique=True, k=1, second_base=[], le
                         ### only min difference is remained
                         ind_final[index_wrong] = len(X2)
                         dist_final[index_wrong] = np.inf
+                        ## to see if more than one object is remained
+                        if len(index_wrong) != len(dv_tmp)-1:
+                            flag_duplicated_dup = (dv_tmp<=np.min(dv_tmp))
+                            dist_tmp = dist_final[flag_duplicated][flag_duplicated_dup]
+                            flag_wrong = (dist_tmp>np.min(dist_tmp))
+                            index_wrong = np.argwhere(flag_duplicated == True)[flag_duplicated_dup][flag_wrong]
+                            # mark the distant one as wrong
+                            ind_final[index_wrong] = len(X2)
+                            dist_final[index_wrong] = np.inf
                     ### pick nearest one
                     else:
                         ### distance for duplicated ind
