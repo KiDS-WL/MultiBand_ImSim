@@ -1,5 +1,6 @@
-# example config file for KiDS DR4 data
-## http://kids.strw.leidenuniv.nl/DR4/example_config.sex
+## Based on
+##      "Final version SExtractor parameters [CH]"
+##          from http://lensingkids.strw.leidenuniv.nl/doku.php?id=group:data_reduction_and_source_catalogue#r-band_sextractor_catalogues_with_lensfit_measurements_ac
 
 #-------------------------------- Catalog ------------------------------------
 CATALOG_NAME    /specified/in/each/run  # name of the output catalog
@@ -44,7 +45,7 @@ BACKPHOTO_TYPE  GLOBAL                   # can be "GLOBAL" or "LOCAL" (*)
 BACKPHOTO_THICK 24                      # thickness of the background LOCAL annulus (*)
 BACK_SIZE       64                     # Background mesh: <size> or <width>,<height>
 BACK_TYPE       MANUAL
-BACK_VALUE  0.0, 0.0
+BACK_VALUE  0.0,0.0
 
 #------------------------------- Weighting -----------------------------------
 WEIGHT_TYPE     NONE
