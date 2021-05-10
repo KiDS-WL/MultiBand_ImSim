@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
-# @Last modified by:   lshuns
-# @Last modified time: 2021-04-30, 15:45:00
+# @Last modified by:   ssli
+# @Last modified time: 2021-05-10, 15:23:19
 
 ### main module to run the whole pipeline
 
@@ -165,14 +165,14 @@ if ('1' in taskIDs) or ('all' in taskIDs):
                         configs_dict['gal']['id_name'], configs_dict['gal']['detection_mag_name'], configs_dict['gal']['mag_name_list'],
                         configs_dict['gal']['RaDec_names'],
                         configs_dict['gal']['shape_names'],
-                        rng_seed=configs_dict['imsim']['rng_seed'], mag_min_cut=configs_dict['gal']['mag_min_cut'], size_max_cut=configs_dict['gal']['Re_max_cut'])
+                        rng_seed=configs_dict['imsim']['rng_seed'], mag_cut=configs_dict['gal']['mag_cut'], size_cut=configs_dict['gal']['size_cut'])
 
     ## load star info
     if configs_dict['star']['file']:
         stars_info = LoadCata.StarInfo(configs_dict['star']['file'], configs_dict['imsim']['bands'],
                             configs_dict['star']['id_name'], configs_dict['star']['detection_mag_name'], configs_dict['star']['mag_name_list'],
                             RaDec_names=configs_dict['star']['RaDec_names'],
-                            mag_min_cut=configs_dict['star']['mag_min_cut'])
+                            mag_cut=configs_dict['star']['mag_cut'])
         star_area = configs_dict['star']['cata_area']
         star_position_type = configs_dict['star']['position_type']
     else:
@@ -245,14 +245,32 @@ if ('2' in taskIDs) or ('all' in taskIDs):
 
                 for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
 
-                    image_in = glob.glob(os.path.join(in_dir_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}_expo?.fits'))
-                    if not image_in:
-                        image_in = os.path.join(in_dir_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
+                    # original images
+                    ## simply resampling
+                    image_in = os.path.join(in_dir_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
+                    if not os.path.isfile(image_in):
+                        ## exposures
+                        image_in = glob.glob(os.path.join(in_dir_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}_expo?.fits'))
+                        if not image_in:
+                            ## chips
+                            image_in = os.path.join(in_dir_tmp, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', '*.fits')
+
+                    # check weight images
+                    if isinstance(image_in, str):
+                        if os.path.isfile(image_in.replace('.fits', '.weight.fits')):
+                            contain_wei_ima = True
+                        else:
+                            contain_wei_ima = False
+                    else:
+                        if os.path.isfile(image_in[0].replace('.fits', '.weight.fits')):
+                            contain_wei_ima = True
+                        else:
+                            contain_wei_ima = False
 
                     ### run
                     image_out = os.path.join(out_dir_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
                     proc = work_pool.apply_async(func=Astromatic.SwarpImage,
-                                            args=(image_in, swarp_config, image_out, only_resample, running_log, log_dir_tmp, configs_dict['swarp']['cmd'], clean_up_level_tmp))
+                                            args=(image_in, swarp_config, image_out, only_resample, contain_wei_ima, running_log, log_dir_tmp, configs_dict['swarp']['cmd'], clean_up_level_tmp))
                     proc_list.append(proc)
 
                     ### psf map
@@ -264,7 +282,7 @@ if ('2' in taskIDs) or ('all' in taskIDs):
                         #### run
                         image_out = os.path.join(out_dir_psf_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
                         proc = work_pool.apply_async(func=Astromatic.SwarpImage,
-                                                args=(image_in_psf, swarp_config, image_out, only_resample, running_log, log_dir_tmp, configs_dict['swarp']['cmd'], clean_up_level_tmp))
+                                                args=(image_in_psf, swarp_config, image_out, only_resample, contain_wei_ima, running_log, log_dir_tmp, configs_dict['swarp']['cmd'], clean_up_level_tmp))
                         proc_list.append(proc)
 
     work_pool.close()
@@ -347,7 +365,7 @@ if ('3' in taskIDs) or ('all' in taskIDs):
                                             running_log, log_dir_tmp,
                                             configs_dict['sex']['cmd'], configs_dict['sex']['config_file'], configs_dict['sex']['param_file'],
                                             configs_dict['sex']['filter_file'], configs_dict['sex']['starNNW_file'],
-                                            configs_dict['sex']['checkimage_type'],
+                                            configs_dict['sex']['checkimage_type'], True,
                                             configs_dict['imsim']['mag_zero'],
                                             configs_dict['sex']['clean_up_level']))
             proc_list.append(proc)

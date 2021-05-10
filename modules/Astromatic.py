@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-08-17 14:26:07
-# @Last modified by:   lshuns
-# @Last modified time: 2021-04-27, 23:44:42
+# @Last modified by:   ssli
+# @Last modified time: 2021-05-10, 15:22:55
 
 ### Wrapper for astromatic codes
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def SwarpImage(image_in, swarp_config_file,
                     image_out,
-                    only_resample=False,
+                    only_resample=False, contain_wei_ima=True,
                     running_log=True, log_dir=None,
                     swarp_path='swarp',
                     clean_up_level=0):
@@ -75,6 +75,12 @@ def SwarpImage(image_in, swarp_config_file,
             '-IMAGEOUT_NAME', image_out, '-WEIGHTOUT_NAME', image_out.replace('.fits', '.weight.fits')])
         logger.info('Running SWarp for coadding...')
 
+    # contain weight images or not
+    if contain_wei_ima:
+        cmd.extend(['-WEIGHT_TYPE', 'MAP_WEIGHT'])
+    else:
+        cmd.extend(['-WEIGHT_TYPE', 'NONE'])
+
     logger.info(f'Config file {swarp_config_file}')
 
     # run
@@ -118,7 +124,7 @@ def SExtractorCatalogue(CatalogueFile, pixel_scale, SeeingFWHM,
                         running_log=True, log_dir='./',
                         SexPath='sex', ConfigFile='../config/kids_sims_theli.sex', ParamFile='../config/sex_image.param',
                         FilterName='../config/default.conv', StarnnwName='../config/default.nnw',
-                        CHECKIMAGE_TYPE=None,
+                        CHECKIMAGE_TYPE=None, build_feather=True,
                         mag_zero=30.,
                         clean_up_level=0):
     '''
@@ -132,20 +138,21 @@ def SExtractorCatalogue(CatalogueFile, pixel_scale, SeeingFWHM,
     '''
 
     # check existence
-    file_feather = CatalogueFile.replace('.sex', '.feather')
-    if os.path.isfile(file_feather):
-        logger.info(f'The final feather catalogue {file_feather} already exists.')
-        logger.info(f'End the process.')
-        return 1
-    if os.path.isfile(CatalogueFile):
-        os.remove(CatalogueFile)
-        logger.info(f'Remove existing .sex file.')
+    if build_feather:
+        file_feather = CatalogueFile.replace('.sex', '.feather')
+        if os.path.isfile(file_feather):
+            logger.info(f'The final feather catalogue {file_feather} already exists.')
+            logger.info(f'End the process.')
+            return 1
+        if os.path.isfile(CatalogueFile):
+            os.remove(CatalogueFile)
+            logger.info(f'Remove existing .sex file.')
 
     # running info
     if running_log:
         basename = os.path.basename(CatalogueFile)
-        outLog = open(os.path.join(log_dir, basename.replace('.sex', '.log')), "w")
-        errLog = open(os.path.join(log_dir, basename.replace('.sex', '.err.log')), "w")
+        outLog = open(os.path.join(log_dir, basename+'.log'), "w")
+        errLog = open(os.path.join(log_dir, basename+'.err.log'), "w")
     else:
         outLog = subprocess.PIPE
         errLog = subprocess.STDOUT
@@ -198,13 +205,14 @@ def SExtractorCatalogue(CatalogueFile, pixel_scale, SeeingFWHM,
         errLog.close()
 
     # feather file
-    logger.debug('Build feather file for easy use ...')
-    col_name = np.loadtxt(ParamFile, dtype=str)
-    values = np.loadtxt(CatalogueFile)
-    df = pd.DataFrame(data=values, columns=col_name)
-    df = df.astype({'NUMBER': 'int', 'FLAGS': 'int'})
-    df.to_feather(file_feather)
-    logger.info(f'Easy-use feather file built as {file_feather}')
+    if build_feather:
+        logger.debug('Build feather file for easy use ...')
+        col_name = np.loadtxt(ParamFile, dtype=str)
+        values = np.loadtxt(CatalogueFile)
+        df = pd.DataFrame(data=values, columns=col_name)
+        df = df.astype({'NUMBER': 'int', 'FLAGS': 'int'})
+        df.to_feather(file_feather)
+        logger.info(f'Easy-use feather file built as {file_feather}')
 
     if (clean_up_level >= 1):
         os.remove(ImageFile1)
