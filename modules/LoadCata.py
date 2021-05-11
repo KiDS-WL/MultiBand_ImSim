@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-01-07 16:24:17
 # @Last modified by:   lshuns
-# @Last modified time: 2021-04-29, 16:56:28
+# @Last modified time: 2021-05-05, 11:35:43
 
 ### Everything about input catalogue
 
@@ -17,7 +17,7 @@ def GalInfo(cata_pathfile, bands,
             id_name, primary_mag_name, mag_name_list,
             RaDec_names,
             shape_names,
-            rng_seed=940120, mag_min_cut=0, size_max_cut=99.):
+            rng_seed=940120, mag_cut=[], size_cut=[]):
     """
     Get galaxy information from the input catalogue.
 
@@ -41,15 +41,17 @@ def GalInfo(cata_pathfile, bands,
         Path to the output of the simulated info.
     rng_seed (optional) : int (default: 940120)
         Seed for random number generator.
-    mag_min_cut (optional) : float (default: 0)
-        Min value of the primary band (the brightest galaxies will be simulated).
-    size_max_cut (optional) : float (default: 99)
-        Max value of the effective radius in arcsec (the largest galaxies will be simulated).
+    mag_cut (optional) : a list of float (default: [])
+        Min & Max value of the primary band (the brightest & faintest galaxies will be simulated).
+    size_cut (optional) : a list of float (default: [])
+        Min & Max value of the effective radius in arcsec (the smallest & largest galaxies will be simulated).
     """
     logger.info('Collect galaxy info from input catalogue...')
     logger.info(f'Query bands {bands}, the detection band {primary_mag_name}')
-    logger.info(f"Magnitude brightest cut in {mag_min_cut}")
-    logger.info(f"size largest cut in {size_max_cut}")
+    if mag_cut:
+        logger.info(f"Magnitude cut in: {mag_cut}")
+    if size_cut:
+        logger.info(f"size cut in: {size_cut}")
 
     # load file
     file_type = cata_pathfile[-3:]
@@ -65,12 +67,13 @@ def GalInfo(cata_pathfile, bands,
     logger.info(f'gal_cata: {cata_pathfile}')
 
     # pre-selection based on magnitude
-    ### only magnitude > mag_min_cut is simulated
-    mask_tmp = (cata[primary_mag_name] > mag_min_cut)
-    cata = cata[mask_tmp]
-    del mask_tmp
-    if isinstance(cata, pd.DataFrame):
-        cata.reset_index(drop=True, inplace=True)
+    ### only magnitude within mag_cut is simulated
+    if mag_cut:
+        mask_tmp = (cata[primary_mag_name] >= mag_cut[0]) & (cata[primary_mag_name] <= mag_cut[1])
+        cata = cata[mask_tmp]
+        del mask_tmp
+        if isinstance(cata, pd.DataFrame):
+            cata.reset_index(drop=True, inplace=True)
 
     # random seed
     np.random.seed(rng_seed)
@@ -152,11 +155,14 @@ def GalInfo(cata_pathfile, bands,
     gals_info = gals_info.astype({'index': int})
 
     # select based on size
-    ### only size < size_max_cut is simulated
-    mask_tmp = (gals_info['Re'] < size_max_cut) & (gals_info['bulge_Re'] < size_max_cut) & (gals_info['disk_Re'] < size_max_cut)
-    gals_info = gals_info[mask_tmp]
-    del mask_tmp
-    gals_info.reset_index(drop=True, inplace=True)
+    ### only size within size_cut is simulated
+    if size_cut:
+        mask_tmp = (gals_info['Re'] >= size_cut[0]) & (gals_info['Re'] <= size_cut[1]) &\
+                    (gals_info['bulge_Re'] >= size_cut[0]) & (gals_info['bulge_Re'] <= size_cut[1]) &\
+                    (gals_info['disk_Re'] >= size_cut[0]) & (gals_info['disk_Re'] <= size_cut[1])
+        gals_info = gals_info[mask_tmp]
+        del mask_tmp
+        gals_info.reset_index(drop=True, inplace=True)
 
     logger.debug('Desired info collected to DataFrame.')
 
@@ -164,7 +170,7 @@ def GalInfo(cata_pathfile, bands,
 
 def StarInfo(cata_pathfile, bands,
             id_name, primary_mag_name, mag_name_list,
-            RaDec_names=None, mag_min_cut=0):
+            RaDec_names=None, mag_cut=[]):
     """
     Get star information from the input catalogue.
 
@@ -183,12 +189,13 @@ def StarInfo(cata_pathfile, bands,
     RaDec_names (optional) : list of str [RA, dec] (default: None)
         Column names for position information.
         Not required, if stars will be randomly placed.
-    mag_min_cut (optional) : float (default: 0)
-        Min value of the primary band (the brightest stars will be simulated).
+    mag_cut (optional) : a list of float (default: [])
+        Min & Max value of the primary band (the brightest & faintest stars will be simulated).
     """
     logger.info('Collect star info from input catalogue...')
     logger.info(f'Query bands {bands}, the primary band {primary_mag_name}')
-    logger.info(f"Magnitude brightest cut in {mag_min_cut}")
+    if mag_cut:
+        logger.info(f"Magnitude cut in: {mag_cut}")
 
     # load file
     file_type = cata_pathfile[-3:]
@@ -204,11 +211,13 @@ def StarInfo(cata_pathfile, bands,
     logger.info(f'star_cata: {cata_pathfile}')
 
     # pre-selection based on magnitude
-    ### only magnitude > mag_min_cut is simulated
-    mask_mag = cata[primary_mag_name] > mag_min_cut
-    cata = cata[mask_mag]
-    if isinstance(cata, pd.DataFrame):
-        cata.reset_index(drop=True, inplace=True)
+    ### only magnitude within mag_cut is simulated
+    if mag_cut:
+        mask_tmp = (cata[primary_mag_name] >= mag_cut[0]) & (cata[primary_mag_name] <= mag_cut[1])
+        cata = cata[mask_tmp]
+        del mask_tmp
+        if isinstance(cata, pd.DataFrame):
+            cata.reset_index(drop=True, inplace=True)
 
     # unique id
     index = cata[id_name]

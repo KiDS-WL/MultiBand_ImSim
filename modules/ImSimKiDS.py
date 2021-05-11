@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-11-30 16:54:44
 # @Last modified by:   lshuns
-# @Last modified time: 2021-04-30, 19:10:17
+# @Last modified time: 2021-05-06, 21:53:35
 
 ### Everything about KiDS observations (instrumental setup & data acquisition procedure)
 ###### reference: https://www.eso.org/sci/facilities/paranal/instruments/omegacam/doc/VST-MAN-OCM-23100-3110_p107_v2.pdf
@@ -25,12 +25,78 @@ Npix_y = Nchips_y*Npix_chip_y + GAP_y_narrow + 2*GAP_y_wide # total number of pi
 # some observation values
 # N_exposures_gri = 5 # number of exposures in gri-bands
 # N_exposures_u = 4 # number of exposures in u-band
-Dither_x = 25./0.214 # pix # dither step along RA
-Dither_y = 85./0.214 # pix # dither step along dec
+Dither_x_pix = 25./0.214 # pix # dither step along RA
+Dither_y_pix = 85./0.214 # pix # dither step along dec
+Dither_x_arcsec = 25. # arcsec # dither step along RA
+Dither_y_arcsec = 85. # arcsec # dither step along dec
 
-def getKiDStile(image_ori, id_exposure=0):
+def getKiDScanvases(RA0, DEC0, id_exposure=0):
     """
-    Get OmegaCAM-like tile: cut (dither) + gaps
+    Build a bunch of canvases mimicking OmegaCAM chips
+
+    Parameters
+    ----------
+    RA0: float
+        The original RA for the reference pixel
+    DEC0: float
+        The original DEC for the reference pixel
+    id_exposure: int, optional (default: 0)
+        ID for exposure (start with 0)
+
+    Returns
+    -------
+    canvases_list: a list of GalSim Image object
+        a list of canvases mimicking OmegaCAM chips
+    """
+
+    # center value shifted due to dither step
+    RA0 -= (id_exposure-2)*(Dither_x_arcsec/3600.)
+    DEC0 -= (id_exposure-2)*(Dither_y_arcsec/3600.)
+
+    # transfer to the center value for the first chip
+    RA0 -= (Npix_x/2.-Npix_chip_x/2.)*Pixel_scale
+    DEC0 -= (Npix_y/2.-Npix_chip_y/2.)*Pixel_scale
+
+    # bounds for each CCD
+    bounds = galsim.BoundsI(xmin=0, xmax=Npix_chip_x-1, ymin=0, ymax=Npix_chip_y-1)
+    ## use the center pixel as the reference pixel in image
+    origin_ima = galsim.PositionI(x=int(Npix_chip_x/2.), y=int(Npix_chip_y/2.))
+
+    # Linear projection matrix for wcs
+    dudx = Pixel_scale # degree
+    dudy = 0.
+    dvdx = 0.
+    dvdy = Pixel_scale # degree
+    wcs_affine = galsim.AffineTransform(dudx, dudy, dvdx, dvdy, origin=origin_ima)
+
+    # loop over all chips
+    canvases_list = []
+    for i_chip_x in range(Nchips_x):
+        for i_chip_y in range(Nchips_y):
+
+            ## Reference point in wcs
+            RA0_tmp = RA0 + i_chip_x*(Npix_chip_x+GAP_x)*Pixel_scale
+            DEC0_tmp = DEC0 + i_chip_y*Npix_chip_y*Pixel_scale
+            ### gaps in y axis
+            if i_chip_y >= 1:
+                DEC0_tmp += GAP_y_wide*Pixel_scale
+            if i_chip_y >= 2:
+                DEC0_tmp += GAP_y_narrow*Pixel_scale
+            if i_chip_y >= 3:
+                DEC0_tmp += GAP_y_wide*Pixel_scale
+            world_origin = galsim.CelestialCoord(ra=RA0_tmp*galsim.degrees, dec=DEC0_tmp*galsim.degrees)
+
+            ## build the wcs
+            wcs = galsim.TanWCS(wcs_affine, world_origin, units=galsim.degrees)
+
+            ## build the canvas
+            canvases_list.append(galsim.ImageF(bounds=bounds, wcs=wcs))
+
+    return canvases_list
+
+def cutKiDStile(image_ori, id_exposure=0):
+    """
+    Cut OmegaCAM-like tile from simulated image with dither and gaps
         The WCS will be handled by GalSim automatically.
 
     Parameters
@@ -56,8 +122,8 @@ def getKiDStile(image_ori, id_exposure=0):
 
     # bounds for the new image
     center_ori = image_ori.center
-    x_shift = center_ori.x - (id_exposure-2)*Dither_x
-    y_shift = center_ori.y - (id_exposure-2)*Dither_y
+    x_shift = center_ori.x - (id_exposure-2)*Dither_x_pix
+    y_shift = center_ori.y - (id_exposure-2)*Dither_y_pix
     x_min = int(x_shift - Npix_x/2.)
     x_max = int(x_shift + Npix_x/2.) - 1
     y_min = int(y_shift - Npix_y/2.)
@@ -106,10 +172,10 @@ def getKiDStile(image_ori, id_exposure=0):
 
     return image_tile, weights_tile
 
-def getKiDSchips(image_ori, id_exposure=0):
+def cutKiDSchips(image_ori, id_exposure=0):
     """
-    Get OmegaCAM-like chips: cut image to chips by applying dither and gaps
-        can be the original simulated image or tile images
+    Cut OmegaCAM-like chips from simulated image by applying dither and gaps
+
     Parameters
     ----------
     image_ori: GalSim image object
@@ -131,8 +197,8 @@ def getKiDSchips(image_ori, id_exposure=0):
 
     # bounds due to the dither
     center_ori = image_ori.center
-    x_shift = center_ori.x - (id_exposure-2)*Dither_x
-    y_shift = center_ori.y - (id_exposure-2)*Dither_y
+    x_shift = center_ori.x - (id_exposure-2)*Dither_x_pix
+    y_shift = center_ori.y - (id_exposure-2)*Dither_y_pix
     x_min = int(x_shift - Npix_x/2.)
     y_min = int(y_shift - Npix_y/2.)
 

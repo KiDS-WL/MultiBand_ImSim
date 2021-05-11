@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-11-26 16:03:10
-# @Last modified by:   lshuns
-# @Last modified time: 2021-04-29, 16:40:09
+# @Last modified by:   ssli
+# @Last modified time: 2021-05-07, 18:51:47
 
 ### Everything about celestial objects
 
 import galsim
+import logging
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # some sensible constraints
 ## size cut
@@ -26,9 +29,9 @@ SERSIC_N_MIN, SERSIC_N_MAX = 0.3, 6.2
 ### (for faster calculation)
 TRUNC_FACTOR = 5
 
-def WCS(RA_min, RA_max, DEC_min, DEC_max, pixel_scale):
+def SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale):
     """
-    Build the WCS system for the coordinate transformation
+    Build a simple canvas
     """
 
     ## center used as reference point
@@ -54,19 +57,19 @@ def WCS(RA_min, RA_max, DEC_min, DEC_max, pixel_scale):
     wcs_affine = galsim.AffineTransform(dudx, dudy, dvdx, dvdy, origin=origin_ima)
     wcs = galsim.TanWCS(wcs_affine, world_origin, units=galsim.degrees)
 
-    return bounds, wcs
+    canvas = galsim.ImageF(bounds=bounds, wcs=wcs)
 
-def GalaxiesImage(bounds, wcs, band, pixel_scale, PSF,
+    return canvas
+
+def GalaxiesImage(canvas, band, pixel_scale, PSF,
                     gals_info, gal_rotation_angle=0., g_cosmic=[0, 0]):
     """
     Generate pure sky image with only galaxies
 
     Parameters
     ----------
-    bounds: galsim object
-        Bounds for the whole image.
-    wcs: galsim object
-        WCS for coordinate transformation.
+    canvas: galsim Image object
+        the canvas to put galaxies
     band: str
         Photometric band simulated.
     pixel_scale (arcsec) : float
@@ -86,18 +89,35 @@ def GalaxiesImage(bounds, wcs, band, pixel_scale, PSF,
         Image for galaxies.
     """
 
+    # check if the canvas is clean
+    if np.any(canvas.array):
+        raise Exception('The provided canvas is unclean for GalaxiesImage!')
+
+    # copy the canvas
+    full_image = canvas.copy()
+    wcs = full_image.wcs
+    bounds = full_image.bounds
+
     # galaxy sky positions
     RA_gals = np.array(gals_info['RA']) # degree
     DEC_gals = np.array(gals_info['DEC']) # degree
 
     # galaxy image positions
     x_gals, y_gals = wcs.toImage(RA_gals, DEC_gals, units=galsim.degrees)
+    logger.debug(f'Total number of input galaxies: {len(x_gals)}')
+    del RA_gals, DEC_gals, wcs
 
-    # initialize the canvas
-    full_image = galsim.ImageF(bounds=bounds, wcs=wcs)
+    # ignore those out of the boundaries
+    mask_tmp = (x_gals>=bounds.xmin) & (x_gals<=bounds.xmax) & (y_gals>=bounds.ymin) & (y_gals<=bounds.ymax)
+    x_gals = x_gals[mask_tmp]
+    y_gals = y_gals[mask_tmp]
+    gals_info_selec = gals_info[mask_tmp].copy()
+    gals_info_selec.reset_index(drop=True, inplace=True)
+    logger.debug(f'Number of galaxies within the bounds: {len(x_gals)}')
+    del mask_tmp, bounds, gals_info
 
     # loop over galaxies
-    for i_gal, gal_info in gals_info.iterrows():
+    for i_gal, gal_info in gals_info_selec.iterrows():
 
         # galaxy position
         ## 0.5 for offset (difference between GalSim and Sextractor)
@@ -187,17 +207,15 @@ def GalaxiesImage(bounds, wcs, band, pixel_scale, PSF,
 
     return full_image
 
-def StarsImage(bounds, wcs, band, pixel_scale, PSF,
+def StarsImage(canvas, band, pixel_scale, PSF,
                     stars_info):
     """
     Generate pure sky image with only stars
 
     Parameters
     ----------
-    bounds: galsim object
-        Bounds for the whole image.
-    wcs: galsim object
-        WCS for coordinate transformation.
+    canvas: galsim Image object
+        the canvas to put galaxies
     band: str
         Photometric band simulated.
     pixel_scale (arcsec) : float
@@ -213,18 +231,35 @@ def StarsImage(bounds, wcs, band, pixel_scale, PSF,
         Image for stars.
     """
 
+    # check if the canvas is clean
+    if np.any(canvas.array):
+        raise Exception('The provided canvas is unclean for StarsImage!')
+
+    # copy the canvas
+    full_image = canvas.copy()
+    wcs = full_image.wcs
+    bounds = full_image.bounds
+
     # sky positions
-    RA_stars = stars_info['RA'] # degree
-    DEC_stars = stars_info['DEC'] # degree
+    RA_stars = np.array(stars_info['RA']) # degree
+    DEC_stars = np.array(stars_info['DEC']) # degree
 
     # image positions
     x_stars, y_stars = wcs.toImage(RA_stars, DEC_stars, units=galsim.degrees)
+    logger.debug(f'Total number of input stars: {len(x_stars)}')
+    del RA_stars, DEC_stars, wcs
 
-    # initialize the canvas
-    full_image = galsim.ImageF(bounds=bounds, wcs=wcs)
+    # ignore those out of the boundaries
+    mask_tmp = (x_stars>=bounds.xmin) & (x_stars<=bounds.xmax) & (y_stars>=bounds.ymin) & (y_stars<=bounds.ymax)
+    x_stars = x_stars[mask_tmp]
+    y_stars = y_stars[mask_tmp]
+    stars_info_selec = stars_info[mask_tmp].copy()
+    stars_info_selec.reset_index(drop=True, inplace=True)
+    logger.debug(f'Number of stars within the bounds: {len(x_stars)}')
+    del mask_tmp, bounds, stars_info
 
     # loop over stars
-    for i_star, star_info in stars_info.iterrows():
+    for i_star, star_info in stars_info_selec.iterrows():
 
         # position
         ## 0.5 for offset (difference between GalSim and Sextractor)

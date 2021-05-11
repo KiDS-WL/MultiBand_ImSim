@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last modified by:   lshuns
-# @Last modified time: 2021-04-30, 14:26:59
+# @Last modified time: 2021-05-05, 12:29:16
 
 ### module to generate an example configuration file
 
@@ -67,8 +67,8 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
     config_gal = config['GalInfo']
     gal_configs = {'file': config_gal.get('cata_file'),
                     'position_type': config_gal.get('position_type'),
-                    'mag_min_cut': config_gal.getfloat('mag_min_cut'),
-                    'Re_max_cut': config_gal.getfloat('Re_max_cut'),
+                    'mag_cut': [float(i_p.strip()) for i_p in config_gal.get('mag_cut').split(',')],
+                    'size_cut': [float(i_p.strip()) for i_p in config_gal.get('Re_cut').split(',')],
                     'id_name': config_gal.get('id_name'),
                     'detection_mag_name': config_gal.get('detection_mag_name'),
                     'mag_name_list': [x.strip() for x in config_gal.get('mag_name_list').split(',')],
@@ -86,7 +86,7 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
         star_configs = {'file': star_file,
                         'cata_area': config_star.getfloat('cata_area'),
                         'position_type': config_star.get('position_type'),
-                        'mag_min_cut': config_star.getfloat('mag_min_cut'),
+                        'mag_cut': [float(i_p.strip()) for i_p in config_star.get('mag_cut').split(',')],
                         'id_name': config_star.get('id_name'),
                         'detection_mag_name': config_star.get('detection_mag_name'),
                         'mag_name_list': [x.strip() for x in config_star.get('mag_name_list').split(',')],
@@ -334,8 +334,8 @@ cata_file =                                    # input galaxy mock catalogue\n\
 position_type =         true                   # position to be used\n\
                                                #    true (use positions from the input catalogue)\n\
                                                #    grid (put in a grid)\n\
-mag_min_cut =           16                     # brightest galaxies to be simulated\n\
-Re_max_cut =            10                      # the largest galaxies to be simulated\n\
+mag_cut =               16, 28                 # magnitude cut for galaxies to be simulated\n\
+Re_cut =                0, 10                  # size cut for galaxies to be simulated (arcsec)\n\
 # catalogue column names to the desired info\n\
 id_name =               index                  # unique galaxy id\n\
 detection_mag_name =    r                      # correspond to the `detection_band` in [ImSim] \n\
@@ -360,7 +360,7 @@ cata_area =             1                      # square degrees\n\
 position_type =         random                 # position to be used\n\
                                                #    random (randomly place the stars)\n\
                                                #    true (use positions from the input catalogue)\n\
-mag_min_cut =           10                     # brightest stars to be simulated\n\
+mag_cut =               10, 28                 # magnitude cut for stars to be simulated\n\
 # column names to the desired info\n\
 id_name =               index                  # unique star id\n\
 detection_mag_name =    r                      # correspond to the `detection_band` in [ImSim] \n\
