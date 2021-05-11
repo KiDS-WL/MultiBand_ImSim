@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-01-07 16:24:17
 # @Last modified by:   ssli
-# @Last modified time: 2021-05-11, 16:22:35
+# @Last modified time: 2021-05-11, 21:18:10
 
 ### Everything about input catalogue
 
@@ -298,38 +298,46 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list
                 except KeyError:
                     ## same value for all exposures
                     noise_info.loc[:, f'rms_{band}_expo{i_expo}'] = np.array(cata[f'{name_rms}_{band}']).astype(float)
+                    logger.warning('Use same rms for all exposures in diffExpo mode!')
                 try:
                     noise_info.loc[:, f'seeing_{band}_expo{i_expo}'] = np.array(cata[f'{name_seeing}_{band}_expo{i_expo}']).astype(float)
                 except KeyError:
                     ## same value for all exposures
                     noise_info.loc[:, f'seeing_{band}_expo{i_expo}'] = np.array(cata[f'{name_seeing}_{band}']).astype(float)
+                    logger.warning('Use same seeing for all exposures in diffExpo mode!')
                 try:
                     try:
                         noise_info.loc[:, f'beta_{band}_expo{i_expo}'] = np.array(cata[f'{name_MoffatBeta}_{band}_expo{i_expo}']).astype(float)
                     except KeyError:
                         ## same value for all exposures
                         noise_info.loc[:, f'beta_{band}_expo{i_expo}'] = np.array(cata[f'{name_MoffatBeta}_{band}']).astype(float)
+                        logger.warning('Use same beta for all exposures in diffExpo mode!')
                 except KeyError:
                     # (if not provided using 3.5)
                     noise_info.loc[:, f'beta_{band}_expo{i_expo}'] = np.full(len(cata), 3.5)
+                    logger.warning('Beta not provided, use 3.5!')
                 try:
                     try:
                         noise_info.loc[:, f'psf_e1_{band}_expo{i_expo}'] = np.array(cata[f'{name_psf_e1}_{band}_expo{i_expo}']).astype(float)
                     except KeyError:
                         ## same value for all exposures
                         noise_info.loc[:, f'psf_e1_{band}_expo{i_expo}'] = np.array(cata[f'{name_psf_e1}_{band}']).astype(float)
+                        logger.warning('Use same psf_e1 for all exposures in diffExpo mode!')
                 except KeyError:
                     # (if not provided assuming 0)
                     noise_info.loc[:, f'psf_e1_{band}_expo{i_expo}'] = np.zeros(len(cata))
+                    logger.warning('psf_e1 not provided, set to 0!')
                 try:
                     try:
                         noise_info.loc[:, f'psf_e2_{band}_expo{i_expo}'] = np.array(cata[f'{name_psf_e2}_{band}_expo{i_expo}']).astype(float)
                     except KeyError:
                         ## same value for all exposures
                         noise_info.loc[:, f'psf_e2_{band}_expo{i_expo}'] = np.array(cata[f'{name_psf_e2}_{band}']).astype(float)
+                        logger.warning('Use same psf_e2 for all exposures in diffExpo mode!')
                 except KeyError:
                     # (if not provided assuming 0)
                     noise_info.loc[:, f'psf_e2_{band}_expo{i_expo}'] = np.zeros(len(cata))
+                    logger.warning('psf_e2 not provided, set to 0!')
         else:
             noise_info.loc[:, f'rms_{band}'] = np.array(cata[f'{name_rms}_{band}']).astype(float)
             noise_info.loc[:, f'seeing_{band}'] = np.array(cata[f'{name_seeing}_{band}']).astype(float)
@@ -338,16 +346,19 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list
             except KeyError:
                 # (if not provided using 3.5)
                 noise_info.loc[:, f'beta_{band}'] = np.full(len(cata), 3.5)
+                logger.warning('Beta not provided, use 3.5!')
             try:
                 noise_info.loc[:, f'psf_e1_{band}'] = np.array(cata[f'{name_psf_e1}_{band}']).astype(float)
             except KeyError:
                 # (if not provided assuming 0)
                 noise_info.loc[:, f'psf_e1_{band}'] = np.zeros(len(cata))
+                logger.warning('psf_e1 not provided, set to 0!')
             try:
                 noise_info.loc[:, f'psf_e2_{band}'] = np.array(cata[f'{name_psf_e2}_{band}']).astype(float)
             except KeyError:
                 # (if not provided assuming 0)
                 noise_info.loc[:, f'psf_e2_{band}'] = np.zeros(len(cata))
+                logger.warning('psf_e2 not provided, set to 0!')
 
     logger.debug('Desired info collected to DataFrame.')
 
