@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
-# @Last modified by:   lshuns
-# @Last modified time: 2021-05-05, 12:29:16
+# @Last modified by:   ssli
+# @Last modified time: 2021-05-15, 20:53:52
 
 ### module to generate an example configuration file
 
@@ -149,7 +149,6 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                         'detection_band': config_sex.get('detection_band'),
                         'image_label': config_sex.get('image_label'),
                         'pixel_scale': config_sex.getfloat('pixel_scale'),
-                        'mask_stars': config_sex.getboolean('mask_stars'),
                         'cross_match': config_sex.getboolean('cross_match'),
                         'config_file': os.path.join(config_dir, config_sex.get('config_file')),
                         'param_file': os.path.join(config_dir, config_sex.get('param_file')),
@@ -440,7 +439,6 @@ image_label =           THELI                  # label for the image type, can b
                                                #    original (for original simulated images)\n\
                                                #    any label specified in `swarp_labels`\n\
 pixel_scale =           0.214                  # pixel scale for the image\n\
-mask_stars =            True                   # mask stars using input info\n\
 cross_match =           True                   # cross-match with the input catalogue\n\
                                                #    in which case, catalogues with match info will be saved\n\
                                                #    see next section for configuration\n\

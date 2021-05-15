@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   ssli
-# @Last modified time: 2021-05-10, 15:23:19
+# @Last modified time: 2021-05-15, 20:52:42
 
 ### main module to run the whole pipeline
 
@@ -377,8 +377,8 @@ if ('3' in taskIDs) or ('all' in taskIDs):
         proc.get()
 
     ## Mark stars
-    if configs_dict['sex']['mask_stars']:
-
+    tmp = glob.glob(os.path.join(ori_cata_dir_tmp, f'stars_info_*.feather'))
+    if tmp:
         logger.info('Mask Stars based on input info.')
 
         for tile_label in tile_labels:
