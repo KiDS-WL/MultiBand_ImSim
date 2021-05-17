@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
-# @Last modified by:   lshuns
-# @Last modified time: 2021-05-06, 21:37:40
+# @Last modified by:   ssli
+# @Last modified time: 2021-05-17, 15:27:44
 
 ### main module of ImSim
 ###### dependence:
@@ -712,7 +712,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             del Y_gals
 
         ## output info
-        output_col_tmp = ['index', 'RA', 'DEC', 'Re', 'axis_ratio', 'position_angle'] + bands
+        output_col_tmp = ['index', 'RA', 'DEC', 'Re', 'axis_ratio', 'position_angle', 'sersic_n'] + bands
         output_tmp = gals_info_selec[output_col_tmp].copy()
         ### better naming
         output_tmp = output_tmp.add_suffix(f'_input')
