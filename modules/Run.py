@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   ssli
-# @Last modified time: 2021-05-15, 20:52:42
+# @Last modified time: 2021-05-16, 12:50:06
 
 ### main module to run the whole pipeline
 
@@ -839,7 +839,7 @@ if ('7' in taskIDs) or ('all' in taskIDs):
     logger.info(f'====== Task 7: create a combined catalogue === finished in {(time.time()-start_time)/3600.} h ======')
 
 logger.info(f'~~~~~~~~~~~~ {__version__} finished ~~~~~~~~~~~~')
-logger.info(f'~~~~~~~~~~~~ total running time {(time.time()-start_time)/3600.} h ~~~~~~~~~~~~')
+logger.info(f'~~~~~~~~~~~~ total running time {(time.time()-start_time0)/3600.} h ~~~~~~~~~~~~')
 tmp = configs_dict['work_dirs']['main']
 logger.info(f'~~~~~~~~~~~~ All outputs saved in {tmp}')
 logger.info(f'~~~~~~~~~~~~ Enjoy the science ~~~~~~~~~~~~')
