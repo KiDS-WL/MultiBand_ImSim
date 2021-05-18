@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last modified by:   ssli
-# @Last modified time: 2021-05-18, 10:40:47
+# @Last modified time: 2021-05-18, 16:40:38
 
 ### main module of ImSim
 ###### dependence:
@@ -438,8 +438,6 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         outpath_dir,
         i_expo) = para_list
     logger.info(f'Simulating KiDS image for tile {tile_label} band {band} expo {i_expo} rot {gal_rotation_angle}...')
-    print('>>>>>>>>>>>>>>')
-    print(rms, seeing, beta, psf_e)
 
     # outpath
     outpath_image_name_list = [os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', f'expo{i_expo}_chip{i_chip}.fits')
@@ -677,8 +675,6 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
         ## output noise info
         outpath_tmp = os.path.join(outcata_dir, f'noise_info_tile{tile_label}.csv')
-        print('>>>>>>>>>>>>>>')
-        print(noise_info_tile)
         pd.DataFrame([noise_info_tile]).to_csv(outpath_tmp, index=False)
         logger.info(f'noise info saved to {outpath_tmp}')
 
