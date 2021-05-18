@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last modified by:   ssli
-# @Last modified time: 2021-05-17, 15:27:44
+# @Last modified time: 2021-05-18, 10:40:47
 
 ### main module of ImSim
 ###### dependence:
@@ -117,8 +117,7 @@ def _PSFNoisySkyImages_simple(para_list):
         return 1
 
     # +++ PSF
-    if 'PSF' not in locals():
-        PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
+    PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
 
     # +++ background noise
     noise_list = [NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle)) for gal_rotation_angle in gal_rotation_angles]
@@ -317,8 +316,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         return 1
 
     # +++ PSF
-    if 'PSF' not in locals():
-        PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
+    PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
 
     # +++ background noise
     noise_list = [NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle+94*i_expo))
@@ -440,6 +438,8 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         outpath_dir,
         i_expo) = para_list
     logger.info(f'Simulating KiDS image for tile {tile_label} band {band} expo {i_expo} rot {gal_rotation_angle}...')
+    print('>>>>>>>>>>>>>>')
+    print(rms, seeing, beta, psf_e)
 
     # outpath
     outpath_image_name_list = [os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', f'expo{i_expo}_chip{i_chip}.fits')
@@ -500,8 +500,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         return 1
 
     # +++ PSF
-    if 'PSF' not in locals():
-        PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
+    PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
 
     # +++ background noise
     noise = NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle+94*i_expo))
@@ -666,7 +665,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
     rng_seed_list = []
     i_ra = 0
     i_dec = 0
-    for i_tile, tile_label in enumerate(noise_info_selec['label']):
+    for i_tile, noise_info_tile in noise_info_selec.iterrows():
+        tile_label = noise_info_tile['label']
 
         if (i_tile!=0) and (i_ra==0) and (i_dec==0):
             logger.warning(f'repeating patterns started from tile {tile_label}')
@@ -674,6 +674,13 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         # rng seed associated with tile labels
         rng_seed_tile = rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=np.int).sum()
         rng_seed_list.append(rng_seed_tile)
+
+        ## output noise info
+        outpath_tmp = os.path.join(outcata_dir, f'noise_info_tile{tile_label}.csv')
+        print('>>>>>>>>>>>>>>')
+        print(noise_info_tile)
+        pd.DataFrame([noise_info_tile]).to_csv(outpath_tmp, index=False)
+        logger.info(f'noise info saved to {outpath_tmp}')
 
         # sky area for a tile
         ra_min = ra_min0 + area_ra * i_ra
@@ -711,7 +718,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             del X_gals
             del Y_gals
 
-        ## output info
+        ## output galaxies info
         output_col_tmp = ['index', 'RA', 'DEC', 'Re', 'axis_ratio', 'position_angle', 'sersic_n'] + bands
         output_tmp = gals_info_selec[output_col_tmp].copy()
         ### better naming
@@ -764,7 +771,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             else:
                 raise Exception(f'Unsupported star_position_type: {star_position_type} !')
 
-            ## output info
+            ## output star info
             output_col_tmp = ['index', 'RA', 'DEC'] + bands
             output_tmp = stars_info_selec[output_col_tmp].copy()
             ### better naming
@@ -856,6 +863,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             else:
                 stars_info_band = None
 
+            # noise
             if image_type.lower() == 'diffexpo':
 
                 # always save chips for diffexpo
