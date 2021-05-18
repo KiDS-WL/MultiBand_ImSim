@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-08-17 14:26:07
 # @Last modified by:   ssli
-# @Last modified time: 2021-05-10, 15:22:55
+# @Last modified time: 2021-05-18, 14:29:16
 
 ### Wrapper for astromatic codes
 
@@ -22,7 +22,7 @@ def SwarpImage(image_in, swarp_config_file,
                     image_out,
                     only_resample=False, contain_wei_ima=True,
                     running_log=True, log_dir=None,
-                    swarp_path='swarp',
+                    swarp_path='swarp', NTHREADS=0,
                     clean_up_level=0):
     """
     SWarp for coadding or resampling.
@@ -81,7 +81,11 @@ def SwarpImage(image_in, swarp_config_file,
     else:
         cmd.extend(['-WEIGHT_TYPE', 'NONE'])
 
+    # how many threads
+    cmd.extend(['-NTHREADS', str(NTHREADS)])
+
     logger.info(f'Config file {swarp_config_file}')
+    logger.info(f'Number of threads: {NTHREADS}')
 
     # run
     proc = subprocess.run(cmd, stdout=outLog, stderr=errLog)

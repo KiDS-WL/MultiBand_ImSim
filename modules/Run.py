@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last modified by:   ssli
-# @Last modified time: 2021-05-16, 12:50:06
+# @Last modified time: 2021-05-18, 14:28:18
 
 ### main module to run the whole pipeline
 
@@ -217,15 +217,7 @@ if ('2' in taskIDs) or ('all' in taskIDs):
             if not os.path.exists(out_dir_psf_tmp):
                 os.mkdir(out_dir_psf_tmp)
 
-    ## work pool
-    N_swarp = int(Nmax_proc/12.)
-    if N_swarp < 1:
-        N_swarp = 1
-    logger.info(f'Number of processes for SWarp: {N_swarp}')
-    logger.info(f'  NOTE: each processes of SWarp takes multiple cores')
-    logger.info(f'          depending on your SWarp configuration')
-    work_pool = mp.Pool(processes=N_swarp)
-    proc_list = []
+    ## running
     for i_group, swarp_config in enumerate(configs_dict['swarp']['config_files']):
 
         swarp_bands = configs_dict['swarp']['bands_group'][i_group]
@@ -269,10 +261,12 @@ if ('2' in taskIDs) or ('all' in taskIDs):
 
                     ### run
                     image_out = os.path.join(out_dir_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
-                    proc = work_pool.apply_async(func=Astromatic.SwarpImage,
-                                            args=(image_in, swarp_config, image_out, only_resample, contain_wei_ima, running_log, log_dir_tmp, configs_dict['swarp']['cmd'], clean_up_level_tmp))
-                    proc_list.append(proc)
-
+                    Astromatic.SwarpImage(image_in, swarp_config,
+                                        image_out,
+                                        only_resample=only_resample, contain_wei_ima=contain_wei_ima,
+                                        running_log=running_log, log_dir=log_dir_tmp,
+                                        swarp_path=configs_dict['swarp']['cmd'], NTHREADS=Nmax_proc,
+                                        clean_up_level=clean_up_level_tmp)
                     ### psf map
                     if configs_dict['imsim']['PSF_map']:
                         try:
@@ -281,15 +275,12 @@ if ('2' in taskIDs) or ('all' in taskIDs):
                             image_in_psf = [os.path.join(in_dir_psf_tmp, os.path.basename(image_in_tmp)) for image_in_tmp in image_in]
                         #### run
                         image_out = os.path.join(out_dir_psf_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
-                        proc = work_pool.apply_async(func=Astromatic.SwarpImage,
-                                                args=(image_in_psf, swarp_config, image_out, only_resample, contain_wei_ima, running_log, log_dir_tmp, configs_dict['swarp']['cmd'], clean_up_level_tmp))
-                        proc_list.append(proc)
-
-    work_pool.close()
-    work_pool.join()
-    ### check for any errors during run
-    for proc in proc_list:
-        proc.get()
+                        Astromatic.SwarpImage(image_in_psf, swarp_config,
+                                            image_out,
+                                            only_resample=only_resample, contain_wei_ima=contain_wei_ima,
+                                            running_log=running_log, log_dir=log_dir_tmp,
+                                            swarp_path=configs_dict['swarp']['cmd'], NTHREADS=Nmax_proc,
+                                            clean_up_level=clean_up_level_tmp)
 
     logger.info(f'====== Task 2: swarp images === finished in {(time.time()-start_time)/3600.} h ======')
 
