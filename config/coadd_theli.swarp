@@ -40,7 +40,7 @@ IMAGE_SIZE             0               # Image size (0 = AUTOMATIC)
 #-------------------------------- Resampling ----------------------------------
 
 RESAMPLE               Y               # Resample input images (Y/N)?
-RESAMPLE_DIR           .               # Directory path for resampled images
+RESAMPLE_DIR           /specified/     # Directory path for resampled images
 RESAMPLE_SUFFIX        .resamp.fits    # filename extension for resampled images
 
 RESAMPLING_TYPE        LANCZOS3        # NEAREST,BILINEAR,LANCZOS2,LANCZOS3
@@ -91,6 +91,6 @@ WRITE_XML              N               # Write XML file (Y/N)?
 XML_NAME               swarp.xml       # Filename for XML output
 VERBOSE_TYPE           NORMAL          # QUIET,LOG,NORMAL, or FULL
 
-NTHREADS               12              # Number of simultaneous threads for
+NTHREADS               /specified/              # Number of simultaneous threads for
                                        # the SMP version of SWarp
                                        # 0 = automatic
