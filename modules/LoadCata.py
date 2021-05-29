@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-01-07 16:24:17
 # @Last modified by:   ssli
-# @Last modified time: 2021-05-11, 21:18:10
+# @Last modified time: 2021-05-29, 17:48:39
 
 ### Everything about input catalogue
 
@@ -266,7 +266,6 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list
         Number of exposures, only used when multiple_exposures==True
     """
     logger.info('Collect observation info from input catalogue...')
-    logger.info(f'Query bands {bands}')
 
     # load file
     file_type = cata_pathfile[-3:]
@@ -286,6 +285,7 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list
 
     noise_info = pd.DataFrame({'label': cata[name_label]})
     for i_band, band in enumerate(bands):
+        logger.info(f'Query band: {band}')
         try:
             multiple_exposures = multiple_exposures_list[i_band]
         except IndexError:
