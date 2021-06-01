@@ -6,10 +6,12 @@ __pycache__/
 *.a
 
 test_*
+hack_*
 *_hack.py
 *_backup.py
 nohup*
 old_*
+*_old*
 tmp_*
 
 log/
