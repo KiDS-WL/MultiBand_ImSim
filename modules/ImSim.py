@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
-# @Last modified by:   ssli
-# @Last modified time: 2021-05-18, 16:40:38
+# @Last modified by:   lshuns
+# @Last modified time: 2021-06-01, 13:36:47
 
 ### main module of ImSim
 ###### dependence:
@@ -233,6 +233,16 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                                                                 for gal_rotation_angle in gal_rotation_angles
                                                                 for i_expo in range(n_exposures)]
 
+    # simple canvas based on the galaxy sky positions
+    RA_gals = gals_info_band['RA'] # degree
+    DEC_gals = gals_info_band['DEC'] # degree
+    RA_min = np.min(RA_gals)
+    RA_max = np.max(RA_gals)
+    DEC_min = np.min(DEC_gals)
+    DEC_max = np.max(DEC_gals)
+    canvas = ObjModule.SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale)
+    del RA_gals, DEC_gals, RA_min, RA_max, DEC_min, DEC_max
+
     # first check if already exist
     outpath_image_exist_list = np.zeros_like(outpath_image_name_list, dtype=bool)
     for i_name, outpath_image_name in enumerate(outpath_image_name_list):
@@ -303,7 +313,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                     logger.info(f'chips already exist for rot{gal_rotation_angle:.0f} expo{id_exposure}.')
                 else:
                     image_tile = galsim.fits.read(outpath_image_name)
-                    image_chips = KiDSModule.cutKiDSchips(image_tile, id_exposure=id_exposure)
+                    image_chips = KiDSModule.cutKiDSchips(image_tile, canvas, id_exposure=id_exposure)
 
                     for i_chip, image_chip in enumerate(image_chips):
                         outpath_tmp = os.path.join(chip_dir_tmp, f'expo{id_exposure}_chip{i_chip}.fits')
@@ -351,15 +361,6 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
     # +++ sky image
     if (False in outpath_image_exist_list):
 
-        # bounds and wcs from galaxy sky positions
-        RA_gals = gals_info_band['RA'] # degree
-        DEC_gals = gals_info_band['DEC'] # degree
-        RA_min = np.min(RA_gals)
-        RA_max = np.max(RA_gals)
-        DEC_min = np.min(DEC_gals)
-        DEC_max = np.max(DEC_gals)
-        canvas = ObjModule.SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale)
-
         # star image
         if (stars_info_band is not None):
             image_stars = ObjModule.StarsImage(canvas, band, pixel_scale, PSF, stars_info_band)
@@ -402,20 +403,20 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                 weights_tile.write(outpath_wei_name)
                 logger.info(f"weight image saved as {outpath_wei_name}")
 
-                # produce chips if required
-                if save_image_chips:
-                    image_chips = KiDSModule.cutKiDSchips(image_tile, id_exposure=id_exposure)
-                    chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
-                    for i_chip, image_chip in enumerate(image_chips):
-                        outpath_tmp = os.path.join(chip_dir_tmp, f'expo{id_exposure}_chip{i_chip}.fits')
-                        image_chip.write(outpath_tmp)
-                    logger.info(f'Image chips saved to {chip_dir_tmp} for exposure {id_exposure}.')
-
                 ## mark success to the header
                 with fits.open(outpath_image_name, mode='update') as hdul:
                     head_tmp = hdul[0].header
                     ## update info
                     head_tmp['flag_sim'] = 1
+
+                # produce chips if required
+                if save_image_chips:
+                    image_chips = KiDSModule.cutKiDSchips(image_tile, canvas, id_exposure=id_exposure)
+                    chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
+                    for i_chip, image_chip in enumerate(image_chips):
+                        outpath_tmp = os.path.join(chip_dir_tmp, f'expo{id_exposure}_chip{i_chip}.fits')
+                        image_chip.write(outpath_tmp)
+                    logger.info(f'Image chips saved to {chip_dir_tmp} for exposure {id_exposure}.')
 
     logger.info(f'Finished for tile {tile_label} band {band}...')
     return 0

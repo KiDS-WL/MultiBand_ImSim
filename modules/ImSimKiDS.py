@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-11-30 16:54:44
 # @Last modified by:   lshuns
-# @Last modified time: 2021-05-06, 21:53:35
+# @Last modified time: 2021-06-01, 13:28:30
 
 ### Everything about KiDS observations (instrumental setup & data acquisition procedure)
 ###### reference: https://www.eso.org/sci/facilities/paranal/instruments/omegacam/doc/VST-MAN-OCM-23100-3110_p107_v2.pdf
@@ -172,14 +172,16 @@ def cutKiDStile(image_ori, id_exposure=0):
 
     return image_tile, weights_tile
 
-def cutKiDSchips(image_ori, id_exposure=0):
+def cutKiDSchips(image_tile, canvas_ori, id_exposure=0):
     """
-    Cut OmegaCAM-like chips from simulated image by applying dither and gaps
+    Cut OmegaCAM-like chips from OmegaCAM-like tile
 
     Parameters
     ----------
-    image_ori: GalSim image object
-        The original image.
+    image_tile: GalSim image object
+        The tile image produced by cutKiDStile.
+    canvas_ori: GalSim image object
+        The canvas for the original image, used to determine start pixel
     id_exposure: int, optional (default: 0)
         ID for exposure (start with 0)
 
@@ -189,14 +191,8 @@ def cutKiDSchips(image_ori, id_exposure=0):
         OmegaCAM-like chips.
     """
 
-    # original bounds
-    x_min0 = image_ori.bounds.xmin
-    x_max0 = image_ori.bounds.xmax
-    y_min0 = image_ori.bounds.ymin
-    y_max0 = image_ori.bounds.ymax
-
-    # bounds due to the dither
-    center_ori = image_ori.center
+    # find the start pixel
+    center_ori = canvas_ori.center
     x_shift = center_ori.x - (id_exposure-2)*Dither_x_pix
     y_shift = center_ori.y - (id_exposure-2)*Dither_y_pix
     x_min = int(x_shift - Npix_x/2.)
@@ -211,14 +207,17 @@ def cutKiDSchips(image_ori, id_exposure=0):
     # chips
     image_chips = []
     for y_start in y_start_list:
-        y_min_chip = int(y_start)
-        y_max_chip = int(y_start + Npix_chip_y) - 1
+        # account for out-box effect
+        y_min_chip = max(y_start, image_tile.bounds.ymin)
+        y_max_chip = min(int(y_start + Npix_chip_y) - 1, image_tile.bounds.ymax)
         for i_chip in range(Nchips_x):
-            x_min_chip = int(x_min + i_chip*(Npix_chip_x+GAP_x))
-            x_max_chip = int(x_min_chip + Npix_chip_x) - 1
+            # account for out-box effect
+            x_min_chip = max(int(x_min + i_chip*(Npix_chip_x+GAP_x)), image_tile.bounds.xmin)
+            x_max_chip = min(int(x_min_chip + Npix_chip_x) - 1, image_tile.bounds.xmax)
 
-            bounds_chip = galsim.BoundsI(xmin=max(x_min0, x_min), xmax=min(x_max0, x_max), ymin=max(y_min0, y_min), ymax=min(y_max0, y_max))
-            image_chip = image_ori[bounds_chip].copy()
+            # cut out the chip
+            bounds_chip = galsim.BoundsI(xmin=x_min_chip, xmax=x_max_chip, ymin=y_min_chip, ymax=y_max_chip)
+            image_chip = image_tile[bounds_chip].copy()
             image_chips.append(image_chip)
 
     return image_chips
