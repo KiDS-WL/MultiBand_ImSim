@@ -2,11 +2,12 @@
 # @Author: lshuns
 # @Date:   2020-11-30 16:54:44
 # @Last modified by:   lshuns
-# @Last modified time: 2021-06-01, 13:28:30
+# @Last modified time: 2021-06-09, 17:37:40
 
 ### Everything about KiDS observations (instrumental setup & data acquisition procedure)
 ###### reference: https://www.eso.org/sci/facilities/paranal/instruments/omegacam/doc/VST-MAN-OCM-23100-3110_p107_v2.pdf
 
+import math
 import galsim
 import numpy as np
 
@@ -60,7 +61,7 @@ def getKiDScanvases(RA0, DEC0, id_exposure=0):
     # bounds for each CCD
     bounds = galsim.BoundsI(xmin=0, xmax=Npix_chip_x-1, ymin=0, ymax=Npix_chip_y-1)
     ## use the center pixel as the reference pixel in image
-    origin_ima = galsim.PositionI(x=int(Npix_chip_x/2.), y=int(Npix_chip_y/2.))
+    origin_ima = galsim.PositionI(x=math.floor(Npix_chip_x/2.), y=math.floor(Npix_chip_y/2.))
 
     # Linear projection matrix for wcs
     dudx = Pixel_scale # degree
@@ -94,15 +95,16 @@ def getKiDScanvases(RA0, DEC0, id_exposure=0):
 
     return canvases_list
 
-def cutKiDStile(image_ori, id_exposure=0):
+def cutKiDStile(image_ori_noiseless, noise, id_exposure=0):
     """
-    Cut OmegaCAM-like tile from simulated image with dither and gaps
-        The WCS will be handled by GalSim automatically.
+    Cut OmegaCAM-like tile from simulated image with dither and gaps.
 
     Parameters
     ----------
-    image_ori: GalSim image object
-        The original image.
+    image_ori_noiseless: GalSim image object
+        The original image without noise.
+    noise: GalSim noise object
+        Noise added to the tile image.
     id_exposure: int, optional (default: 0)
         ID for exposure (start with 0)
 
@@ -114,65 +116,54 @@ def cutKiDStile(image_ori, id_exposure=0):
         Associated weight image.
     """
 
-    # original bounds
-    x_min0 = image_ori.bounds.xmin
-    x_max0 = image_ori.bounds.xmax
-    y_min0 = image_ori.bounds.ymin
-    y_max0 = image_ori.bounds.ymax
-
-    # bounds for the new image
-    center_ori = image_ori.center
+    # bounds for the tile image
+    center_ori = image_ori_noiseless.center
     x_shift = center_ori.x - (id_exposure-2)*Dither_x_pix
     y_shift = center_ori.y - (id_exposure-2)*Dither_y_pix
-    x_min = int(x_shift - Npix_x/2.)
-    x_max = int(x_shift + Npix_x/2.) - 1
-    y_min = int(y_shift - Npix_y/2.)
-    y_max = int(y_shift + Npix_y/2.) - 1
-    bounds = galsim.BoundsI(xmin=max(x_min0, x_min), xmax=min(x_max0, x_max), ymin=max(y_min0, y_min), ymax=min(y_max0, y_max))
+    x_min = x_shift - Npix_x/2.
+    x_max = x_shift + Npix_x/2.
+    y_min = y_shift - Npix_y/2.
+    y_max = y_shift + Npix_y/2.
+    bounds_tile = galsim.BoundsI(xmin=math.floor(x_min), xmax=math.floor(x_max)-1, ymin=math.floor(y_min), ymax=math.floor(y_max)-1)
 
-    # take account for the out-box effect
-    dx_min = x_min - bounds.xmin
-    dy_min = y_min - bounds.ymin
-
-    # cut out the new image
-    image_tile = image_ori[bounds].copy()
+    # initialize the canvas
+    image_tile = galsim.ImageF(bounds=bounds_tile, wcs=image_ori_noiseless.wcs)
     ## associated weight image
     weights_tile = image_tile.copy()
     weights_tile.fill(1.)
 
+    # stitch the original image to the canvas
+    overlap = image_tile.bounds & image_ori_noiseless.bounds
+    image_tile[overlap] += image_ori_noiseless[overlap]
+
+    # add noise
+    image_tile.addNoise(noise)
+
     # gaps
     ## between the long sides of the CCDs
     for i_gap in range(7):
-        col_gap_start = (i_gap+1)*Npix_chip_x + i_gap*GAP_x + dx_min
-        col_gap_end = min(col_gap_start+GAP_x, image_tile.array.shape[1])
-        if col_gap_start < image_tile.array.shape[1]:
-            image_tile.array[:, col_gap_start:col_gap_end] = 0.
-            weights_tile.array[:, col_gap_start:col_gap_end] = 0.
+        col_gap_start = (i_gap+1)*Npix_chip_x + i_gap*GAP_x
+        image_tile.array[:, col_gap_start:(col_gap_start+GAP_x)] = 0.
+        weights_tile.array[:, col_gap_start:(col_gap_start+GAP_x)] = 0.
 
     ## central gap along the short sides
-    row_gap_start = 2*Npix_chip_y + GAP_y_wide + dy_min
-    row_gap_end = min(row_gap_start+GAP_y_narrow, image_tile.array.shape[0])
-    if row_gap_start < image_tile.array.shape[0]:
-        image_tile.array[row_gap_start:row_gap_end, :] = 0.
-        weights_tile.array[row_gap_start:row_gap_end, :] = 0.
+    row_gap_start = 2*Npix_chip_y + GAP_y_wide
+    image_tile.array[row_gap_start:(row_gap_start+GAP_y_narrow), :] = 0.
+    weights_tile.array[row_gap_start:(row_gap_start+GAP_y_narrow), :] = 0.
 
     ## wide gap along short sides
     #### 1
-    row_gap_start = Npix_chip_y + dy_min
-    row_gap_end = min(row_gap_start+GAP_y_wide, image_tile.array.shape[0])
-    if row_gap_start < image_tile.array.shape[0]:
-        image_tile.array[row_gap_start:row_gap_end, :] = 0.
-        weights_tile.array[row_gap_start:row_gap_end, :] = 0.
+    row_gap_start = Npix_chip_y
+    image_tile.array[row_gap_start:(row_gap_start+GAP_y_wide), :] = 0.
+    weights_tile.array[row_gap_start:(row_gap_start+GAP_y_wide), :] = 0.
     #### 2
-    row_gap_start = 3*Npix_chip_y + GAP_y_wide + GAP_y_narrow + dy_min
-    row_gap_end = min(row_gap_start+GAP_y_wide, image_tile.array.shape[0])
-    if row_gap_start < image_tile.array.shape[0]:
-        image_tile.array[row_gap_start:row_gap_end, :] = 0.
-        weights_tile.array[row_gap_start:row_gap_end, :] = 0.
+    row_gap_start = 3*Npix_chip_y + GAP_y_wide + GAP_y_narrow
+    image_tile.array[row_gap_start:(row_gap_start+GAP_y_wide), :] = 0.
+    weights_tile.array[row_gap_start:(row_gap_start+GAP_y_wide), :] = 0.
 
     return image_tile, weights_tile
 
-def cutKiDSchips(image_tile, canvas_ori, id_exposure=0):
+def cutKiDSchips(image_tile):
     """
     Cut OmegaCAM-like chips from OmegaCAM-like tile
 
@@ -180,10 +171,6 @@ def cutKiDSchips(image_tile, canvas_ori, id_exposure=0):
     ----------
     image_tile: GalSim image object
         The tile image produced by cutKiDStile.
-    canvas_ori: GalSim image object
-        The canvas for the original image, used to determine start pixel
-    id_exposure: int, optional (default: 0)
-        ID for exposure (start with 0)
 
     Returns
     -------
@@ -191,12 +178,10 @@ def cutKiDSchips(image_tile, canvas_ori, id_exposure=0):
         OmegaCAM-like chips.
     """
 
-    # find the start pixel
-    center_ori = canvas_ori.center
-    x_shift = center_ori.x - (id_exposure-2)*Dither_x_pix
-    y_shift = center_ori.y - (id_exposure-2)*Dither_y_pix
-    x_min = int(x_shift - Npix_x/2.)
-    y_min = int(y_shift - Npix_y/2.)
+    # start pixel
+    bounds = image_tile.bounds
+    x_min = bounds.getXMin()
+    y_min = bounds.getYMin()
 
     # y start point for each row of chips
     y_start_list = [y_min,
@@ -207,16 +192,12 @@ def cutKiDSchips(image_tile, canvas_ori, id_exposure=0):
     # chips
     image_chips = []
     for y_start in y_start_list:
-        # account for out-box effect
-        y_min_chip = max(y_start, image_tile.bounds.ymin)
-        y_max_chip = min(int(y_start + Npix_chip_y) - 1, image_tile.bounds.ymax)
+        y_min_chip = y_start
+        y_max_chip = y_start + Npix_chip_y
         for i_chip in range(Nchips_x):
-            # account for out-box effect
-            x_min_chip = max(int(x_min + i_chip*(Npix_chip_x+GAP_x)), image_tile.bounds.xmin)
-            x_max_chip = min(int(x_min_chip + Npix_chip_x) - 1, image_tile.bounds.xmax)
-
-            # cut out the chip
-            bounds_chip = galsim.BoundsI(xmin=x_min_chip, xmax=x_max_chip, ymin=y_min_chip, ymax=y_max_chip)
+            x_min_chip = x_min + i_chip*(Npix_chip_x+GAP_x)
+            x_max_chip = x_min_chip + Npix_chip_x
+            bounds_chip = galsim.BoundsI(xmin=math.floor(x_min_chip), xmax=math.floor(x_max_chip)-1, ymin=math.floor(y_min_chip), ymax=math.floor(y_max_chip)-1)
             image_chip = image_tile[bounds_chip].copy()
             image_chips.append(image_chip)
 

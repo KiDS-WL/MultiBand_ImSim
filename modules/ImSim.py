@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last modified by:   lshuns
-# @Last modified time: 2021-06-01, 13:36:47
+# @Last modified time: 2021-06-09, 17:22:43
 
 ### main module of ImSim
 ###### dependence:
@@ -233,16 +233,6 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                                                                 for gal_rotation_angle in gal_rotation_angles
                                                                 for i_expo in range(n_exposures)]
 
-    # simple canvas based on the galaxy sky positions
-    RA_gals = gals_info_band['RA'] # degree
-    DEC_gals = gals_info_band['DEC'] # degree
-    RA_min = np.min(RA_gals)
-    RA_max = np.max(RA_gals)
-    DEC_min = np.min(DEC_gals)
-    DEC_max = np.max(DEC_gals)
-    canvas = ObjModule.SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale)
-    del RA_gals, DEC_gals, RA_min, RA_max, DEC_min, DEC_max
-
     # first check if already exist
     outpath_image_exist_list = np.zeros_like(outpath_image_name_list, dtype=bool)
     for i_name, outpath_image_name in enumerate(outpath_image_name_list):
@@ -313,7 +303,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                     logger.info(f'chips already exist for rot{gal_rotation_angle:.0f} expo{id_exposure}.')
                 else:
                     image_tile = galsim.fits.read(outpath_image_name)
-                    image_chips = KiDSModule.cutKiDSchips(image_tile, canvas, id_exposure=id_exposure)
+                    image_chips = KiDSModule.cutKiDSchips(image_tile)
 
                     for i_chip, image_chip in enumerate(image_chips):
                         outpath_tmp = os.path.join(chip_dir_tmp, f'expo{id_exposure}_chip{i_chip}.fits')
@@ -361,6 +351,16 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
     # +++ sky image
     if (False in outpath_image_exist_list):
 
+        # simple canvas based on the galaxy sky positions
+        RA_gals = gals_info_band['RA'] # degree
+        DEC_gals = gals_info_band['DEC'] # degree
+        RA_min = np.min(RA_gals)
+        RA_max = np.max(RA_gals)
+        DEC_min = np.min(DEC_gals)
+        DEC_max = np.max(DEC_gals)
+        canvas = ObjModule.SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale)
+        del RA_gals, DEC_gals, RA_min, RA_max, DEC_min, DEC_max
+
         # star image
         if (stars_info_band is not None):
             image_stars = ObjModule.StarsImage(canvas, band, pixel_scale, PSF, stars_info_band)
@@ -386,13 +386,12 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                 if (image_stars is not None):
                     image_galaxies += image_stars
 
-                ## add noise background
+                ## noise background
                 noise_tmp = noise_list[i_ima]
-                image_galaxies.addNoise(noise_tmp)
 
-                ## exposures
+                ## cut to kids tile
                 id_exposure = int(re.search(r'_expo(\d+)', outpath_image_name).group(1))
-                image_tile, weights_tile = KiDSModule.cutKiDStile(image_galaxies, id_exposure=id_exposure)
+                image_tile, weights_tile = KiDSModule.cutKiDStile(image_galaxies, noise_tmp, id_exposure=id_exposure)
 
                 ## save the noisy image
                 image_tile.write(outpath_image_name)
@@ -411,7 +410,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
 
                 # produce chips if required
                 if save_image_chips:
-                    image_chips = KiDSModule.cutKiDSchips(image_tile, canvas, id_exposure=id_exposure)
+                    image_chips = KiDSModule.cutKiDSchips(image_tile)
                     chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
                     for i_chip, image_chip in enumerate(image_chips):
                         outpath_tmp = os.path.join(chip_dir_tmp, f'expo{id_exposure}_chip{i_chip}.fits')
@@ -714,6 +713,16 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             del index_selected
             del X_gals
             del Y_gals
+        elif gal_position_type == 'random':
+            logger.info('Galaxies are placed randomly.')
+            np.random.seed(rng_seed_tile)
+            Ngal = len(gals_info_selec)
+            ### random sampling
+            gals_info_selec.loc[:, 'RA'] = np.random.uniform(low=ra_min, high=ra_max, size=Ngal)
+            gals_info_selec.loc[:, 'DEC'] = np.random.uniform(low=dec_min, high=dec_max, size=Ngal)
+        else:
+            if gal_position_type != 'true':
+                raise Exception(f'Unsupported gal_position_type: {gal_position_type} !')
 
         ## output galaxies info
         output_col_tmp = ['index', 'RA', 'DEC', 'Re', 'axis_ratio', 'position_angle', 'sersic_n'] + bands
@@ -751,14 +760,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                 stars_info_selec = stars_info.iloc[mask_star].copy()
                 stars_info_selec.reset_index(drop=True, inplace=True)
                 ## randomly place stars
-                ### sky area
-                ra_min_true = np.min(gals_info_selec['RA'])
-                ra_max_true = np.max(gals_info_selec['RA'])
-                dec_min_true = np.min(gals_info_selec['DEC'])
-                dec_max_true = np.max(gals_info_selec['DEC'])
-                ### sampling
-                stars_info_selec.loc[:, 'RA'] = np.random.uniform(low=ra_min_true, high=ra_max_true, size=Nstar_even)
-                stars_info_selec.loc[:, 'DEC'] = np.random.uniform(low=dec_min_true, high=dec_max_true, size=Nstar_even)
+                stars_info_selec.loc[:, 'RA'] = np.random.uniform(low=ra_min, high=ra_max, size=Nstar_even)
+                stars_info_selec.loc[:, 'DEC'] = np.random.uniform(low=dec_min, high=dec_max, size=Nstar_even)
             elif star_position_type == 'true':
                 # use true star location
                 mask_ra = (stars_info['RA'] >= ra_min) & (stars_info['RA'] < ra_max)
