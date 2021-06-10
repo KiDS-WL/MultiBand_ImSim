@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2021-01-07 16:24:17
-# @Last modified by:   ssli
-# @Last modified time: 2021-05-29, 17:48:39
+# @Last modified by:   lshuns
+# @Last modified time: 2021-06-10, 18:17:08
 
 ### Everything about input catalogue
 
@@ -17,6 +17,7 @@ def GalInfo(cata_pathfile, bands,
             id_name, primary_mag_name, mag_name_list,
             RaDec_names,
             shape_names,
+            z_name,
             rng_seed=940120, mag_cut=[], size_cut=[]):
     """
     Get galaxy information from the input catalogue.
@@ -37,6 +38,8 @@ def GalInfo(cata_pathfile, bands,
         Column names for position information.
     shape_names : list of str [Re, sersic_n, axis_ratio, PA, bulge_fraction, bulge_size, disk_size]
         Not all required, for those missed, simply feed 'none'.
+    z_name : str
+        column name for redshift for saving.
     info_outfile (optional) : str (default: None)
         Path to the output of the simulated info.
     rng_seed (optional) : int (default: 940120)
@@ -140,14 +143,18 @@ def GalInfo(cata_pathfile, bands,
     # sky position
     X_gals = cata[RaDec_names[0]] # degree
     Y_gals = cata[RaDec_names[1]] # degree
+    if z_name is not None:
+        z_gals = cata[z_name] # for saving only
+    else:
+        z_gals = np.full(Ngal, -999)
 
     # collect all information to dataframe
-    data = [np.array(index).astype(int), np.array(X_gals).astype(float), np.array(Y_gals).astype(float),
+    data = [np.array(index).astype(int), np.array(X_gals).astype(float), np.array(Y_gals).astype(float), np.array(z_gals).astype(float),
                 np.array(sersic_n).astype(float), np.array(Re).astype(float), np.array(axis_ratios).astype(float), np.array(position_angles).astype(float),
                 np.array(bulge_fractions).astype(float), np.array(bulge_Re).astype(float), np.array(bulge_axis_ratios).astype(float), np.array(bulge_n).astype(float),
                 np.array(disk_Re).astype(float), np.array(disk_axis_ratios).astype(float)] + mag_list
     data = np.transpose(data)
-    name = ['index','RA','DEC',
+    name = ['index','RA','DEC','redshift',
                 'sersic_n','Re','axis_ratio','position_angle',
                 'bulge_fraction','bulge_Re','bulge_axis_ratio','bulge_n',
                 'disk_Re','disk_axis_ratio'] + bands

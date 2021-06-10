@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last modified by:   lshuns
-# @Last modified time: 2021-06-09, 17:22:43
+# @Last modified time: 2021-06-09, 18:09:50
 
 ### main module of ImSim
 ###### dependence:
@@ -725,7 +725,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                 raise Exception(f'Unsupported gal_position_type: {gal_position_type} !')
 
         ## output galaxies info
-        output_col_tmp = ['index', 'RA', 'DEC', 'Re', 'axis_ratio', 'position_angle', 'sersic_n'] + bands
+        output_col_tmp = ['index', 'RA', 'DEC', 'redshift', 'Re', 'axis_ratio', 'position_angle', 'sersic_n'] + bands
         output_tmp = gals_info_selec[output_col_tmp].copy()
         ### better naming
         output_tmp = output_tmp.add_suffix(f'_input')

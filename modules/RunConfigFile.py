@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
-# @Last modified by:   ssli
-# @Last modified time: 2021-05-15, 20:53:52
+# @Last modified by:   lshuns
+# @Last modified time: 2021-06-09, 18:02:10
 
 ### module to generate an example configuration file
 
@@ -73,7 +73,8 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                     'detection_mag_name': config_gal.get('detection_mag_name'),
                     'mag_name_list': [x.strip() for x in config_gal.get('mag_name_list').split(',')],
                     'RaDec_names': [x.strip() for x in config_gal.get('RaDec_names').split(',')],
-                    'shape_names': [x.strip() for x in config_gal.get('shape_names').split(',')]}
+                    'shape_names': [x.strip() for x in config_gal.get('shape_names').split(',')],
+                    'z_name': config_gal.get('z_name')}
     ### check existence
     if not os.path.isfile(gal_configs['file']):
         tmp = gal_configs['file']
@@ -347,6 +348,8 @@ shape_names =           none, none, none, none, none, none, none, none, none, no
                                                #    bulge_fraction, bulge_Re (in arcsec!), bulge_axis_ratio, bulge_sersic_n, \n\
                                                #    disk_Re (in arcsec!), disk_axis_ratio\n\
                                                # not all required, for those missed, simply feed none\n\
+z_name =                zobs                   # column name for redshift\n\
+                                               #    not used, only for saving\n\
 \n\n\
 ################################## StarInfo ##############################################\n\
 [StarInfo]\n\n\

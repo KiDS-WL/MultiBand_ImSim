@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
-# @Last modified by:   ssli
-# @Last modified time: 2021-05-18, 14:28:18
+# @Last modified by:   lshuns
+# @Last modified time: 2021-06-09, 18:05:22
 
 ### main module to run the whole pipeline
 
@@ -165,6 +165,7 @@ if ('1' in taskIDs) or ('all' in taskIDs):
                         configs_dict['gal']['id_name'], configs_dict['gal']['detection_mag_name'], configs_dict['gal']['mag_name_list'],
                         configs_dict['gal']['RaDec_names'],
                         configs_dict['gal']['shape_names'],
+                        configs_dict['gal']['z_name'],
                         rng_seed=configs_dict['imsim']['rng_seed'], mag_cut=configs_dict['gal']['mag_cut'], size_cut=configs_dict['gal']['size_cut'])
 
     ## load star info
