@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 # some sensible constraints
 ## size cut
 ### (back to bulge/disk profile)
-RE_CUT = [1e-2, 10.] # arcsec
+RE_CUT = [0, 100.] # arcsec
 ## sersic cut for sersic profile
 ### (back to bulge/disk profile)
 SERSIC_N_CUT = [0.2, 8.]
