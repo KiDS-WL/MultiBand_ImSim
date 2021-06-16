@@ -1,7 +1,8 @@
+# -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
-# @Last modified by:   lshuns
-# @Last modified time: 2021-06-09, 18:02:10
+# @Last Modified by:   lshuns
+# @Last Modified time: 2021-06-16 20:30:31
 
 ### module to generate an example configuration file
 
@@ -75,6 +76,13 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                     'RaDec_names': [x.strip() for x in config_gal.get('RaDec_names').split(',')],
                     'shape_names': [x.strip() for x in config_gal.get('shape_names').split(',')],
                     'z_name': config_gal.get('z_name')}
+    ### grid size 
+    grid_size = config_gal.get('grid_size')
+    if grid_size is not None:
+        gal_configs['grid_size'] = float(grid_size)
+    else:
+        gal_configs['grid_size'] = 18 #arcsec
+
     ### check existence
     if not os.path.isfile(gal_configs['file']):
         tmp = gal_configs['file']
@@ -334,6 +342,10 @@ cata_file =                                    # input galaxy mock catalogue\n\
 position_type =         true                   # position to be used\n\
                                                #    true (use positions from the input catalogue)\n\
                                                #    grid (put in a grid)\n\
+                                               #    random (put in random)\n\
+grid_size =             18.                    # (arcsec) box size for grid\n\
+                                               # default: 18 arcsec\n\
+                                               # not used in other position_type\n\
 mag_cut =               16, 28                 # magnitude cut for galaxies to be simulated\n\
 Re_cut =                0, 10                  # size cut for galaxies to be simulated (arcsec)\n\
 # catalogue column names to the desired info\n\

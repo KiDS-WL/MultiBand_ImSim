@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
-# @Last modified by:   lshuns
-# @Last modified time: 2021-06-09, 18:09:50
+# @Last Modified by:   lshuns
+# @Last Modified time: 2021-06-16 20:31:13
 
 ### main module of ImSim
 ###### dependence:
@@ -49,7 +49,8 @@ def _PSFNoisySkyImages_simple(para_list):
         stars_info_band,
         outpath_PSF_basename, N_PSF, sep_PSF,
         save_image_chips, save_image_PSF,
-        outpath_dir) = para_list
+        outpath_dir,
+        gal_position_type) = para_list
 
     logger.info(f'Simulating simple image for tile {tile_label} band {band}...')
 
@@ -173,7 +174,7 @@ def _PSFNoisySkyImages_simple(para_list):
                 gal_rotation_angle = gal_rotation_angles[i_rot]
 
                 image_galaxies = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic)
+                                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type)
 
                 ## add stars
                 if (image_stars is not None):
@@ -377,7 +378,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                 gal_rotation_angle = float(re.search(r'_rot(\d+)', outpath_image_name).group(1))
                 if gal_rotation_angle != gal_rotation_angle0:
                     image_galaxies0 = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                                    gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic)
+                                                    gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type)
                     gal_rotation_angle0 = gal_rotation_angle
 
                 image_galaxies = image_galaxies0.copy()
@@ -546,7 +547,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
 
                 # galaxy image
                 image_galaxies = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic)
+                                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type)
 
                 ## add stars
                 if (stars_info_band is not None):
@@ -574,7 +575,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                             Nmax_proc,
                                             N_tiles, bands, pixel_scale_list, image_type_list,
                                             noise_info,
-                                            gals_info, gal_rotation_angles=[0.], g_cosmic=[0, 0], gal_position_type='true',
+                                            gals_info, gal_rotation_angles=[0.], g_cosmic=[0, 0], gal_position_type=['true', 18],
                                             stars_area=None, stars_info=None, star_position_type='random',
                                             PSF_map=False, N_PSF=100, sep_PSF=120,
                                             image_chips=None, image_PSF=None):
@@ -691,10 +692,10 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         gals_info_selec.reset_index(drop=True, inplace=True)
 
         ## change position if desired
-        if gal_position_type == 'grid':
+        if gal_position_type[0] == 'grid':
             logger.info('Galaxies are placed in a grid.')
             Ngal = len(gals_info_selec)
-            apart = 18./3600. # apart 18arcsec for each galaxy
+            apart = gal_position_type[1]/3600. # apart for each galaxy
             # how many row and column needed to place all galaxies
             N_rows = math.ceil(Ngal**0.5)
             N_cols = math.ceil(Ngal/N_rows)
@@ -713,7 +714,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             del index_selected
             del X_gals
             del Y_gals
-        elif gal_position_type == 'random':
+        elif gal_position_type[0] == 'random':
             logger.info('Galaxies are placed randomly.')
             np.random.seed(rng_seed_tile)
             Ngal = len(gals_info_selec)
@@ -721,8 +722,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             gals_info_selec.loc[:, 'RA'] = np.random.uniform(low=ra_min, high=ra_max, size=Ngal)
             gals_info_selec.loc[:, 'DEC'] = np.random.uniform(low=dec_min, high=dec_max, size=Ngal)
         else:
-            if gal_position_type != 'true':
-                raise Exception(f'Unsupported gal_position_type: {gal_position_type} !')
+            if gal_position_type[0] != 'true':
+                raise Exception(f'Unsupported gal_position_type: {gal_position_type[0]} !')
 
         ## output galaxies info
         output_col_tmp = ['index', 'RA', 'DEC', 'redshift', 'Re', 'axis_ratio', 'position_angle', 'sersic_n'] + bands
@@ -900,7 +901,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                         outpath_PSF_basename, N_PSF, sep_PSF,
                                         save_image_PSF,
                                         outpath_dir,
-                                        i_expo)
+                                        i_expo,
+                                        gal_position_type)
                             para_lists.append(para_list)
                             # label
                             image_type_labels.append(image_type)
@@ -922,7 +924,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                             stars_info_band,
                             outpath_PSF_basename, N_PSF, sep_PSF,
                             save_image_chips, save_image_PSF,
-                            outpath_dir)
+                            outpath_dir,
+                            gal_position_type)
                 para_lists.append(para_list)
                 # label
                 image_type_labels.append(image_type)

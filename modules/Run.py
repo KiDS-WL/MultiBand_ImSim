@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
-# @Last modified by:   lshuns
-# @Last modified time: 2021-06-09, 18:05:22
+# @Last Modified by:   lshuns
+# @Last Modified time: 2021-06-16 20:31:34
 
 ### main module to run the whole pipeline
 
@@ -186,7 +186,7 @@ if ('1' in taskIDs) or ('all' in taskIDs):
                                             Nmax_proc,
                                             configs_dict['imsim']['N_tiles'], configs_dict['imsim']['bands'], configs_dict['imsim']['pixel_scale_list'], configs_dict['imsim']['image_type_list'],
                                             noise_info,
-                                            gals_info, gal_rotation_angles=configs_dict['imsim']['gal_rotation_angles'], g_cosmic=g_cosmic, gal_position_type=configs_dict['gal']['position_type'],
+                                            gals_info, gal_rotation_angles=configs_dict['imsim']['gal_rotation_angles'], g_cosmic=g_cosmic, gal_position_type=[configs_dict['gal']['position_type'], configs_dict['gal']['grid_size']],
                                             stars_area=star_area, stars_info=stars_info, star_position_type=star_position_type,
                                             PSF_map=configs_dict['imsim']['PSF_map'], N_PSF=100, sep_PSF=120,
                                             image_chips=configs_dict['imsim']['image_chips'], image_PSF=configs_dict['imsim']['image_PSF'])

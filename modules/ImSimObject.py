@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-11-26 16:03:10
-# @Last modified by:   ssli
-# @Last modified time: 2021-05-07, 18:51:47
+# @Last Modified by:   lshuns
+# @Last Modified time: 2021-06-16 20:31:28
 
 ### Everything about celestial objects
+
+import math
 
 import galsim
 import logging
@@ -29,7 +31,7 @@ SERSIC_N_MIN, SERSIC_N_MAX = 0.3, 6.2
 ### (for faster calculation)
 TRUNC_FACTOR = 5
 
-def SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale):
+def SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale, edge_sep=18.):
     """
     Build a simple canvas
     """
@@ -39,9 +41,9 @@ def SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale):
     DEC0 = (DEC_min + DEC_max) / 2.
 
     # decide bounds
-    xmax = (RA_max - RA_min) * 3600. / pixel_scale + 36./pixel_scale # 18 arcsec in both sides to avoid edge effects
-    ymax = (DEC_max - DEC_min) * 3600. / pixel_scale + 36./pixel_scale
-    bounds = galsim.BoundsI(xmin=0, xmax=int(xmax), ymin=0, ymax=int(ymax))
+    xmax = (RA_max - RA_min) * 3600. / pixel_scale + 2.*edge_sep/pixel_scale # edge_sep in both sides to avoid edge effects
+    ymax = (DEC_max - DEC_min) * 3600. / pixel_scale + 2.*edge_sep/pixel_scale
+    bounds = galsim.BoundsI(xmin=0, xmax=math.ceil(xmax), ymin=0, ymax=math.ceil(ymax))
 
     # build the wcs
     ## Linear projection matrix
@@ -62,7 +64,7 @@ def SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale):
     return canvas
 
 def GalaxiesImage(canvas, band, pixel_scale, PSF,
-                    gals_info, gal_rotation_angle=0., g_cosmic=[0, 0]):
+                    gals_info, gal_rotation_angle=0., g_cosmic=[0, 0], gal_position_type=['true', 18.]):
     """
     Generate pure sky image with only galaxies
 
@@ -82,6 +84,8 @@ def GalaxiesImage(canvas, band, pixel_scale, PSF,
         Rotating galaxies to concel shape noise.
     g_cosmic : float, optional (default: [0,0])
         Cosmic shear.
+    gal_position_type : [str, float], optional (default: ['true', 18])
+        galaxies position type, mainly useful for grid case.
 
     Returns
     -------
@@ -92,6 +96,11 @@ def GalaxiesImage(canvas, band, pixel_scale, PSF,
     # check if the canvas is clean
     if np.any(canvas.array):
         raise Exception('The provided canvas is unclean for GalaxiesImage!')
+
+    # constrain gal stamp for grid mode
+    if gal_position_type[0] == 'grid':
+        bounds_stamp = galsim.BoundsI(xmin=1, xmax=math.floor(gal_position_type[1]/pixel_scale), ymin=1, ymax=math.floor(gal_position_type[1]/pixel_scale))
+        logger.info(f'galaxy stamp is constrained to {bounds_stamp}')
 
     # copy the canvas
     full_image = canvas.copy()
@@ -196,7 +205,11 @@ def GalaxiesImage(canvas, band, pixel_scale, PSF,
         galaxy = galsim.Convolve(galaxy, PSF)
 
         # draw image
-        stamp_gal = galaxy.drawImage(scale=pixel_scale, offset=offset_gal)
+        if gal_position_type[0] == 'grid':
+            canvas_stamp = galsim.ImageF(bounds=bounds_stamp, scale=pixel_scale)
+            stamp_gal = galaxy.drawImage(image=canvas_stamp, offset=offset_gal)
+        else:
+            stamp_gal = galaxy.drawImage(scale=pixel_scale, offset=offset_gal)
 
         # locate the stamp
         stamp_gal.setCenter(ix_gal, iy_gal)
