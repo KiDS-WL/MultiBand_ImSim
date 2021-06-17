@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-06-16 20:30:31
+# @Last Modified time: 2021-06-17 15:44:03
 
 ### module to generate an example configuration file
 
@@ -125,6 +125,12 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                     'image_type_list': [x.strip() for x in config_imsim.get('image_type_list').split(',')],
                     'image_chips': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('image_chips').split(',')],
                     'image_PSF': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('image_PSF').split(',')]}
+    ### psf image size 
+    psf_size = config_imsim.get('image_PSF_size')
+    if psf_size is not None:
+        imsim_configs['image_PSF_size'] = float(psf_size)
+    else:
+        imsim_configs['image_PSF_size'] = 32 #pixels
 
     ## === dictionary for collecting all config info
     configs_dict = {'work_dirs': work_dirs, 'gal': gal_configs, 'star': star_configs, 'noise': noise_configs, 'imsim': imsim_configs}
@@ -417,6 +423,9 @@ image_chips =           False, False, True, False, False, False, False, False, F
 image_PSF =             False, False, True, False, False, False, False, False, False\n\
                                                # save individual psf\n\
                                                # required by lensfit\n\
+image_PSF_size =        32                     # (pixels) the size of the saved PSF image\n\
+                                               #    it is assumed to be a square\n\
+                                               #    default: 32*32 \n\
 N_tiles =               1                      # number of tiles to be simulated\n\
                                                # make sure the NoiseInfo cata covers more than this requirement\n\
                                                # GalInfo can cover less than this requirement,\n\

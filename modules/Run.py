@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-06-16 20:31:34
+# @Last Modified time: 2021-06-17 15:21:40
 
 ### main module to run the whole pipeline
 
@@ -189,7 +189,7 @@ if ('1' in taskIDs) or ('all' in taskIDs):
                                             gals_info, gal_rotation_angles=configs_dict['imsim']['gal_rotation_angles'], g_cosmic=g_cosmic, gal_position_type=[configs_dict['gal']['position_type'], configs_dict['gal']['grid_size']],
                                             stars_area=star_area, stars_info=stars_info, star_position_type=star_position_type,
                                             PSF_map=configs_dict['imsim']['PSF_map'], N_PSF=100, sep_PSF=120,
-                                            image_chips=configs_dict['imsim']['image_chips'], image_PSF=configs_dict['imsim']['image_PSF'])
+                                            image_chips=configs_dict['imsim']['image_chips'], image_PSF=[configs_dict['imsim']['image_PSF'], configs_dict['imsim']['image_PSF_size']])
 
     logger.info(f'====== Task 1: simulate images === finished in {(time.time()-start_time)/3600.} h ======')
 

@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-06-16 20:31:13
+# @Last Modified time: 2021-06-17 15:27:22
 
 ### main module of ImSim
 ###### dependence:
@@ -48,7 +48,7 @@ def _PSFNoisySkyImages_simple(para_list):
         gals_info_band, gal_rotation_angles,
         stars_info_band,
         outpath_PSF_basename, N_PSF, sep_PSF,
-        save_image_chips, save_image_PSF,
+        save_image_chips, save_image_PSF, image_PSF_size,
         outpath_dir,
         gal_position_type) = para_list
 
@@ -108,7 +108,7 @@ def _PSFNoisySkyImages_simple(para_list):
             logger.info('PSF images already exist.')
         else:
             PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
-            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=32)
+            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size)
             psf_ima.write(psf_ima_file_tmp)
             logger.info(f'PSF image saved as {psf_ima_file_tmp}')
 
@@ -212,7 +212,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         gals_info_band, gal_rotation_angles,
         stars_info_band,
         outpath_PSF_basename, N_PSF, sep_PSF,
-        save_image_chips, save_image_PSF,
+        save_image_chips, save_image_PSF, image_PSF_size,
         outpath_dir) = para_list
     logger.info(f'Simulating KiDS_sameExpo image for tile {tile_label} band {band}...')
 
@@ -283,7 +283,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
             os.mkdir(psf_dir_tmp)
 
             PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
-            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=32)
+            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size)
 
             for i_expo in range(n_exposures):
                 outpath_tmp = os.path.join(psf_dir_tmp, f'expo{i_expo}.fits')
@@ -435,7 +435,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         gals_info_band, gal_rotation_angle,
         stars_info_band,
         outpath_PSF_basename, N_PSF, sep_PSF,
-        save_image_PSF,
+        save_image_PSF, image_PSF_size,
         outpath_dir,
         i_expo) = para_list
     logger.info(f'Simulating KiDS image for tile {tile_label} band {band} expo {i_expo} rot {gal_rotation_angle}...')
@@ -489,7 +489,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
             logger.info('PSF image already exist.')
         else:
             PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
-            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=32)
+            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size)
             psf_ima.write(psf_ima_file_tmp)
             logger.info(f'PSF image saved as {psf_ima_file_tmp}')
 
@@ -833,7 +833,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
             # save single psf image or not
             if image_PSF is not None:
-                save_image_PSF = image_PSF[i_band]
+                save_image_PSF = image_PSF[0][i_band]
+                image_PSF_size = image_PSF[1]
 
                 # make a directory if save
                 if save_image_PSF:
@@ -899,7 +900,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                         gals_info_band, gal_rotation_angle,
                                         stars_info_band,
                                         outpath_PSF_basename, N_PSF, sep_PSF,
-                                        save_image_PSF,
+                                        save_image_PSF, image_PSF_size, 
                                         outpath_dir,
                                         i_expo,
                                         gal_position_type)
@@ -923,7 +924,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                             gals_info_band, gal_rotation_angles,
                             stars_info_band,
                             outpath_PSF_basename, N_PSF, sep_PSF,
-                            save_image_chips, save_image_PSF,
+                            save_image_chips, save_image_PSF, image_PSF_size,
                             outpath_dir,
                             gal_position_type)
                 para_lists.append(para_list)
