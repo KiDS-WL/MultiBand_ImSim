@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-06-17 15:27:22
+# @Last Modified time: 2021-06-18 11:26:26
 
 ### main module of ImSim
 ###### dependence:
@@ -213,7 +213,8 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         stars_info_band,
         outpath_PSF_basename, N_PSF, sep_PSF,
         save_image_chips, save_image_PSF, image_PSF_size,
-        outpath_dir) = para_list
+        outpath_dir,
+        gal_position_type) = para_list
     logger.info(f'Simulating KiDS_sameExpo image for tile {tile_label} band {band}...')
 
     # number of exposures
@@ -437,7 +438,8 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         outpath_PSF_basename, N_PSF, sep_PSF,
         save_image_PSF, image_PSF_size,
         outpath_dir,
-        i_expo) = para_list
+        i_expo,
+        gal_position_type) = para_list
     logger.info(f'Simulating KiDS image for tile {tile_label} band {band} expo {i_expo} rot {gal_rotation_angle}...')
 
     # outpath
