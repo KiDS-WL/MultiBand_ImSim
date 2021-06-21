@@ -1,0 +1,8 @@
+// CFHTLenS prior parameter values (rfunc parameters are redundant except for rcut0)
+0.      r0: characteristic scalelength of lognormal size distribution (PIXELS)
+0.      rgamma: sigma width of lognormal size distribution (PIXELS)
+0.3000  rcut0: lower bound on size distribution at zero ellipticity (PIXELS)
+0.8040  efunc_emax cut-off ellipticity 
+0.2539  efunc_sigma cut-off sigma term
+0.0256  efunc_a: intrinsic ellipticity term
+1.0000  efunc_power: exponent of prior function

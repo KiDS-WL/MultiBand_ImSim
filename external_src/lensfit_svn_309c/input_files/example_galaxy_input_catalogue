@@ -1,0 +1,9 @@
+# comment lines at beginning 
+# columns are: WCS RA; WCS dec; magnitude; catalogue ID (integer).
+# If instead you want to specify individual chip x,y positions further columns are allowed
+# see lensfit.pdf for details
+# recommended method though is just to use the four-column format with WCS positions
+# RA, dec are specified in decimal degrees, suitable header info must be in fits file headers
+201.32456 -0.45678 23.1 1
+201.32367 -0.47657 23.5 2
+201.35672 -0.43278 21.0 3

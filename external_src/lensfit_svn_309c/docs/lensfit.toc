@@ -1,0 +1,48 @@
+\contentsline {section}{\numberline {1}Installing {\em lens}fit\ }{3}
+\contentsline {subsection}{\numberline {1.1}64-bit installation}{3}
+\contentsline {subsection}{\numberline {1.2}Libraries}{3}
+\contentsline {subsection}{\numberline {1.3}Compilers/platforms}{3}
+\contentsline {subsection}{\numberline {1.4}Setting up the code}{3}
+\contentsline {subsubsection}{\numberline {1.4.1}{\tt makeglobalpsf}\ }{4}
+\contentsline {subsubsection}{\numberline {1.4.2}{\tt globalshifts}\ }{5}
+\contentsline {subsubsection}{\numberline {1.4.3}{\tt lensfit}\ }{5}
+\contentsline {subsubsection}{\numberline {1.4.4}{\tt readlensfit}\ }{7}
+\contentsline {subsection}{\numberline {1.5}Building the {\em lens}fit\ installation}{8}
+\contentsline {section}{\numberline {2}Introduction to {\em lens}fit\ }{8}
+\contentsline {subsection}{\numberline {2.1}What {\em lens}fit\ does}{8}
+\contentsline {subsubsection}{\numberline {2.1.1}Principles}{8}
+\contentsline {subsubsection}{\numberline {2.1.2}Priors}{9}
+\contentsline {subsubsection}{\numberline {2.1.3}Galaxy models}{10}
+\contentsline {subsubsection}{\numberline {2.1.4}Combining multiple exposures and distortion-correction}{11}
+\contentsline {subsubsection}{\numberline {2.1.5}PSFs}{12}
+\contentsline {subsubsection}{\numberline {2.1.6}Shear estimation}{12}
+\contentsline {subsection}{\numberline {2.2}Overview of {\em lens}fit\ operation}{14}
+\contentsline {subsection}{\numberline {2.3}Mosaics and exposures}{15}
+\contentsline {subsection}{\numberline {2.4}Preparation of input images}{15}
+\contentsline {subsubsection}{\numberline {2.4.1}Basic preparation}{15}
+\contentsline {subsubsection}{\numberline {2.4.2}Preparation for correction of image distortion}{16}
+\contentsline {subsection}{\numberline {2.5}Improvements to {\em lens}fit\ }{16}
+\contentsline {subsubsection}{\numberline {2.5.1}Generalising to arbitrary datasets}{17}
+\contentsline {subsubsection}{\numberline {2.5.2}PSF modelling}{17}
+\contentsline {subsubsection}{\numberline {2.5.3}Model improvement}{17}
+\contentsline {subsubsection}{\numberline {2.5.4}Speed-up}{17}
+\contentsline {section}{\numberline {3}Running the {\em lens}fit\ programs}{17}
+\contentsline {subsection}{\numberline {3.1}Environment variables}{17}
+\contentsline {subsection}{\numberline {3.2}{\tt makeglobalpsf}\ }{18}
+\contentsline {subsection}{\numberline {3.3}{\tt globalshifts}\ }{19}
+\contentsline {subsection}{\numberline {3.4}{\tt lensfit}\ }{20}
+\contentsline {subsection}{\numberline {3.5}{\tt readlensfit}\ }{22}
+\contentsline {section}{\numberline {4}Fair use of {{\em lens}fit\ }, acknowledging {\em lens}fit\ and feedback}{22}
+\contentsline {section}{\numberline {A}Setting up {\em lens}fit\ }{23}
+\contentsline {subsection}{\numberline {A.1}Background subtraction}{23}
+\contentsline {subsection}{\numberline {A.2}Saturation level}{23}
+\contentsline {subsection}{\numberline {A.3}Global variables}{24}
+\contentsline {subsection}{\numberline {A.4}Postage stamp size}{24}
+\contentsline {subsection}{\numberline {A.5}Star catalogues for PSF generation}{24}
+\contentsline {subsection}{\numberline {A.6}Input galaxy catalogues and images}{25}
+\contentsline {subsection}{\numberline {A.7}Filenames}{26}
+\contentsline {subsection}{\numberline {A.8}An important note on galaxy positions for multiple image input}{26}
+\contentsline {subsection}{\numberline {A.9}Swarp input}{27}
+\contentsline {subsection}{\numberline {A.10}Flux calibration}{27}
+\contentsline {subsection}{\numberline {A.11}Ellipticity sampling}{27}
+\contentsline {subsection}{\numberline {A.12}Overall memory use, compute time and threads}{27}

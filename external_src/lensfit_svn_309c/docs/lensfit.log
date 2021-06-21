@@ -1,0 +1,137 @@
+<<<<<<< .mine
+This is pdfeTeX, Version 3.141592-1.21a-2.2 (Web2C 7.5.4) (format=latex 2008.6.29)  20 MAR 2011 11:16
+=======
+This is pdfeTeX, Version 3.141592-1.21a-2.2 (Web2C 7.5.4) (format=latex 2008.6.29)  20 MAR 2011 11:15
+>>>>>>> .r50
+entering extended mode
+**lensfit
+(./lensfit.tex
+LaTeX2e <2003/12/01>
+Babel <v3.8d> and hyphenation patterns for american, french, german, ngerman, b
+ahasa, basque, bulgarian, catalan, croatian, czech, danish, dutch, esperanto, e
+stonian, finnish, greek, icelandic, irish, italian, latin, magyar, norsk, polis
+h, portuges, romanian, russian, serbian, slovak, slovene, spanish, swedish, tur
+kish, ukrainian, nohyphenation, loaded.
+(/sw/share/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2004/02/16 v1.4f Standard LaTeX document class
+(/sw/share/texmf-dist/tex/latex/base/size10.clo
+File: size10.clo 2004/02/16 v1.4f Standard LaTeX file (size option)
+)
+\c@part=\count79
+\c@section=\count80
+\c@subsection=\count81
+\c@subsubsection=\count82
+\c@paragraph=\count83
+\c@subparagraph=\count84
+\c@figure=\count85
+\c@table=\count86
+\abovecaptionskip=\skip41
+\belowcaptionskip=\skip42
+\bibindent=\dimen102
+)
+(/sw/share/texmf-dist/tex/latex/graphics/graphics.sty
+Package: graphics 2001/07/07 v1.0n Standard LaTeX Graphics (DPC,SPQR)
+
+(/sw/share/texmf-dist/tex/latex/graphics/trig.sty
+Package: trig 1999/03/16 v1.09 sin cos tan (DPC)
+)
+(/sw/share/texmf-dist/tex/latex/graphics/graphics.cfg
+File: graphics.cfg 2005/02/03 v1.3 graphics configuration of teTeX/TeXLive
+)
+Package graphics Info: Driver file: dvips.def on input line 80.
+
+(/sw/share/texmf-dist/tex/latex/graphics/dvips.def
+File: dvips.def 1999/02/16 v3.0i Driver-dependant file (DPC,SPQR)
+))
+(/sw/share/texmf-dist/tex/latex/natbib/natbib.sty
+Package: natbib 2003/06/06 7.1 (PWD)
+\bibhang=\skip43
+\bibsep=\skip44
+LaTeX Info: Redefining \cite on input line 518.
+\c@NAT@ctr=\count87
+) (./refs.tex) (./lensfit.aux)
+\openout1 = `lensfit.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 28.
+LaTeX Font Info:    ... okay on input line 28.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <12> on input line 30.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <8> on input line 30.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <6> on input line 30.
+(./lensfit.toc
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <7> on input line 2.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <5> on input line 2.
+ [1
+
+])
+\tf@toc=\write3
+\openout3 = `lensfit.toc'.
+
+ [2]
+Overfull \hbox (4.31367pt too wide) in paragraph at lines 47--49
+[]\OT1/cmr/bx/n/10 cfitsio \OT1/cmr/m/n/10 should be con-sis-tent with all re-c
+ent ver-sions of cfit-sio from http://heasarc.nasa.gov/fitsio/fitsio.html
+ []
+
+[3] [4] [5] [6] [7] [8] [9] [10] [11]
+File: w1m1p2_sticks.ps Graphic file (type eps)
+ <w1m1p2_sticks.ps>
+File: w1m1p2_grey.ps Graphic file (type eps)
+ <w1m1p2_grey.ps>
+File: w1m1p2_strehl.ps Graphic file (type eps)
+
+<w1m1p2_strehl.ps> [12] [13]
+Overfull \hbox (6.91257pt too wide) in paragraph at lines 580--585
+[]\OT1/cmr/m/n/10 An im-proved method that leads to demon-stra-bly lower PSF-ga
+laxy cross-correlation sys-tem-at-ics on CFHTLenS
+ []
+
+[14] [15]
+Overfull \hbox (1.36389pt too wide) in paragraph at lines 715--725
+\OT1/cmr/m/n/10 pro-duced be-fore run-ning \OT1/cmtt/m/n/10 lensfit \OT1/cmr/m/
+n/10 . Be-cause we don't want to in-ter-po-late the stars COR-RECT[]DISTORTION
+ []
+
+[16] [17] [18] [19]
+Overfull \hbox (2.89268pt too wide) in paragraph at lines 909--911
+[]\OT1/cmr/m/it/10 output FITS ta-ble name \OT1/cmr/m/n/10 Out-put-name of your
+ choice. This FITS ta-ble can be read by pro-gram \OT1/cmtt/m/n/10 readlensfit 
+
+ []
+
+
+Overfull \hbox (37.80159pt too wide) in paragraph at lines 930--958
+[][] 
+ []
+
+[20] [21]
+Overfull \hbox (1.89023pt too wide) in paragraph at lines 1045--1051
+\OT1/cmr/m/it/10 lens\OT1/cmr/m/n/10 fit has in-volved sub-stan-tial de-vel-op-
+ment work by its au-thors, work-ing in col-lab-o-ra-tion with the CFHTLenS
+ []
+
+(./lensfit.bbl [22]) [23] [24] [25] [26] [27] [28] (./lensfit.aux) ) 
+Here is how much of TeX's memory you used:
+ 801 strings out of 94501
+ 8623 string characters out of 1176137
+ 60815 words of memory out of 1500000
+ 4010 multiletter control sequences out of 10000+50000
+ 10349 words of font info for 36 fonts, out of 1200000 for 2000
+ 580 hyphenation exceptions out of 8191
+ 23i,8n,20p,876b,245s stack positions out of 5000i,500n,6000p,200000b,5000s
+
+Output written on lensfit.dvi (28 pages, 134740 bytes).

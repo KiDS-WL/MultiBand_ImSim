@@ -1,0 +1,8 @@
+// GREAT3 prior values (fit to deep training data, ground control)
+1.899947 r0: characteristic scalelength of lognormal size distribution (PIXELS)
+0.344205 rgamma: sigma width of lognormal size distribution (PIXELS)
+1.031857 rcut0: lower bound on size distribution at zero ellipticity (PIXELS)
+0.805318 efunc_emax cut-off ellipticity 
+0.309366 efunc_sigma cut-off sigma term
+0.093074 efunc_a: intrinsic ellipticity term
+1.369210 efunc_power: exponent of prior function

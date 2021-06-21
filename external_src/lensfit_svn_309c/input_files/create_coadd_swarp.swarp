@@ -1,0 +1,89 @@
+# Default configuration file for SWarp 1.14
+# EB 11/03/2001
+#
+#---------------------------------- Output ------------------------------------
+
+IMAGEOUT_NAME	coadd.fits		# Output filename
+WEIGHTOUT_NAME	coadd.weight.fits	# Output weight-map filename
+
+HEADER_ONLY             N               # Only a header as an output file (Y/N)?
+HEADER_SUFFIX           .head           # Filename extension for additional headers
+#------------------------------- Input Weights --------------------------------
+
+WEIGHT_TYPE	MAP_WEIGHT			# "BACKGROUND","MAP_RMS","MAP_VARIANCE"
+					# or "MAP_WEIGHT"
+					# (all or for each weight-map)
+WEIGHT_SUFFIX	.weight.fits		# Suffix to use for weight-maps
+WEIGHT_IMAGE				# Weightmap filename if suffix not used
+					# (all or for each weight-map)
+
+#-------------------------------- Astrometry ----------------------------------
+
+CELESTIAL_TYPE	NATIVE			# "NATIVE", "EQUATORIAL", "GALACTIC",
+					# or "ECLIPTIC"
+PROJECTION_TYPE	TAN			# Any WCS projection code or "NONE"
+CENTER_TYPE	ALL			# "MANUAL", "ALL" or "MOST"
+CENTER		00:00:00.0, +00:00:00.0	# Coordinates of the image center
+PIXELSCALE_TYPE	MEDIAN			# "MANUAL", "FIT", "MIN", "MAX"
+					# or "MEDIAN"
+PIXEL_SCALE	0.0			# Pixel scale
+IMAGE_SIZE	0			# Image size (0 = AUTOMATIC)
+
+#-------------------------------- Resampling ----------------------------------
+
+RESAMPLE                Y               # Resample input images (Y/N)?
+RESAMPLE_DIR            .               # Directory path for resampled images
+RESAMPLE_SUFFIX         .resamp.fits    # filename extension for resampled images
+
+RESAMPLING_TYPE	LANCZOS3		# "NEAREST","BILINEAR","LANCZOS2",
+					# "LANCZOS3" or "LANCZOS4" (1 per axis)
+OVERSAMPLING	0			# Oversampling in each dimension
+					# (0 = automatic)
+INTERPOLATE	N			# Interpolate bad input pixels (Y/N)?
+					# (all or for each image)
+
+#------------------------------- Co-addition ----------------------------------
+
+COMBINE_TYPE	WEIGHTED	#	 "MEDIAN","AVERAGE","MIN","MAX"
+					# or "WEIGHTED"
+
+#------------------------------ Flux rescaling --------------------------------
+
+FSCALASTRO_TYPE	FIXED			# "NONE" or "FIXED"
+FSCALE_KEYWORD	FLXSCALE		# FITS keyword for the multiplicative
+					# factor to apply to each input image
+FSCALE_DEFAULT	1.0			# Default multiplicative factor if no
+					# FITS keyword found
+GAIN_KEYWORD	GAIN			# FITS keyword for eff. gain (e-/ADU)
+					# Gains are currently not used.
+GAIN_DEFAULT	0.0			# Default gain if no FITS keyword found
+					# 0 = infty (all or for each image)
+
+#--------------------------- Background subtraction ---------------------------
+
+SUBTRACT_BACK	N			# Subtraction sky background (Y/N)?
+					# (all or for each image)
+
+BACK_TYPE	AUTO			# "AUTO" or "MANUAL"
+					# (all or for each image)
+BACK_DEFAULT	0.0			# Default background value in MANUAL
+					# (all or for each image)
+BACK_SIZE	128			# Background mesh size (pixels)
+					# (all or for each image)
+BACK_FILTERSIZE	3			# Background map filter range (meshes)
+					# (all or for each image)
+
+#------------------------- Virtual memory management --------------------------
+
+VMEM_MAX	2047			# Maximum amount of virtual memory (MB)
+MEM_MAX		384			# Maximum amount of usable RAM (MB)
+
+#------------------------------ Miscellaneous ---------------------------------
+
+DELETE_TMPFILES	N		# Delete temporary resampled FITS files
+					# (Y/N)?
+WRITE_FILEINFO	N			# Write information about each input
+					# file in the output image header?
+VERBOSE_TYPE	NORMAL			# "QUIET","NORMAL" or "FULL"
+
+NTHREADS                1               # 1 single thread

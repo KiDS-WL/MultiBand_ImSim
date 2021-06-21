@@ -1,0 +1,45 @@
+This is BibTeX, Version 0.99c (Web2C 7.5.4)
+The top-level auxiliary file: lensfit.aux
+The style file: plainnat.bst
+Database file #1: lensing.bib
+You've used 8 entries,
+            2774 wiz_defined-function locations,
+            653 strings with 6749 characters,
+and the built_in function-call counts, 4721 in all, are:
+= -- 410
+> -- 350
+< -- 5
++ -- 117
+- -- 109
+* -- 428
+:= -- 757
+add.period$ -- 31
+call.type$ -- 8
+change.case$ -- 52
+chr.to.int$ -- 8
+cite$ -- 16
+duplicate$ -- 170
+empty$ -- 322
+format.name$ -- 121
+if$ -- 980
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 8
+newline$ -- 55
+num.names$ -- 34
+pop$ -- 102
+preamble$ -- 1
+purify$ -- 44
+quote$ -- 0
+skip$ -- 135
+stack$ -- 0
+substring$ -- 179
+swap$ -- 27
+text.length$ -- 2
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 88
+warning$ -- 0
+while$ -- 34
+width$ -- 0
+write$ -- 126

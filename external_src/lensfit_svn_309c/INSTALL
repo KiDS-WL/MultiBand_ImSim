@@ -1,0 +1,43 @@
+
+Installation instructions for the lensfit suite.
+------------------------------------------------
+
+1. The software should be installed on a 64-bit machine.
+
+2. Read the supplied document docs/lensfit.pdf and configure the source
+   code as described.
+
+3. Lensfit requires 64-bit versions of libraries to be already installed:
+
+   FFTW v.3 http://www.fftw.org/
+   cfitsio  http://heasarc.gsfc.nasa.gov/fitsio/
+   GSL      http://www.gnu.org/software/gsl/
+
+Use the CFLAGS environment variable to specify that the compilation is to 
+be 64-bit and to allow the appropriate package include files for the FFTW 
+and cfitsio libraries, e.g., in C-shell,
+
+ setenv CFLAGS "-m64 -I/users/miller/cfitsio/include -I/users/miller/fftw/fftw-3.1.2/include"
+
+Also use the environment variable LDFLAGS to set the paths to the FFTW and 
+cfitsio libraries, e.g.
+
+ setenv LDFLAGS "-L/Users/miller/cfitsio/lib -L/Users/miller/fftw/fftw-3.1.2/lib"
+
+The configure script uses the GSL utility gsl-config to set up the paths for 
+the GSL libraries, so you should ensure that your normal PATH includes the 
+path to the gsl-config executable for your 64-bit GSL installation.
+
+If you have specific compilers that you wish to use, specify these also with 
+the appropriate environment variable.
+
+4. Build the suite with the following commands
+
+   ./configure --prefix=<install directory>
+   make
+   make install
+
+-----------------------------
+Lance Miller & Joerg Dietrich
+August 2010
+
