@@ -285,7 +285,7 @@ returned autocalibration to standard likelihood instead of sqrt. LM 24/6/2015.
 /*------------------------------------------------------------*/
 
 /* set whether verbose output (info on memory allocation and input images) is output (1) or not (0) */
-#define VERBOSE 1
+#define VERBOSE 0
 
 /* set number of threads = number of shared-memory processors */
 #define NUM_THREAD 64
@@ -300,7 +300,7 @@ returned autocalibration to standard likelihood instead of sqrt. LM 24/6/2015.
    depending on the virtual memory management this might fragment the
    swap space.  Also, you should allow some memory for the operating
    system and any other processes that are running */
-#define MEMORY_LIMIT 25000
+#define MEMORY_LIMIT 30000
 
 /*------------------------------------------------------------*/
 /* datafile and instrument settings                           */
@@ -312,7 +312,7 @@ returned autocalibration to standard likelihood instead of sqrt. LM 24/6/2015.
 
 /* set whether weight files are *required* (exits if not found) 
    0=not required, 1=required */
-#define WEIGHTS_REQUIRED 1
+#define WEIGHTS_REQUIRED 0
 
 /* set the minimum accepted exposure time for each image (requires keyword to
    be present in image FITS headers) */
@@ -411,7 +411,7 @@ flag is set to 1 or 0. */
    For the case of global PSFs (GLOBAL_PSF=1) set a lower limit to the number of stars
    required in each individual chip - if fewer than this number were used, that chip
    will be disqualified */
-#define PSF_STAR_LIMIT 30
+#define PSF_STAR_LIMIT -1
 
 /* set the rejection threshold for excluding postage stamps whose PSF is more elliptical
    than the specified limit (set value 1.0 to avoid any cut) */
