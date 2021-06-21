@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-06-21 15:29:36
+# @Last Modified time: 2021-06-21 22:00:37
 
 ### module to generate an example configuration file
 
@@ -566,8 +566,7 @@ image_label_list =      original\n\
 lensfit_dir =                                  # directory containing lensfit code\n\
 python2_cmd =           python2                # the executable path to the python2\n\
 lensfit_cores =         12                     # number of cores used by each lensfit run\n\
-                                               # for lensfit_svn_309c:\n\
-                                               # 8, 12, 16, 24, 48, 64, 72\n\
+                                               # should be consistent with that compiled in lensfit (flensfit_NT[lensfit_cores])\n\
 postage_size =          48\n\
 start_exposure =        1\n\
 end_exposure =          5\n\
