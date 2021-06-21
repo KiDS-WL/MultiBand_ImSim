@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
-# @Last modified by:   ssli
-# @Last modified time: 2021-03-27, 10:56:57
+# @Last Modified by:   lshuns
+# @Last Modified time: 2021-06-21 20:55:46
 
 ### Wrapper for lensfit code
 
@@ -82,6 +82,7 @@ def LensfitShape(lensfit_dir,
                     input_catalog, input_file, chip_dir, psf_coeff_dir, head_dir, weight_dir=None,
                     PSF_OVERSAMPLING='1', PECUT='0.02', PRCUT='0.02', LCUT='0.05', WAVEBAND='R', CAMERA='KIDS',
                     postage_size='48', start_exposure='1', end_exposure='5', start_mag='20.0', end_mag='25.0',
+                    lensfit_cores=12,
                     output_file='output.feather', out_dir='./', tmp_dir='./tmp',
                     running_log=True, log_dir=None):
     """
@@ -112,7 +113,11 @@ def LensfitShape(lensfit_dir,
         errLog = subprocess.STDOUT
 
     # ++++++++++++ 1. run lensfit to obtain shape info
-    lensfit_path = lensfit_dir + '/src/flensfit'
+    lensfit_path = lensfit_dir + f'/bin/flensfit_NT{lensfit_cores}'
+    if not os.path.isfile(lensfit_path):
+        logger.warning(f'the required {lensfit_path} does not exist!')
+        lensfit_path = lensfit_dir + f'/bin/flensfit_NT12'
+        logger.warning(f'Use {lensfit_path} instead!')
 
     # Environment variables
     envVars = os.environ.copy()

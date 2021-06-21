@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-06-17 15:44:03
+# @Last Modified time: 2021-06-21 15:29:36
 
 ### module to generate an example configuration file
 
@@ -294,6 +294,13 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             MS_configs['LCUT'] = config_lensfit.get('LCUT')
             MS_configs['CAMERA'] = config_lensfit.get('CAMERA').upper()
 
+            ### cores
+            lensfit_cores = config_lensfit.get('lensfit_cores')
+            if lensfit_cores is not None:
+                MS_configs['lensfit_cores'] = int(lensfit_cores)
+            else:
+                MS_configs['lensfit_cores'] = 12
+
             ### legitimate check
             if not os.path.isdir(MS_configs['lensfit_dir']):
                 tmp = MS_configs['lensfit_dir']
@@ -558,6 +565,9 @@ image_label_list =      original\n\
 [lensfit]\n\n\
 lensfit_dir =                                  # directory containing lensfit code\n\
 python2_cmd =           python2                # the executable path to the python2\n\
+lensfit_cores =         12                     # number of cores used by each lensfit run\n\
+                                               # for lensfit_svn_309c:\n\
+                                               # 8, 12, 16, 24, 48, 64, 72\n\
 postage_size =          48\n\
 start_exposure =        1\n\
 end_exposure =          5\n\
