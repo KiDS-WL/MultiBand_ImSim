@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-06-21 22:00:37
+# @Last Modified time: 2021-06-24 12:24:53
 
 ### module to generate an example configuration file
 
@@ -359,8 +359,8 @@ position_type =         true                   # position to be used\n\
 grid_size =             18.                    # (arcsec) box size for grid\n\
                                                # default: 18 arcsec\n\
                                                # not used in other position_type\n\
-mag_cut =               16, 28                 # magnitude cut for galaxies to be simulated\n\
-Re_cut =                0, 10                  # size cut for galaxies to be simulated (arcsec)\n\
+mag_cut =               16, 27                 # magnitude cut for galaxies to be simulated\n\
+Re_cut =                0, 99                  # size cut for galaxies to be simulated (arcsec)\n\
 # catalogue column names to the desired info\n\
 id_name =               index                  # unique galaxy id\n\
 detection_mag_name =    r                      # correspond to the `detection_band` in [ImSim] \n\
@@ -387,7 +387,7 @@ cata_area =             1                      # square degrees\n\
 position_type =         random                 # position to be used\n\
                                                #    random (randomly place the stars)\n\
                                                #    true (use positions from the input catalogue)\n\
-mag_cut =               10, 28                 # magnitude cut for stars to be simulated\n\
+mag_cut =               14, 27                 # magnitude cut for stars to be simulated\n\
 # column names to the desired info\n\
 id_name =               index                  # unique star id\n\
 detection_mag_name =    r                      # correspond to the `detection_band` in [ImSim] \n\
@@ -418,7 +418,7 @@ band_list =             u, g, r, i, Z, Y, J, H, Ks\n\
                                                # bands being simulated\n\
 pixel_scale_list =      0.214, 0.214, 0.214, 0.214, 0.34, 0.34, 0.34, 0.34, 0.34\n\
                                                # pixel scale for each band image\n\
-image_type_list =      sameExpo, sameExpo, diffExpo, sameExpo, simple, simple, simple, simple, simple\n\
+image_type_list =      sameExpo, sameExpo, sameExpo, sameExpo, simple, simple, simple, simple, simple\n\
                                                # image type for each band\n\
                                                # current supported types:\n\
                                                #    simple: without any survey feature (a simple stacked image)\n\
@@ -438,7 +438,7 @@ N_tiles =               1                      # number of tiles to be simulated
                                                # GalInfo can cover less than this requirement,\n\
                                                #    in which case repeating patterns will be produced\n\
                                                # NOTE: the total output tiles = N_tiles * N_rotations (specified below)\n\
-gal_rotation_angles =   0                      # degrees (put more values separated with ',' if needed)\n\
+gal_rotation_angles =   0, 90                      # degrees (put more values separated with ',' if needed)\n\
 PSF_map =               False                  # output the corresponding PSF map or not\n\
                                                # can be used by GAaP, but not mandatory if stars are simulated\n\
 rng_seed =              940120                 # base seed for the random number generator\n\
@@ -473,7 +473,7 @@ pixel_scale =           0.214                  # pixel scale for the image\n\
 cross_match =           True                   # cross-match with the input catalogue\n\
                                                #    in which case, catalogues with match info will be saved\n\
                                                #    see next section for configuration\n\
-config_file =           kids_sims_theli.sex          # SExtractor configuration file\n\
+config_file =           kids_sims.sex          # SExtractor configuration file\n\
 param_file =            sex_image.param        # SExtractor parameter file\n\
 filter_file =           default.conv           # SExtractor filter file\n\
 starNNW_file =          default.nnw            # SExtractor Neural-Network_Weight table file\n\
@@ -492,7 +492,7 @@ save_matched =          True                   # save the matched object info\n\
 save_false =            True                   # save false-detected object info\n\
 save_missed =           True                   # save the missed object info\n\
 mag_closest =           True                   # use magnitude to select for duplicated match\n\
-r_max =                 1.0                    # (arcsec) allowed maximum separation\n\
+r_max =                 0.6                    # (arcsec) allowed maximum separation\n\
 \n\n\
 ################################## MeasurePhotometry ########################################################\n\
 [MeasurePhotometry]\n\n\
