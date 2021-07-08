@@ -104,10 +104,7 @@ def GalInfo(cata_pathfile, bands,
         axis_ratios = np.zeros(Ngal)
 
     ## commom
-    try:
-        position_angles = cata[name_PA]
-    except KeyError:
-        position_angles = np.random.uniform(low=0., high=180., size=Ngal)
+    position_angles = cata[name_PA]
 
     ## bulge
     try:
