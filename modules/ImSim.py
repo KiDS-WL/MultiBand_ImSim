@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-07-08 14:57:05
+# @Last Modified time: 2021-07-08 19:56:42
 
 ### main module of ImSim
 ###### dependence:
@@ -45,63 +45,60 @@ def _PSFNoisySkyImages_simple(para_list):
     (tile_label, band, pixel_scale, rng_seed_band, outpath_image_basename,
         rms, seeing, beta, psf_e,
         g_cosmic,
-        gals_info_band, gal_rotation_angles,
+        gals_info_band, gal_rotation_angle,
         stars_info_band,
         outpath_PSF_basename, N_PSF, sep_PSF,
         save_image_chips, save_image_PSF, image_PSF_size,
         outpath_dir,
         gal_position_type) = para_list
 
-    logger.info(f'Simulating simple image for tile {tile_label} band {band}...')
+    logger.info(f'Simulating simple image for tile {tile_label} band {band} rot {gal_rotation_angle}...')
 
     # warning
     if save_image_chips:
         logger.warning('Simple image type does not produce chips!')
 
     # outpath
-    outpath_image_name_list = [outpath_image_basename + f'_rot{gal_rotation_angle:.0f}.fits' for gal_rotation_angle in gal_rotation_angles]
+    outpath_image_name = outpath_image_basename + f'_rot{gal_rotation_angle:.0f}.fits'
     ## psf map
     if (outpath_PSF_basename is not None):
-        outpath_PSF_name_list = [outpath_PSF_basename + f'_rot{gal_rotation_angle:.0f}.fits' for gal_rotation_angle in gal_rotation_angles]
+        outpath_PSF_name = outpath_PSF_basename + f'_rot{gal_rotation_angle:.0f}.fits'
 
     # first check if already exist
-    outpath_image_exist_list = np.zeros_like(outpath_image_name_list, dtype=bool)
-    for i_name, outpath_image_name in enumerate(outpath_image_name_list):
+    outpath_image_exist = False
+    try:
+        with fits.open(outpath_image_name) as hdul:
+            head_tmp = hdul[0].header
+        flag_sim = head_tmp['flag_sim']
+        if flag_sim >= 1:
+            outpath_image_exist = True
+            logger.info(f"{outpath_image_name} already exist.")
+    except FileNotFoundError:
+        pass
+    except (KeyError, OSError) as e:
+        os.remove(outpath_image_name)
+        logger.warning(f"{outpath_image_name} broken, delete and re-produce.")
+    ## psf map
+    if (outpath_PSF_basename is not None) :
+        outpath_PSF_exist = False
         try:
-            with fits.open(outpath_image_name) as hdul:
+            with fits.open(outpath_PSF_name) as hdul:
                 head_tmp = hdul[0].header
             flag_sim = head_tmp['flag_sim']
             if flag_sim >= 1:
-                outpath_image_exist_list[i_name] = True
-                logger.info(f"{outpath_image_name} already exist.")
-                continue
+                outpath_PSF_exist = True
+                logger.info(f"{outpath_PSF_name} already exist.")
         except FileNotFoundError:
-            continue
-        except (KeyError, OSError) as e:
             pass
-        os.remove(outpath_image_name)
-    ## psf map
-    if (outpath_PSF_basename is not None) :
-        outpath_PSF_exist_list = np.zeros_like(outpath_PSF_name_list, dtype=bool)
-        for i_name, outpath_PSF_name in enumerate(outpath_PSF_name_list):
-            try:
-                with fits.open(outpath_PSF_name) as hdul:
-                    head_tmp = hdul[0].header
-                flag_sim = head_tmp['flag_sim']
-                if flag_sim >= 1:
-                    outpath_PSF_exist_list[i_name] = True
-                    logger.info(f"{outpath_PSF_name} already exist.")
-                    continue
-            except FileNotFoundError:
-                continue
-            except (KeyError, OSError) as e:
-                pass
+        except (KeyError, OSError) as e:
             os.remove(outpath_PSF_name)
+            logger.warning(f"{outpath_PSF_name} broken, delete and re-produce.")
     else:
-        outpath_PSF_exist_list = [True]
+        outpath_PSF_exist = True
 
     ## psf image
-    if save_image_PSF:
+    ### different rotation has same psf, so only make once
+    if (save_image_PSF) and (gal_rotation_angle==0.):
         psf_dir_tmp = os.path.join(outpath_dir, f'psf_tile{tile_label}_band{band}')
         psf_ima_file_tmp = os.path.join(psf_dir_tmp, f'psf_ima.fits')
         if os.path.isfile(psf_ima_file_tmp):
@@ -113,7 +110,7 @@ def _PSFNoisySkyImages_simple(para_list):
             logger.info(f'PSF image saved as {psf_ima_file_tmp}')
 
     ## if all exist, quit
-    if (not False in outpath_image_exist_list) and (not False in outpath_PSF_exist_list):
+    if (outpath_image_exist) and (outpath_PSF_exist):
         logger.info("All desired images exist, end the process.")
         return 1
 
@@ -121,36 +118,29 @@ def _PSFNoisySkyImages_simple(para_list):
     PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
 
     # +++ background noise
-    noise_list = [NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle)) for gal_rotation_angle in gal_rotation_angles]
+    noise = NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle))
 
     # +++ PSF map
-    if (False in outpath_PSF_exist_list):
+    if (not outpath_PSF_exist):
         mag_PSF_2 = 18. # for noise_flux = 2
         mag_PSF = mag_PSF_2 - 2.5*np.log10(rms/2.)
         image_PSF = PSFModule.PSFmap(PSF, pixel_scale, mag_PSF, N_PSF=N_PSF, sep_PSF=sep_PSF, rng_seed=rng_seed_band)
 
-        for i_rot, outpath_PSF_exist in enumerate(outpath_PSF_exist_list):
+        ## noise background
+        image_PSF_rot.addNoise(noise)
 
-            if (not outpath_PSF_exist):
-                image_PSF_rot = image_PSF.copy()
+        ## save
+        image_PSF.write(outpath_PSF_name)
+        logger.debug(f"PSF map saved as {outpath_PSF_name}")
 
-                ## noise background
-                noise_rot = noise_list[i_rot]
-                image_PSF_rot.addNoise(noise_rot)
-
-                ## save
-                outpath_PSF_name = outpath_PSF_name_list[i_rot]
-                image_PSF_rot.write(outpath_PSF_name)
-                logger.debug(f"PSF map saved as {outpath_PSF_name}")
-
-                ## mark success to the header
-                with fits.open(outpath_PSF_name, mode='update') as hdul:
-                    head_tmp = hdul[0].header
-                    ## update info
-                    head_tmp['flag_sim'] = 1
+        ## mark success to the header
+        with fits.open(outpath_PSF_name, mode='update') as hdul:
+            head_tmp = hdul[0].header
+            ## update info
+            head_tmp['flag_sim'] = 1
 
     # +++ sky image
-    if (False in outpath_image_exist_list):
+    if (not outpath_image_exist):
 
         # bounds and wcs from galaxy sky positions
         RA_gals = gals_info_band['RA'] # degree
@@ -168,34 +158,27 @@ def _PSFNoisySkyImages_simple(para_list):
             image_stars = None
 
         # galaxy images
-        for i_rot, outpath_image_exist in enumerate(outpath_image_exist_list):
+        image_galaxies = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
+                                        gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type)
 
-            if (not outpath_image_exist):
-                gal_rotation_angle = gal_rotation_angles[i_rot]
+        ## add stars
+        if (image_stars is not None):
+            image_galaxies += image_stars
 
-                image_galaxies = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type)
+        ## add noise background
+        image_galaxies.addNoise(noise)
 
-                ## add stars
-                if (image_stars is not None):
-                    image_galaxies += image_stars
+        ## save the noisy image
+        image_galaxies.write(outpath_image_name)
+        logger.info(f"Simple noisy sky image saved as {outpath_image_name}")
 
-                ## add noise background
-                noise_rot = noise_list[i_rot]
-                image_galaxies.addNoise(noise_rot)
+        ## mark success to the header
+        with fits.open(outpath_image_name, mode='update') as hdul:
+            head_tmp = hdul[0].header
+            ## update info
+            head_tmp['flag_sim'] = 1
 
-                ## save the noisy image
-                outpath_image_name = outpath_image_name_list[i_rot]
-                image_galaxies.write(outpath_image_name)
-                logger.info(f"Simple noisy sky image saved as {outpath_image_name}")
-
-                ## mark success to the header
-                with fits.open(outpath_image_name, mode='update') as hdul:
-                    head_tmp = hdul[0].header
-                    ## update info
-                    head_tmp['flag_sim'] = 1
-
-    logger.info(f'Finished for tile {tile_label} band {band}...')
+    logger.info(f'Finished for tile {tile_label} band {band} rot {gal_rotation_angle}...')
     return 0
 
 def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
@@ -209,13 +192,13 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
     (tile_label, band, pixel_scale, rng_seed_band, outpath_image_basename,
         rms, seeing, beta, psf_e,
         g_cosmic,
-        gals_info_band, gal_rotation_angles,
+        gals_info_band, gal_rotation_angle,
         stars_info_band,
         outpath_PSF_basename, N_PSF, sep_PSF,
         save_image_chips, save_image_PSF, image_PSF_size,
         outpath_dir,
         gal_position_type) = para_list
-    logger.info(f'Simulating KiDS_sameExpo image for tile {tile_label} band {band}...')
+    logger.info(f'Simulating KiDS_sameExpo image for tile {tile_label} band {band} rot {gal_rotation_angle}...')
 
     # number of exposures
     if band == 'u':
@@ -227,12 +210,10 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
 
     # outpath
     outpath_image_name_list = [outpath_image_basename + f'_rot{gal_rotation_angle:.0f}_expo{i_expo}.fits'
-                                                                for gal_rotation_angle in gal_rotation_angles
                                                                 for i_expo in range(n_exposures)]
 
     if (outpath_PSF_basename is not None):
         outpath_PSF_name_list = [outpath_PSF_basename + f'_rot{gal_rotation_angle:.0f}_expo{i_expo}.fits'
-                                                                for gal_rotation_angle in gal_rotation_angles
                                                                 for i_expo in range(n_exposures)]
 
     # first check if already exist
@@ -273,7 +254,8 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         outpath_PSF_exist_list = [True]
 
     ## psf image
-    if save_image_PSF:
+    ### different rotation has same psf, so only make once
+    if (save_image_PSF) and (gal_rotation_angle==0.):
         psf_dir_tmp = os.path.join(outpath_dir, f'psf_tile{tile_label}_band{band}')
         n_files = len(glob.glob(os.path.join(psf_dir_tmp, f'expo*.fits')))
         if n_files == n_exposures:
@@ -296,7 +278,6 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         for i_ima, outpath_image_exist in enumerate(outpath_image_exist_list):
             if (outpath_image_exist):
                 outpath_image_name = outpath_image_name_list[i_ima]
-                gal_rotation_angle = float(re.search(r'_rot(\d+)', outpath_image_name).group(1))
                 id_exposure = int(re.search(r'_expo(\d+)', outpath_image_name).group(1))
 
                 chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
@@ -322,7 +303,6 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
 
     # +++ background noise
     noise_list = [NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle+94*i_expo))
-                                                        for gal_rotation_angle in gal_rotation_angles
                                                         for i_expo in range(n_exposures)]
 
     # +++ PSF map
@@ -370,20 +350,16 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
             image_stars = None
 
         # galaxy images
-        gal_rotation_angle0 = None
+        image_galaxies0 = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
+                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type)
+
+        # cut to exposures
         for i_ima, outpath_image_exist in enumerate(outpath_image_exist_list):
 
             if (not outpath_image_exist):
                 outpath_image_name = outpath_image_name_list[i_ima]
 
-                gal_rotation_angle = float(re.search(r'_rot(\d+)', outpath_image_name).group(1))
-                if gal_rotation_angle != gal_rotation_angle0:
-                    image_galaxies0 = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                                    gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type)
-                    gal_rotation_angle0 = gal_rotation_angle
-
                 image_galaxies = image_galaxies0.copy()
-
                 ## add stars
                 if (image_stars is not None):
                     image_galaxies += image_stars
@@ -419,7 +395,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                         image_chip.write(outpath_tmp)
                     logger.info(f'Image chips saved to {chip_dir_tmp} for exposure {id_exposure}.')
 
-    logger.info(f'Finished for tile {tile_label} band {band}...')
+    logger.info(f'Finished for tile {tile_label} band {band} rot {gal_rotation_angle}...')
     return 0
 
 def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
@@ -923,18 +899,20 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                 psf_e = [noise_info_tile[f'psf_e1_{band}'], noise_info_tile[f'psf_e2_{band}']]
 
                 # collected parameters
-                para_list = (tile_label, band, pixel_scale, rng_seed_band, outpath_image_basename,
-                            rms, seeing, beta, psf_e,
-                            g_cosmic,
-                            gals_info_band, gal_rotation_angles,
-                            stars_info_band,
-                            outpath_PSF_basename, N_PSF, sep_PSF,
-                            save_image_chips, save_image_PSF, image_PSF_size,
-                            outpath_dir,
-                            gal_position_type)
-                para_lists.append(para_list)
-                # label
-                image_type_labels.append(image_type)
+                ## rotations simulated separately
+                for gal_rotation_angle in gal_rotation_angles:
+                    para_list = (tile_label, band, pixel_scale, rng_seed_band, outpath_image_basename,
+                                rms, seeing, beta, psf_e,
+                                g_cosmic,
+                                gals_info_band, gal_rotation_angle,
+                                stars_info_band,
+                                outpath_PSF_basename, N_PSF, sep_PSF,
+                                save_image_chips, save_image_PSF, image_PSF_size,
+                                outpath_dir,
+                                gal_position_type)
+                    para_lists.append(para_list)
+                    # label
+                    image_type_labels.append(image_type)
 
     # release some space
     del noise_info_selec, rng_seed_list
