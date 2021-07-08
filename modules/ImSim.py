@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-06-18 11:26:26
+# @Last Modified time: 2021-07-08 14:57:05
 
 ### main module of ImSim
 ###### dependence:
@@ -616,6 +616,9 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
     elif survey.lower() == 'kids':
         area_ra = 1. # degree
         area_dec = 1. # degree
+        # check if grid is required
+        if (gal_position_type[0]=='grid'):
+            raise Exception('KiDS survey does not observe grid world :( Please use other survey.')
     elif survey.lower() == 'one_tile':
         # area same as the input
         ra_min0 = np.min(gals_info['RA'])
@@ -963,7 +966,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             elif image_type == 'simple':
                 p = mp.Process(target=_PSFNoisySkyImages_simple, args=(para_lists[i_worker],))
             else:
-                raise Exception(f'Unsupported image type: {image_type}!')
+                raise Exception(f'Unsupported image type: {image_type} for survey {survey}!')
 
             i_worker += 1
             p.start()
