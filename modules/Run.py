@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-06-21 15:41:54
+# @Last Modified time: 2021-07-11 13:32:42
 
 ### main module to run the whole pipeline
 
@@ -723,53 +723,34 @@ if ('7' in taskIDs) or ('all' in taskIDs):
         raise Exception('Detection files are not generated!\n\
         Task 3 is required for create a combined catalogue.')
 
-    # CrossMatch info
+    # input info
+    out_dir_input = os.path.join(configs_dict['work_dirs']['cata'], 'input')
+    if not os.path.exists(out_dir_input):
+        raise Exception('There is no input info, something very bad happened!')
+
+    # directories for other info
+    ## CrossMatch info
     out_dir_cross = os.path.join(configs_dict['work_dirs']['cata'], 'CrossMatch')
-    if os.path.exists(out_dir_cross):
-        CrossMatched = True
-        # input info
-        out_dir_input = os.path.join(configs_dict['work_dirs']['cata'], 'input')
-        if not os.path.exists(out_dir_input):
-            raise Exception('There is no input info, something very bad happened!')
-    else:
-        CrossMatched = False
-        logger.warning('CrossMatch is not performed, the final catalogue will not contain input info.')
-
-    # photometry info
+    ## photometry info
     out_dir_photometry = os.path.join(configs_dict['work_dirs']['cata'], 'photometry')
-    if os.path.exists(out_dir_photometry):
-        HasPhotometry = True
-    else:
-        HasPhotometry = False
-        logger.warning('MeasurePhotometry is not performed, the final catalogue will not contain photometry info.')
-
-    # photo-z info
+    ## photo-z info
     out_dir_photoz = os.path.join(configs_dict['work_dirs']['cata'], 'photo_z')
-    if os.path.exists(out_dir_photoz):
-        HasPhotoz = True
-    else:
-        HasPhotoz = False
-        logger.warning('MeasurePhotoz is not performed, the final catalogue will not contain photo-z info.')
-
-    # shape info
+    ## shape info
     out_dir_shape = os.path.join(configs_dict['work_dirs']['cata'], 'shapes')
-    if os.path.exists(out_dir_shape):
-        HasShape = True
-    else:
-        HasShape = False
-        logger.warning('MeasureShape is not performed, the final catalogue will not contain shape info.')
 
-    # combine
+    # combine catalogues for each run
     for tile_label in tile_labels:
         for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
+
+            logger.info(f'Combining outputs for tile {tile_label}, rot {gal_rotation_angle}...')
 
             # detection catalogue as the base
             infile_tmp = glob.glob(os.path.join(out_dir_detec, f'tile{tile_label}_band*_rot{gal_rotation_angle:.0f}.feather'))[0]
             data_final = pd.read_feather(infile_tmp)
 
             # CrossMatch
-            if CrossMatched:
-                infile_tmp = os.path.join(out_dir_cross, f'tile{tile_label}_rot{gal_rotation_angle:.0f}_matched.feather')
+            infile_tmp = os.path.join(out_dir_cross, f'tile{tile_label}_rot{gal_rotation_angle:.0f}_matched.feather')
+            if os.path.isfile(infile_tmp):
                 tmp_info = pd.read_feather(infile_tmp)
                 data_final = data_final.merge(tmp_info, left_on='NUMBER', right_on='id_detec', how='left')
                 data_final.drop(columns=['id_detec'], inplace=True)
@@ -783,30 +764,38 @@ if ('7' in taskIDs) or ('all' in taskIDs):
                 ### merge
                 data_final = data_final.merge(tmp_info, left_on='id_input', right_on='index_input', how='left')
                 data_final.drop(columns=['index_input'], inplace=True)
+            else:
+                logger.warning('CrossMatch is not performed, the final catalogue will not contain input info.')
 
             # photometry
-            if HasPhotometry:
-                infile_tmp = os.path.join(out_dir_photometry, f'tile{tile_label}_rot{gal_rotation_angle:.0f}.feather')
+            infile_tmp = os.path.join(out_dir_photometry, f'tile{tile_label}_rot{gal_rotation_angle:.0f}.feather')
+            if os.path.isfile(infile_tmp):
                 tmp_info = pd.read_feather(infile_tmp)
                 data_final = data_final.merge(tmp_info, left_on='NUMBER', right_on='id_detec', how='left')
                 data_final.drop(columns=['id_detec'], inplace=True)
+            else:
+                logger.warning('MeasurePhotometry is not performed, the final catalogue will not contain photometry info.')
 
             # photo-z
-            if HasPhotoz:
-                infile_tmp = os.path.join(out_dir_photoz, f'tile{tile_label}_rot{gal_rotation_angle:.0f}.feather')
+            infile_tmp = os.path.join(out_dir_photoz, f'tile{tile_label}_rot{gal_rotation_angle:.0f}.feather')
+            if os.path.isfile(infile_tmp):
                 tmp_info = pd.read_feather(infile_tmp)
                 data_final = data_final.merge(tmp_info, left_on='NUMBER', right_on='id_detec', how='left')
                 data_final.drop(columns=['id_detec'], inplace=True)
+            else:
+                logger.warning('MeasurePhotoz is not performed, the final catalogue will not contain photo-z info.')
 
             # shape
-            if HasShape:
-                file_list = glob.glob(os.path.join(out_dir_shape, f'tile{tile_label}_band*_rot{gal_rotation_angle:.0f}.feather'))
+            file_list = glob.glob(os.path.join(out_dir_shape, f'tile{tile_label}_band*_rot{gal_rotation_angle:.0f}.feather'))
+            if file_list:
                 for infile_tmp in file_list:
                     band = re.search(r'_band(.*)_rot', infile_tmp).group(1)
                     tmp_info = pd.read_feather(infile_tmp)
                     tmp_info = tmp_info.add_suffix(f'_{band}')
                     data_final = data_final.merge(tmp_info, left_on='NUMBER', right_on=f'id_detec_{band}', how='left')
                     data_final.drop(columns=[f'id_detec_{band}'], inplace=True)
+            else:
+                logger.warning('MeasureShape is not performed, the final catalogue will not contain shape info.')
 
             # dummy values for nan
             data_final.fillna(-999, inplace=True)
