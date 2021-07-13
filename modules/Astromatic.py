@@ -8,6 +8,7 @@
 
 import os
 import sys
+import glob
 import logging
 import subprocess
 
@@ -45,7 +46,14 @@ def SwarpImage(image_in, swarp_config_file,
         pass
     except (KeyError, OSError) as e:
         os.remove(image_out)
-        logger.info("Remove existing images.")
+        logger.info("Removed existing images.")
+
+    # remove any potential intermediate files
+    file_list_tmp = glob.glob(os.path.join(os.path.dirname(image_out), '*.resamp.*'))
+    if file_list_tmp:
+        for file_tmp in file_list_tmp:
+            os.remove(file_tmp)
+        logger.info('Removed intermediate files from previous run.')
 
     # running info
     if running_log:
