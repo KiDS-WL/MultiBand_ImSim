@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-07-11 13:32:42
+# @Last Modified time: 2021-07-14 12:58:33
 
 ### main module to run the whole pipeline
 
@@ -698,7 +698,7 @@ if ('6' in taskIDs) or ('all' in taskIDs):
                                         configs_dict['MS']['postage_size'],
                                         configs_dict['MS']['start_exposure'], configs_dict['MS']['end_exposure'],
                                         configs_dict['MS']['start_mag'], configs_dict['MS']['end_mag'],
-                                        configs_dict['MS']['lensfit_cores'],
+                                        lensfit_cores,
                                         output_file, out_dir_tmp, tmp_dir_tmp_tmp,
                                         running_log, log_dir_tmp))
                     proc_list.append(proc)
