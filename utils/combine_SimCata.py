@@ -1,20 +1,32 @@
+# -*- coding: utf-8 -*-
 # @Author: lshuns
-# @Date:   2021-03-03, 18:21:04
-# @Last modified by:   lshuns
-# @Last modified time: 2021-04-26, 20:44:24
+# @Date:   2021-07-03 15:00:52
+# @Last Modified by:   lshuns
+# @Last Modified time: 2021-07-14 20:21:44
 
 ### a simple script to combine catalogues produced by the main pipeline
 ###     it can be used to combine catalogues from different running_tags
-###             and assign photo-z based on input id of galaxies
-###                 in which case at least one running_tag should contain photo-z
-###                     and same galaxies are simulated in different running_tags
-###                     and same noise, same rotations
-###                     that is the only difference is the shear input
-###     it removes false detections (those not matched with the input catalogue)
 ###     it includes a tile_label column for noise info
 ###     it includes a gal_rot column for rotation info
 ###     it only preserves specified columns
-###     it can generate mask (MASK_gold) for desired selections
+
+########################
+# usage: combine_SimCata.py [-h] [--in_dir IN_DIR] [--outfile_path OUTFILE_PATH]
+#                           [--wanted_cols WANTED_COLS] [--preserve_stars]
+#                           [--preserve_false_detections]
+# combine_SimCata.py: combine all ImSim outputs to one file.
+# optional arguments:
+#   -h, --help            show this help message and exit
+#   --in_dir IN_DIR       the top directory containing all ImSim outputs.
+#   --outfile_path OUTFILE_PATH
+#                         the path for the final catalogue.
+#   --wanted_cols WANTED_COLS
+#                         path to the list of wanted columns.
+#                             If not provided, save all columns.
+#   --preserve_stars      preserve stars in the final catalogue.
+#   --preserve_false_detections
+#                         preserve false detections (those not matched with input catalogue) in the final catalogue.
+########################
 
 import os
 import re
@@ -29,250 +41,118 @@ from astropy.table import Table
 
 # +++++++++++++++++++++++++++++ parser for command-line interfaces
 parser = argparse.ArgumentParser(
-    description=f"combine_SimCata.py: combine catalogues from different cosmic shear realization.",
+    description=f"combine_SimCata.py: combine all ImSim outputs to one file.",
     formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument(
-    "--main_dir", type=str,
-### NOTE: different sub-directories have identical galaxies&noise but different shear inputs
-    help="the top directory containing all simulation outputs.")
+    "--in_dir", type=str,
+    help="the top directory containing all ImSim outputs.")
 parser.add_argument(
-    "--outfile_name", type=str, default='final_combined.fits',
-    help="The file name for the combined file. \n\
-    File format inferred from the suffix. Supported formats: fits, feather, csv")
+    "--outfile_path", type=str,
+    help="the path for the final catalogue.")
 parser.add_argument(
-    "--photoz_tag", type=str, default=None,
-    help="The tag name of which contains photoz info. \n\
-    Not mandatory. \n\
-    If not provided, no assignment of photoz will be performed.")
+    "--wanted_cols", type=str,
+    help="path to the list of wanted columns.\n\
+    If not provided, save all columns.")
 parser.add_argument(
-    "--save_all_cols", action="store_true",
-    help="preserve all the columns.")
+    "--preserve_stars", action="store_true",
+    help="preserve stars in the final catalogue.")
 parser.add_argument(
-    "--ori_cata_file", type=str, default=None,
-    help="The original catalogue used by ImSim. \n\
-    Not mandatory. \n\
-    If not provided, no cross-match will be performed.")
-parser.add_argument(
-    "--ori_cata_id", type=str, default='index',
-    help="The unique galaxy ID in the original catalogue. \n\
-    Not used if ori_cata_file is not provided.")
+    "--preserve_false_detections", action="store_true",
+    help="preserve false detections (those not matched with input catalogue) in the final catalogue.")
 
 ## arg parser
 args = parser.parse_args()
-main_dir = args.main_dir
-outfile_name = args.outfile_name
-photoz_tag = args.photoz_tag
-save_all_cols = args.save_all_cols
-ori_cata_file = args.ori_cata_file
-ori_cata_id = args.ori_cata_id
-
-# +++++++++++++++++++++++++++++ the only variables you may want to modify
-# desired columns
-###  its too large and unnecessary to preserve all the columns
-###  'id_input' is the reference, therefore, should always be provided
-if not save_all_cols:
-    cols_final = ['NUMBER', 'X_WORLD', 'Y_WORLD', 'MAG_AUTO', 'FLUX_RADIUS', 'perfect_flag_star', 'id_input', 'Z_B', 'mask_meas_9bands',
-                'e1_LF_r', 'e2_LF_r', 'SNR_LF_r', 'scalelength_LF_r', 'oldweight_LF_r', 'weight_global_LF_r', 'psf_Q11_LF_r', 'psf_Q22_LF_r', 'psf_Q12_LF_r', 'class_LF_r', 'contamination_radius_LF_r']
+in_dir = args.in_dir
+outfile_path = args.outfile_path
+wanted_cols = args.wanted_cols
+if wanted_cols is not None:
+    with open(wanted_cols) as f:
+        wanted_cols = f.readlines()
+    wanted_cols = [x.strip() for x in wanted_cols if x[0]!='#'] 
+preserve_stars = args.preserve_stars
+preserve_false_detections = args.preserve_false_detections
 
 # +++++++++++++++++++++++++++++ workhorse
+print('Combine all ImSim outputs to one file...')
+# get subdirs
+subdirs = [x for x in glob.glob(os.path.join(in_dir, '*')) if (os.path.isdir(x) and (not 'tmp' in os.path.basename(x)))]
+print('Number of subdirs:', len(subdirs))
 
-# === assign photoz
-### should match catalogue in tile level
-if photoz_tag is not None:
-    print('Assign photoz to catalogues')
-    print(f'     Use photoz from {photoz_tag}')
-    print('     NOTE: catalogues from different run_tag should have same input galaxies and same rotations and same noise')
-    print('             the only difference is the shear input')
+cata_final = []
+for subdir in subdirs:
 
-    # the tag with photoz is the reference
-    file_list = glob.glob(os.path.join(main_dir, photoz_tag, 'catalogues', '*_combined.*'))
+    run_tag = os.path.basename(subdir)
+
+    # basic info for input shear values
+    with open(os.path.join(subdir, 'basic_info.txt'), 'r') as opened_file:
+        all_lines = opened_file.readlines()
+    useful_line = [line for line in all_lines if 'g_cosmic' in line][0]
+    g1g2 = useful_line.split('=')[1]
+    g1 = float(g1g2.split()[0])
+    g2 = float(g1g2.split()[1])
+
+    # out catalogues from simulation
+    file_list = glob.glob(os.path.join(subdir, 'catalogues', '*_combined.*'))
     if not file_list:
-        raise Exception(f'Cannot find any combined catalogues in tag {photoz_tag}!\n\
+        raise Exception(f'Cannot find any combined catalogues in tag {run_tag}!\n\
         make sure taskID=7 is performed in the main pipeline!')
-    # get rotations
-    rotations = np.unique([re.search(r'_rot(\d+)', file).group(1) for file in file_list])
-    # get tiles (noise realization)
-    tiles = np.unique([re.search(r'tile(.*)_rot', file).group(1) for file in file_list])
-    print(f'Number of files in each run_tag: {len(file_list)} (={len(tiles)} tiles * {len(rotations)} rotations)' )
+    print(f'Number of files in {run_tag}: {len(file_list)}' )
+    for file in file_list:
+        file_type = file[-3:]
+        if file_type == 'csv':
+            cata = pd.read_csv(file)
+        elif file_type == 'her':
+            cata = pd.read_feather(file)
+        elif file_type == 'its':
+            with fits.open(file) as hdul:
+                cata = Table(hdul[1].data).to_pandas()
+        else:
+            raise Exception(f'Not supported input file type! {file}')
 
-    # loop over all tags
-    subdirs = [x for x in glob.glob(os.path.join(main_dir, '*')) if (os.path.isdir(x) and os.path.basename(x)!=photoz_tag)]
-    subdirs = [os.path.join(main_dir, photoz_tag)] + subdirs
-    print('Number of subdirs:', len(subdirs))
-    print('     NOTE: this should match with the number of input shear realizations.')
-    cata_final = []
-    for subdir in subdirs:
+        # mask for stars & galaxies
+        mask_stars = cata['perfect_flag_star']==1
+        mask_not_stars = cata['perfect_flag_star']==0
+        mask_gals = cata['id_input']>-999
 
-        run_tag = os.path.basename(subdir)
+        # select columns
+        if wanted_cols is not None:
+            cata = cata[wanted_cols]
 
-        # basic info for input shear values
-        with open(os.path.join(subdir, 'basic_info.txt'), 'r') as opened_file:
-            all_lines = opened_file.readlines()
-        useful_line = [line for line in all_lines if 'g_cosmic' in line][0]
-        try:
-            g1 = float(useful_line.split()[2])
-        except ValueError:
-            g1 = float(useful_line.split()[2][:-1])
-        g2 = float(useful_line.split()[3])
+        # assign cosmic shear
+        cata.loc[:, 'g1_in'] = g1
+        cata.loc[:, 'g2_in'] = g2
 
-        # main catalogues within the tag
-        if not 'cata_z_tag' in locals():
-            cata_z_tag = [] # to save z info
-        i_file = 0
-        for tile in tiles:
-            for rot in rotations:
+        # assign noise info
+        cata.loc[:, 'tile_label'] = re.search(r'tile(.*)_rot', file).group(1)
+        # assign rotation info
+        cata.loc[:, 'gal_rot'] = float(re.search(r'_rot(\d+)', file).group(1))
 
-                file = glob.glob(os.path.join(subdir, 'catalogues', f'tile{tile}_rot{rot}_combined.*'))[0]
+        # discard detections as required
+        mask_selected = mask_gals
+        if preserve_stars:
+            print('stars are preserved.')
+            mask_selected = mask_selected | mask_stars
+        if preserve_false_detections:
+            print('false detections are preserved.')
+            mask_selected = mask_selected | mask_not_stars
 
-                # load catalogue
-                file_type = file[-3:]
-                if file_type == 'csv':
-                    cata = pd.read_csv(file)
-                elif file_type == 'her':
-                    cata = pd.read_feather(file)
-                elif file_type == 'its':
-                    with fits.open(file) as hdul:
-                        cata = Table(hdul[1].data).to_pandas()
-                else:
-                    raise Exception(f'Not supported input file type! {file}')
-                if 'cols_final' in locals():
-                    try:
-                        cata = cata[cols_final]
-                    except KeyError:
-                        cols_final.remove('Z_B')
-                        cols_final.remove('mask_meas_9bands')
-                        cata = cata[cols_final]
+        cata = cata[mask_selected]
+        cata_final.append(cata)
 
-                # discard false-detections
-                mask_true = (cata['id_input']>-999)
-                cata = cata[mask_true]
-
-                # assign cosmic shear
-                cata.loc[:, 'g1_in'] = g1
-                cata.loc[:, 'g2_in'] = g2
-
-                # assign noise info
-                cata.loc[:, 'tile_label'] = tile
-                # assign rotation info
-                cata.loc[:, 'gal_rot'] = float(rot)
-
-                # for fast join
-                cata.set_index('id_input', drop=False, inplace=True)
-
-                # assign photoz
-                if run_tag == photoz_tag:
-                    cata_withz = cata[['Z_B', 'mask_meas_9bands']]
-                    cata_z_tag.append(cata_withz)
-                else:
-                    cata = cata.join(cata_z_tag[i_file], how='left')
-                # iterating
-                i_file += 1
-
-                cata_final.append(cata)
-        print(f'All catalogues collected for {run_tag}')
-
-    cata_final = pd.concat(cata_final)
-    print(f'Total number of source {len(cata_final)}')
-
-else:
-    print('easy combine without assigning photoz')
-    subdirs = [x for x in glob.glob(os.path.join(main_dir, '*')) if os.path.isdir(x)]
-    print('Number of subdirs:', len(subdirs))
-    print('     NOTE: this should match with the number of input shear realizations.')
-    cata_final = []
-    for subdir in subdirs:
-
-        run_tag = os.path.basename(subdir)
-
-        # basic info for input shear values
-        with open(os.path.join(subdir, 'basic_info.txt'), 'r') as opened_file:
-            all_lines = opened_file.readlines()
-        useful_line = [line for line in all_lines if 'g_cosmic' in line][0]
-        try:
-            g1 = float(useful_line.split()[2])
-        except ValueError:
-            g1 = float(useful_line.split()[2][:-1])
-        g2 = float(useful_line.split()[3])
-
-        # main catalogues from simulation
-        file_list = glob.glob(os.path.join(subdir, 'catalogues', '*_combined.*'))
-        if not file_list:
-            raise Exception(f'Cannot find any combined catalogues in tag {run_tag}!\n\
-            make sure taskID=7 is performed in the main pipeline!')
-        print(f'Number of files in {run_tag}: {len(file_list)}' )
-        for file in file_list:
-            file_type = file[-3:]
-            if file_type == 'csv':
-                cata = pd.read_csv(file)
-            elif file_type == 'her':
-                cata = pd.read_feather(file)
-            elif file_type == 'its':
-                with fits.open(file) as hdul:
-                    cata = Table(hdul[1].data).to_pandas()
-            else:
-                raise Exception(f'Not supported input file type! {file}')
-
-            if 'cols_final' in locals():
-                cata = cata[cols_final]
-
-            # assign cosmic shear
-            cata.loc[:, 'g1_in'] = g1
-            cata.loc[:, 'g2_in'] = g2
-
-            # assign noise info
-            cata.loc[:, 'tile_label'] = re.search(r'tile(.*)_rot', file).group(1)
-            # assign rotation info
-            cata.loc[:, 'gal_rot'] = float(re.search(r'_rot(\d+)', file).group(1))
-            
-            # discard false-detections
-            mask_true = (cata['id_input']>-999)
-            cata = cata[mask_true]
-
-            cata_final.append(cata)
-
-    cata_final = pd.concat(cata_final)
-    print(f'Total number of source {len(cata_final)}')
-
+cata_final = pd.concat(cata_final)
 cata_final.reset_index(drop=True, inplace=True)
-# dummy values for nan
-cata_final.fillna(-999, inplace=True)
+print(f'Total number of source {len(cata_final)}')
 
-# cross-match with the original cata
-if ori_cata_file is not None:
-    # load catalogue
-    file_type = ori_cata_file[-3:]
-    if file_type == 'csv':
-        ori_cata = pd.read_csv(ori_cata_file)
-    elif file_type == 'her':
-        ori_cata = pd.read_feather(ori_cata_file)
-    elif file_type == 'its':
-        with fits.open(ori_cata_file) as hdul:
-            ori_cata = Table(hdul[1].data).to_pandas()
-    else:
-        raise Exception(f'Not supported input file type! {ori_cata_file}')
-
-    # cross match based on the index
-    ## for fast join
-    ori_cata.set_index(ori_cata_id, drop=False, inplace=True)
-    cata_final.set_index('id_input', drop=False, inplace=True)
-    ## join
-    cata_final = cata_final.join(ori_cata, how='left')
-    ## reset index
-    cata_final.reset_index(drop=True, inplace=True)
-
-# save
-out_path = os.path.join(main_dir, outfile_name)
 ## check existence
-if os.path.isfile(out_path):
-    os.remove(out_path)
-
-if out_path[-3:] == 'her':
-    cata_final.to_feather(out_path)
-elif out_path[-3:] == 'csv':
-    cata_final.to_csv(out_path, index=False)
-elif out_path[-3:] == 'its':
-    Table.from_pandas(cata_final).write(out_path, format='fits')
+if os.path.isfile(outfile_path):
+    os.remove(outfile_path)
+## save
+if outfile_path[-3:] == 'her':
+    cata_final.to_feather(outfile_path)
+elif outfile_path[-3:] == 'csv':
+    cata_final.to_csv(outfile_path, index=False)
+elif outfile_path[-3:] == 'its':
+    Table.from_pandas(cata_final).write(outfile_path, format='fits')
 else:
-    raise Exception(f'Not supported output file type! {out_path}')
-
-print(f'Combined catalogue saved as {out_path}')
+    raise Exception(f'Not supported output file type! {outfile_path}')
+print(f'Combined catalogue saved as {outfile_path}')
