@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-07-14 12:58:33
+# @Last Modified time: 2021-08-03 11:27:06
 
 ### main module to run the whole pipeline
 
@@ -32,7 +32,7 @@ import CrossMatch
 
 import RunConfigFile
 
-__version__ = "MultiBand_ImSim v0.3"
+__version__ = "MultiBand_ImSim v0.4"
 
 # ++++++++++++++ parser for command-line interfaces
 parser = argparse.ArgumentParser(
@@ -133,13 +133,28 @@ logger.info(f'Setup info saved to {outfile_tmp}')
 
 # load noise info
 if configs_dict['imsim']['survey'].lower() == 'kids':
+    # diffexpo ?
     multiple_exposures_list = [x.lower()=='diffexpo' for x in configs_dict['imsim']['image_type_list']]
     N_exposures = 5
+    # varChips ?
+    varChips_list = [x.lower()=='varchips' for x in configs_dict['imsim']['image_type_list']]
+    N_chips = 32
 else:
     multiple_exposures_list = []
     N_exposures = 0
+    varChips_list = []
+    N_chips = 0
+
 noise_info = LoadCata.NoiseInfo(configs_dict['noise']['file'], configs_dict['imsim']['bands'], configs_dict['noise']['noise_psf_basenames'],
-                                multiple_exposures_list=multiple_exposures_list, N_exposures=N_exposures)
+                                multiple_exposures_list=multiple_exposures_list, N_exposures=N_exposures, 
+                                varChips_list=varChips_list, file4varChips=configs_dict['noise']['file4varChips'], N_chips=N_chips)
+
+# varChips dictionary 
+varChips_dic = {}
+for i_band, band in enumerate(configs_dict['imsim']['bands']):
+    varChips = (configs_dict['imsim']['image_type_list'][i_band].lower()=='varchips')
+    varChips_dic[band] = varChips
+
 # tile label list
 tile_labels = noise_info['label'].to_list()
 N_tiles = configs_dict['imsim']['N_tiles']
@@ -200,7 +215,7 @@ if ('2' in taskIDs) or ('all' in taskIDs):
 
     ## I/O
     in_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], 'original')
-    if configs_dict['imsim']['PSF_map']:
+    if configs_dict['imsim']['PSF_map'][0]:
         in_dir_psf_tmp = os.path.join(in_dir_tmp, 'psf_map')
     if running_log:
         log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'SWarp')
@@ -213,7 +228,7 @@ if ('2' in taskIDs) or ('all' in taskIDs):
         out_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], label_tmp)
         if not os.path.exists(out_dir_tmp):
             os.mkdir(out_dir_tmp)
-        if configs_dict['imsim']['PSF_map']:
+        if configs_dict['imsim']['PSF_map'][0]:
             out_dir_psf_tmp =  os.path.join(out_dir_tmp, 'psf_map')
             if not os.path.exists(out_dir_psf_tmp):
                 os.mkdir(out_dir_psf_tmp)
@@ -229,7 +244,7 @@ if ('2' in taskIDs) or ('all' in taskIDs):
         clean_up_level_tmp = configs_dict['swarp']['clean_up_levels'][i_group]
 
         out_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], configs_dict['swarp']['image_label_list'][i_group])
-        if configs_dict['imsim']['PSF_map']:
+        if configs_dict['imsim']['PSF_map'][0]:
             out_dir_psf_tmp =  os.path.join(out_dir_tmp, 'psf_map')
 
         for tile_label in tile_labels:
@@ -269,19 +284,23 @@ if ('2' in taskIDs) or ('all' in taskIDs):
                                         swarp_path=configs_dict['swarp']['cmd'], NTHREADS=Nmax_proc,
                                         clean_up_level=clean_up_level_tmp)
                     ### psf map
-                    if configs_dict['imsim']['PSF_map']:
+                    if configs_dict['imsim']['PSF_map'][0]:
                         try:
                             image_in_psf = os.path.join(in_dir_psf_tmp, os.path.basename(image_in))
+                            psf_map_existence = os.path.isfile(image_in_psf)
                         except TypeError:
                             image_in_psf = [os.path.join(in_dir_psf_tmp, os.path.basename(image_in_tmp)) for image_in_tmp in image_in]
+                            psf_map_existence = os.path.isfile(image_in_psf[0])
+
                         #### run
-                        image_out = os.path.join(out_dir_psf_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
-                        Astromatic.SwarpImage(image_in_psf, swarp_config,
-                                            image_out,
-                                            only_resample=only_resample, contain_wei_ima=contain_wei_ima,
-                                            running_log=running_log, log_dir=log_dir_tmp,
-                                            swarp_path=configs_dict['swarp']['cmd'], NTHREADS=Nmax_proc,
-                                            clean_up_level=clean_up_level_tmp)
+                        if psf_map_existence:
+                            image_out = os.path.join(out_dir_psf_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
+                            Astromatic.SwarpImage(image_in_psf, swarp_config,
+                                                image_out,
+                                                only_resample=only_resample, contain_wei_ima=contain_wei_ima,
+                                                running_log=running_log, log_dir=log_dir_tmp,
+                                                swarp_path=configs_dict['swarp']['cmd'], NTHREADS=Nmax_proc,
+                                                clean_up_level=clean_up_level_tmp)
 
     logger.info(f'====== Task 2: swarp images === finished in {(time.time()-start_time)/3600.} h ======')
 
@@ -301,7 +320,10 @@ if ('3' in taskIDs) or ('all' in taskIDs):
     try:
         SeeingFWHM_list = noise_info[f'seeing_{detection_band}'].to_list()
     except KeyError:
-        SeeingFWHM_list = noise_info[f'seeing_{detection_band}_expo0'].to_list()
+        try:
+            SeeingFWHM_list = noise_info[f'seeing_{detection_band}_expo0'].to_list()
+        except KeyError:
+            SeeingFWHM_list = noise_info[f'seeing_{detection_band}_expo0_chip0'].to_list()
 
     SeeingFWHM_list = SeeingFWHM_list[:N_tiles]
 
@@ -610,24 +632,19 @@ if ('6' in taskIDs) or ('all' in taskIDs):
         else:
             log_dir_tmp = None
 
-        ## prepare input file
-        input_file_lensfit = os.path.join(tmp_dir_tmp, f'lensfit_input.asc')
-        f = open(input_file_lensfit, 'w')
-        if configs_dict['MS']['CAMERA'] == 'KIDS':
-            N_expo = 5
-            N_chips = 32
-        for i_expo in range(N_expo):
-            for i_chip in range(N_chips):
-                print(f'expo{i_expo}_chip{i_chip}', file=f)
-        f.close()
-        logger.debug(f'input info saved to {input_file_lensfit}')
-
-        ## work pool
+        ## Initialise the lensfit wrapper
         lensfit_cores = configs_dict['MS']['lensfit_cores']
         if lensfit_cores > Nmax_proc:
             logger.warning(f'required lensfit_cores {lensfit_cores} > maximum cores allowed {Nmax_proc}!')
             lensfit_cores = Nmax_proc
             logger.warning(f'Make lensfit_cores = Nmax_proc = {lensfit_cores}')
+        lensfit = LensFit.LensFITwrapper(configs_dict['MS']['lensfit_dir'], out_dir_tmp, tmp_dir_tmp,
+                    PSF_OVERSAMPLING=configs_dict['MS']['PSF_OVERSAMPLING'], PECUT=configs_dict['MS']['PECUT'], PRCUT=configs_dict['MS']['PRCUT'], LCUT=configs_dict['MS']['LCUT'], CAMERA=configs_dict['MS']['CAMERA'],
+                    postage_size=configs_dict['MS']['postage_size'], start_exposure=configs_dict['MS']['start_exposure'], end_exposure=configs_dict['MS']['end_exposure'], start_mag=configs_dict['MS']['start_mag'], end_mag=configs_dict['MS']['end_mag'],
+                    lensfit_cores=lensfit_cores,
+                    running_log=running_log, log_dir=log_dir_tmp)
+
+        ## work pool
         N_lensfit = int(Nmax_proc/lensfit_cores)
         if N_lensfit < 1:
             N_lensfit = 1
@@ -636,71 +653,38 @@ if ('6' in taskIDs) or ('all' in taskIDs):
         work_pool = mp.Pool(processes=N_lensfit)
         proc_list = []
         for i_band, band in enumerate(configs_dict['MS']['bands']):
+            logger.info(f'Measure shapes from band {band}...')
 
             WAVEBAND = band.upper()
             MS_label = configs_dict['MS']['image_label_list'][i_band]
             in_ima_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], MS_label)
+            varChips = varChips_dic[band]
 
             for tile_label in tile_labels:
 
                 ### data info
                 weight_dir = None
                 psf_dir = os.path.join(in_ima_dir_tmp, f'psf_tile{tile_label}_band{band}')
-                head_dir = os.path.join(in_ima_dir_tmp, f'chips_tile{tile_label}_band{band}_head')
-                head_key = True
 
                 ### psf coefficients for lensfit
-                psf_coeff_dir = LensFit.LensfitShape_psf(configs_dict['MS']['lensfit_dir'], psf_dir)
+                psf_coeff_dir = lensfit.LensfitShape_psf(psf_dir, varChips=varChips)
 
                 for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
 
-                    # check exists
+                    # output
                     output_file = f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather'
-                    tmp = os.path.join(out_dir_tmp, output_file)
-                    if os.path.isfile(tmp):
-                        logger.info(f'The final feather catalogue {tmp} already exists.')
-                        logger.info(f'End the process.')
-                        continue
 
-                    ### tmp directory
-                    tmp_dir_tmp_tmp = os.path.join(tmp_dir_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
-                    if os.path.exists(tmp_dir_tmp_tmp):
-                        shutil.rmtree(tmp_dir_tmp_tmp)
-                    os.mkdir(tmp_dir_tmp_tmp)
+                    # detection catalogue
+                    path_input_cata = os.path.join(in_cata_dir_tmp, f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
 
-                    ### prepare detection catalogue
-                    CatalogueFile = os.path.join(in_cata_dir_tmp, f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
-                    cata_ori = pd.read_feather(CatalogueFile)
-                    #### desired info
-                    reduced_data = np.array([cata_ori['X_WORLD'], cata_ori['Y_WORLD'], cata_ori['MAG_AUTO'], cata_ori['NUMBER']]).T
-                    #### save
-                    input_catalog_tmp = os.path.join(tmp_dir_tmp_tmp, 'catalog.asc')
-                    np.savetxt(input_catalog_tmp, reduced_data, fmt=['%.8f', '%.8f', '%.3f', '%i'])
-                    logger.debug(f'catalogue info saved to {input_catalog_tmp}')
-
-                    ### data info
+                    # images
                     chip_dir = os.path.join(in_ima_dir_tmp, f'chips_tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}')
 
-                    # update head for lensfit
-                    if head_key:
-                        LensFit.LensfitShape_head(chip_dir, head_dir)
-                        head_key = False
-                    else:
-                        LensFit.LensfitShape_head(chip_dir, None)
-
                     # run
-                    proc = work_pool.apply_async(func=LensFit.LensfitShape,
-                                args=(configs_dict['MS']['lensfit_dir'],
-                                        input_catalog_tmp, input_file_lensfit, chip_dir, psf_coeff_dir, head_dir, weight_dir,
-                                        configs_dict['MS']['PSF_OVERSAMPLING'],
-                                        configs_dict['MS']['PECUT'], configs_dict['MS']['PRCUT'], configs_dict['MS']['LCUT'],
-                                        WAVEBAND, configs_dict['MS']['CAMERA'],
-                                        configs_dict['MS']['postage_size'],
-                                        configs_dict['MS']['start_exposure'], configs_dict['MS']['end_exposure'],
-                                        configs_dict['MS']['start_mag'], configs_dict['MS']['end_mag'],
-                                        lensfit_cores,
-                                        output_file, out_dir_tmp, tmp_dir_tmp_tmp,
-                                        running_log, log_dir_tmp))
+                    proc = work_pool.apply_async(func=lensfit.LensfitShape,
+                                args=(output_file,
+                                        path_input_cata, chip_dir, psf_coeff_dir, weight_dir,
+                                        WAVEBAND))
                     proc_list.append(proc)
 
         work_pool.close()

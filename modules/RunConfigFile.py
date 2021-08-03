@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-06-24 12:24:53
+# @Last Modified time: 2021-07-27 16:25:56
 
 ### module to generate an example configuration file
 
@@ -106,18 +106,26 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
     ## === d. noise info
     config_noise = config['NoiseInfo']
     noise_configs = {'file': config_noise.get('cata_file'),
+                    'file4varChips': config_noise.get('file4varChips'),
                         'noise_psf_basenames': [x.strip() for x in config_noise.get('noise_psf_basenames').split(',')]}
+    ### fill none for missed basenames 
+    while len(noise_configs['noise_psf_basenames']) < 8:
+        noise_configs['noise_psf_basenames'].append('none')
     ### check existence
     if not os.path.isfile(noise_configs['file']):
         tmp = noise_configs['file']
         raise Exception(f"noise file {tmp} not found!")
+    if noise_configs['file4varChips'] is not None:
+        if not os.path.isfile(noise_configs['file4varChips']):
+            tmp = noise_configs['file4varChips']
+            raise Exception(f"separate psf file {tmp} not found!")
 
     ## === e. ImSim
     config_imsim = config['ImSim']
     imsim_configs = {'survey': config_imsim.get('survey'),
                     'N_tiles': config_imsim.getint('N_tiles'),
                     'gal_rotation_angles': [float(i_r.strip()) for i_r in config_imsim.get('gal_rotation_angles').split(',')],
-                    'PSF_map': config_imsim.getboolean('PSF_map'),
+                    'PSF_map': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('PSF_map').split(',')],
                     'rng_seed': config_imsim.getint('rng_seed'),
                     'mag_zero': config_imsim.getfloat('mag_zero'),
                     'bands': [x.strip() for x in config_imsim.get('band_list').split(',')],
@@ -125,12 +133,23 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                     'image_type_list': [x.strip() for x in config_imsim.get('image_type_list').split(',')],
                     'image_chips': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('image_chips').split(',')],
                     'image_PSF': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('image_PSF').split(',')]}
+    ### repeat certain para to match with number of bands
+    if len(imsim_configs['PSF_map']) == 1:
+        imsim_configs['PSF_map'] = imsim_configs['PSF_map'] * len(imsim_configs['bands'])
+    if len(imsim_configs['pixel_scale_list']) == 1:
+        imsim_configs['pixel_scale_list'] = imsim_configs['pixel_scale_list'] * len(imsim_configs['bands'])
+    if len(imsim_configs['image_type_list']) == 1:
+        imsim_configs['image_type_list'] = imsim_configs['image_type_list'] * len(imsim_configs['bands'])
+    if len(imsim_configs['image_chips']) == 1:
+        imsim_configs['image_chips'] = imsim_configs['image_chips'] * len(imsim_configs['bands'])
+    if len(imsim_configs['image_PSF']) == 1:
+        imsim_configs['image_PSF'] = imsim_configs['image_PSF'] * len(imsim_configs['bands'])
     ### psf image size 
     psf_size = config_imsim.get('image_PSF_size')
     if psf_size is not None:
         imsim_configs['image_PSF_size'] = float(psf_size)
     else:
-        imsim_configs['image_PSF_size'] = 32 #pixels
+        imsim_configs['image_PSF_size'] = 48 #pixels
 
     ## === dictionary for collecting all config info
     configs_dict = {'work_dirs': work_dirs, 'gal': gal_configs, 'star': star_configs, 'noise': noise_configs, 'imsim': imsim_configs}
@@ -281,7 +300,6 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
         if MS_method.lower() == 'lensfit':
             config_lensfit = config['lensfit']
             MS_configs['lensfit_dir'] = config_lensfit.get('lensfit_dir')
-            MS_configs['python2_cmd'] = config_lensfit.get('python2_cmd')
             MS_configs['clean_up_level'] = config_lensfit.getint('clean_up_level')
             MS_configs['postage_size'] = config_lensfit.get('postage_size')
             MS_configs['start_exposure'] = config_lensfit.get('start_exposure')
@@ -305,9 +323,6 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             if not os.path.isdir(MS_configs['lensfit_dir']):
                 tmp = MS_configs['lensfit_dir']
                 raise Exception(f"lensfit dir {tmp} not found!")
-            if not shutil.which(MS_configs['python2_cmd']):
-                tmp = MS_configs['python2_cmd']
-                raise Exception(f"{tmp} is not an executable path for python2!")
 
         else:
             raise Exception(f'Unsupported shape measurement method {MS_method}!')
@@ -400,12 +415,15 @@ RaDec_names =           ra, dec                # not required, if stars are rand
 cata_file =                                    # input noise background & psf catalogue\n\
                                                # supported file types: feather, csv, fits\n\
                                                # NOTE: tiles are orderly selected\n\
-noise_psf_basenames =   none, none, none, none, none, none\n\
+file4varChips =                                # a separate psf info catalogue for varChips mode (see ImSim)\n\
+                                               # not required for other modes\n\
+noise_psf_basenames =   none, none, none, none, none, none, none, none\n\
                                                # base names for noise and psf info\n\
                                                # order: \n\
-                                               #    label, rms, seeing, MoffatBeta, psf_e1, psf_e2\n\
+                                               #    label, rms, seeing, MoffatBeta, psf_e1, psf_e2, chip_id, expo_id\n\
                                                # the real column name is associated with band labels as `rms_r` etc\n\
                                                # not all required, for those missed, simply feed none\n\
+                                               # chip_id & expo_id are for file4varChips, not used otherwise\n\
 \n\n\
 ################################## ImSim ###################################################\n\
 [ImSim]\n\n\
@@ -413,33 +431,35 @@ survey =              KiDS                     # survey being simulated\n\
                                                # current supported surveys:\n\
                                                #    one_tile: simple one image including all the galaxies\n\
                                                #    simple_Ndeg: N can be any int corresponding to the tile sky area\n\
-                                               #    KiDS: KiDS-like images (5 exposures, dither patterns and chip gaps)\n\
+                                               #    KiDS: KiDS-like images (5 exposures, 32 chips, dither patterns and chip gaps)\n\
 band_list =             u, g, r, i, Z, Y, J, H, Ks\n\
                                                # bands being simulated\n\
 pixel_scale_list =      0.214, 0.214, 0.214, 0.214, 0.34, 0.34, 0.34, 0.34, 0.34\n\
                                                # pixel scale for each band image\n\
-image_type_list =      sameExpo, sameExpo, sameExpo, sameExpo, simple, simple, simple, simple, simple\n\
+image_type_list =      sameExpo, sameExpo, varChips, sameExpo, simple, simple, simple, simple, simple\n\
                                                # image type for each band\n\
                                                # current supported types:\n\
                                                #    simple: without any survey feature (a simple stacked image)\n\
                                                #    sameExpo: different exposures use the same noise&PSF info\n\
                                                #    diffExpo: different exposures use different noise&PSF info\n\
+                                               #    varChips: different chips use different PSF (on the top of diffExpo)\n\
 image_chips =           False, False, True, False, False, False, False, False, False\n\
                                                # save individual chips or not\n\
                                                # required by lensfit\n\
 image_PSF =             False, False, True, False, False, False, False, False, False\n\
                                                # save individual psf\n\
                                                # required by lensfit\n\
-image_PSF_size =        32                     # (pixels) the size of the saved PSF image\n\
+image_PSF_size =        48                     # (pixels) the size of the saved PSF image\n\
                                                #    it is assumed to be a square\n\
-                                               #    default: 32*32 \n\
+                                               #    default: 48*48 \n\
 N_tiles =               1                      # number of tiles to be simulated\n\
                                                # make sure the NoiseInfo cata covers more than this requirement\n\
                                                # GalInfo can cover less than this requirement,\n\
                                                #    in which case repeating patterns will be produced\n\
                                                # NOTE: the total output tiles = N_tiles * N_rotations (specified below)\n\
 gal_rotation_angles =   0, 90                      # degrees (put more values separated with ',' if needed)\n\
-PSF_map =               False                  # output the corresponding PSF map or not\n\
+PSF_map =               False, False, False, False, False, False, False, False, False\n\
+                                               # output the corresponding PSF map or not\n\
                                                # can be used by GAaP, but not mandatory if stars are simulated\n\
 rng_seed =              940120                 # base seed for the random number generator\n\
 mag_zero =              30                     # simulated magnitude zero point\n\
@@ -564,7 +584,6 @@ image_label_list =      original\n\
 \n\n\
 [lensfit]\n\n\
 lensfit_dir =                                  # directory containing lensfit code\n\
-python2_cmd =           python2                # the executable path to the python2\n\
 lensfit_cores =         12                     # number of cores used by each lensfit run\n\
                                                # should be consistent with that compiled in lensfit (flensfit_NT[lensfit_cores])\n\
 postage_size =          48\n\

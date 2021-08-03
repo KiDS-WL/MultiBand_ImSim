@@ -190,7 +190,6 @@ class GAaPwrapper(object):
         """
         calculate Gaussianization kernel and Gaussianised image
         allow Gaussianised PSF radius to be determined autimatically
-        kernel has shapelet order 8, no spatial variation for the PSF
         """
 
         logger.info("Producing PSF-Gaussianised image...")
@@ -206,8 +205,10 @@ class GAaPwrapper(object):
         else:
 
             ## orders
-            np.savetxt(os.path.join(tmp_dir, 'orders.par'), [[8], [0]], fmt='%d')
-            # np.savetxt(os.path.join(tmp_dir, 'orders.par'), [[8], [3]], fmt='%d')
+            ### kernel has shapelet order 8, no spatial variation for the PSF
+            # np.savetxt(os.path.join(tmp_dir, 'orders.par'), [[8], [0]], fmt='%d')
+            ### kernel shapelet order 10, spatial order 4 as used by data
+            np.savetxt(os.path.join(tmp_dir, 'orders.par'), [[10], [4]], fmt='%d')
 
             ## link to the image
             inimage = os.path.join(tmp_dir, 'inimage.fits')
