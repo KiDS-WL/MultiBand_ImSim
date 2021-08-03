@@ -43,7 +43,7 @@ for (index, row) in data_final.iterrows():
         data_final.loc[data_final['label']==tile_label, f'FileSeeing_{band}'] = data_psf.loc[(data_psf['label']==f'KIDS_{tile_label}') & (data_psf['filter']==f'OCAM_{band}_SDSS'), 'seeing'].values[0]
 
         # ellipticity
-        data_final.loc[data_final['label']==tile_label, f'seeing_e_{band}'] = data_psf.loc[(data_psf['label']==f'KIDS_{tile_label}') & (data_psf['filter']==f'OCAM_{band}_SDSS'), 'e'].values[0]
+        data_final.loc[data_final['label']==tile_label, f'seeing_e1_{band}'] = data_psf.loc[(data_psf['label']==f'KIDS_{tile_label}') & (data_psf['filter']==f'OCAM_{band}_SDSS'), 'e'].values[0]
 
 # collect measured seeing & Moffat beta parameter
 for band in bands:

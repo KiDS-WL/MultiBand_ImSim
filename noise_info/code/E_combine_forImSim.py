@@ -59,7 +59,7 @@ noise_info = noise_info.merge(psf_e, on='label')
 # 4. rename columns for ImSim
 rename_col = {}
 old_names = [f'PSF_e_mean_expo{i}' for i in range(5)]
-new_names = [f'seeing_e_r_expo{i}' for i in range(5)]
+new_names = [f'seeing_e1_r_expo{i}' for i in range(5)]
 for i_name, old_name in enumerate(old_names):
     rename_col[old_name] = new_names[i_name]
 noise_info.rename(columns=rename_col, inplace=True)
