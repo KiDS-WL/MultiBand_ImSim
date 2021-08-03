@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-07-26 16:32:33
+# @Last Modified time: 2021-08-03 13:04:16
 
 ### running module for ImSim
 
@@ -128,7 +128,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             logger.warning(f'repeating patterns started from tile {tile_label}')
 
         # rng seed associated with tile labels
-        rng_seed_tile = rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=np.int).sum()
+        rng_seed_tile = rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=np.int).sum()*1000000
         rng_seed_list.append(rng_seed_tile)
 
         ## output noise info

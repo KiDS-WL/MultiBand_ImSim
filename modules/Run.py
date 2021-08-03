@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-08-03 11:27:06
+# @Last Modified time: 2021-08-03 13:28:26
 
 ### main module to run the whole pipeline
 
@@ -65,6 +65,9 @@ parser.add_argument(
     help="The maximum number of threads to use. \n"
         "   (default: %(default)s [half of the total CPU count])")
 parser.add_argument(
+    "--rng_seed", type=int, default=940120,
+    help="base seed for all random generation.")
+parser.add_argument(
     "--loglevel", type=str, default='INFO', metavar='logging_level',
     help="Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL")
 parser.add_argument(
@@ -81,6 +84,7 @@ run_tag = args.runTag
 g_cosmic = args.cosmic_shear
 config_file = args.config
 Nmax_proc = args.threads
+rng_seed = args.rng_seed
 log_level = args.loglevel
 running_log = args.sep_running_log
 
@@ -99,6 +103,7 @@ logger.info(f'~~~~~~~~~~~~ {__version__} started by {user_name} ~~~~~~~~~~~~')
 logger.info(f'~~~~~~~~~~~~ {date_time} ~~~~~~~~~~~~')
 logger.info(f'~~~~~~~~~~~~ Host: {host_name} ~~~~~~~~~~~~')
 logger.info(f'Maximum number of parallel processes: {Nmax_proc}')
+logger.info(f'Base seed for the random generator: {rng_seed}')
 
 # ++++++++++++++ config info
 ## if 0: generate an example configuration file
@@ -181,7 +186,7 @@ if ('1' in taskIDs) or ('all' in taskIDs):
                         configs_dict['gal']['RaDec_names'],
                         configs_dict['gal']['shape_names'],
                         configs_dict['gal']['z_name'],
-                        rng_seed=configs_dict['imsim']['rng_seed'], mag_cut=configs_dict['gal']['mag_cut'], size_cut=configs_dict['gal']['size_cut'])
+                        rng_seed=rng_seed, mag_cut=configs_dict['gal']['mag_cut'], size_cut=configs_dict['gal']['size_cut'])
 
     ## load star info
     if configs_dict['star']['file']:
@@ -197,7 +202,7 @@ if ('1' in taskIDs) or ('all' in taskIDs):
         star_position_type = None
 
     ## running
-    ImSim.RunParallel_PSFNoisySkyImages(configs_dict['imsim']['survey'], out_dir_tmp, outcata_dir_tmp, configs_dict['imsim']['rng_seed'], configs_dict['imsim']['mag_zero'],
+    ImSim.RunParallel_PSFNoisySkyImages(configs_dict['imsim']['survey'], out_dir_tmp, outcata_dir_tmp, rng_seed, configs_dict['imsim']['mag_zero'],
                                             Nmax_proc,
                                             configs_dict['imsim']['N_tiles'], configs_dict['imsim']['bands'], configs_dict['imsim']['pixel_scale_list'], configs_dict['imsim']['image_type_list'],
                                             noise_info,

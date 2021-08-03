@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-07-27 16:25:56
+# @Last Modified time: 2021-08-03 12:59:45
 
 ### module to generate an example configuration file
 
@@ -126,7 +126,6 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                     'N_tiles': config_imsim.getint('N_tiles'),
                     'gal_rotation_angles': [float(i_r.strip()) for i_r in config_imsim.get('gal_rotation_angles').split(',')],
                     'PSF_map': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('PSF_map').split(',')],
-                    'rng_seed': config_imsim.getint('rng_seed'),
                     'mag_zero': config_imsim.getfloat('mag_zero'),
                     'bands': [x.strip() for x in config_imsim.get('band_list').split(',')],
                     'pixel_scale_list': [float(i_p.strip()) for i_p in config_imsim.get('pixel_scale_list').split(',')],
@@ -461,7 +460,6 @@ gal_rotation_angles =   0, 90                      # degrees (put more values se
 PSF_map =               False, False, False, False, False, False, False, False, False\n\
                                                # output the corresponding PSF map or not\n\
                                                # can be used by GAaP, but not mandatory if stars are simulated\n\
-rng_seed =              940120                 # base seed for the random number generator\n\
 mag_zero =              30                     # simulated magnitude zero point\n\
 \n\n\
 ################################## SWarp ###################################################\n\
