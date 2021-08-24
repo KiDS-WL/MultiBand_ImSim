@@ -124,43 +124,43 @@ class BPZwrapper(object):
 
         # +++++++ BPZ running
         output_file = os.path.join(self._tmp_dir, infile_basename.replace('.feather', '.output'))
+        ## remove potential intermediate file
         if os.path.isfile(output_file):
-            logger.info(f'output file {output_file} already exists.')
+            os.remove(output_file)
+
+        # running info
+        if self._running_log:
+            outLog = open(os.path.join(self._logDir, infile_basename.replace('.feather', '.log')), "w")
+            errLog = open(os.path.join(self._logDir, infile_basename.replace('.feather', '.err.log')), "w")
         else:
+            outLog = subprocess.PIPE
+            errLog = subprocess.STDOUT
 
-            # running info
-            if self._running_log:
-                outLog = open(os.path.join(self._logDir, infile_basename.replace('.feather', '.log')), "w")
-                errLog = open(os.path.join(self._logDir, infile_basename.replace('.feather', '.err.log')), "w")
-            else:
-                outLog = subprocess.PIPE
-                errLog = subprocess.STDOUT
+        # build command
+        cmd = [self._exe, self._BPZ_code,
+                input_file, "-COLUMNS", self._columns_file, "-OUTPUT", output_file,
+                "-PRIOR", self._prior_name,
+                # templates
+                "-SPECTRA", f"{self._templates_name}.list",
+                "-INTERP", str(self._interpolation),
+                # likelihood
+                "-ZMIN", str(self._lkl_zmin),
+                "-ZMAX", str(self._lkl_zmax),
+                "-DZ", str(self._lkl_dz),
+                "-ODDS", str(self._lkl_odds),
+                "-MIN_RMS", str(self._lkl_min_rms),
+                # disable extra stuff we don't need
+                "-PROBS", "no", "-PROBS2", "no", "-PROBS_LITE", "no",
+                "-NEW_AB", "no", "-CHECK", "no", "-INTERACTIVE", "no",
+                "-VERBOSE", "yes" if self._running_log else "no"]
 
-            # build command
-            cmd = [self._exe, self._BPZ_code,
-                    input_file, "-COLUMNS", self._columns_file, "-OUTPUT", output_file,
-                    "-PRIOR", self._prior_name,
-                    # templates
-                    "-SPECTRA", f"{self._templates_name}.list",
-                    "-INTERP", str(self._interpolation),
-                    # likelihood
-                    "-ZMIN", str(self._lkl_zmin),
-                    "-ZMAX", str(self._lkl_zmax),
-                    "-DZ", str(self._lkl_dz),
-                    "-ODDS", str(self._lkl_odds),
-                    "-MIN_RMS", str(self._lkl_min_rms),
-                    # disable extra stuff we don't need
-                    "-PROBS", "no", "-PROBS2", "no", "-PROBS_LITE", "no",
-                    "-NEW_AB", "no", "-CHECK", "no", "-INTERACTIVE", "no",
-                    "-VERBOSE", "yes" if self._running_log else "no"]
+        # run
+        proc = subprocess.run(cmd, stdout=outLog, stderr=errLog, cwd=self._tmp_dir, env=self._envVars)
 
-            # run
-            proc = subprocess.run(cmd, stdout=outLog, stderr=errLog, cwd=self._tmp_dir, env=self._envVars)
-
-            # running info
-            if self._running_log:
-                outLog.close()
-                errLog.close()
+        # running info
+        if self._running_log:
+            outLog.close()
+            errLog.close()
 
         # collect outputs to a feather file
         data = np.loadtxt(output_file)
