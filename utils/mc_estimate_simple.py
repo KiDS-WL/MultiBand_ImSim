@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-02 13:58:31
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-07-16 13:53:14
+# @Last Modified time: 2021-08-24 20:17:43
 
 ### a script to calculate the mc shear bias directly from simulated catalogues
 ###### dependence: mc_CalFunc.mcCalFunc_simple
@@ -13,6 +13,7 @@
 #                              [--cols_g12_e12_tile COLS_G12_E12_TILE COLS_G12_E12_TILE COLS_G12_E12_TILE COLS_G12_E12_TILE COLS_G12_E12_TILE]
 #                              [--e_type {input,measured}]
 #                              [--col_binning COL_BINNING]
+#                              [--binning_edges [BINNING_EDGES [BINNING_EDGES ...]]]
 #                              [--binning_min_max_Nbin BINNING_MIN_MAX_NBIN BINNING_MIN_MAX_NBIN BINNING_MIN_MAX_NBIN]
 #                              [--log_binning] [--col_weight COL_WEIGHT]
 #                              [--show_plot] [--nboot NBOOT]
@@ -33,8 +34,12 @@
 #   --col_binning COL_BINNING
 #                         columns to be used for binning.
 #                             If not provided, no binning will be applied.
+#   --binning_edges [BINNING_EDGES [BINNING_EDGES ...]]
+#                         edges for binning, 
+#                                     should not set along with binning_min_max_Nbin.
 #   --binning_min_max_Nbin BINNING_MIN_MAX_NBIN BINNING_MIN_MAX_NBIN BINNING_MIN_MAX_NBIN
 #                         min max N_bins for binning.
+#                                     should not set along with binning_edges.
 #   --log_binning         binning on log scale, in which case binning_min_max_Nbin are treated in log scale.
 #   --col_weight COL_WEIGHT
 #                         columns to the weight.
@@ -89,8 +94,13 @@ parser.add_argument(
     help="columns to be used for binning.\n\
     If not provided, no binning will be applied.")
 parser.add_argument(
-    "--binning_min_max_Nbin", type=float, nargs=3,
-    help="min max N_bins for binning.")
+    "--binning_edges", type=float, nargs='*', default=None,
+    help="edges for binning, \n\
+            should not set along with binning_min_max_Nbin.")
+parser.add_argument(
+    "--binning_min_max_Nbin", type=float, nargs=3, default=None,
+    help="min max N_bins for binning.\n\
+            should not set along with binning_edges.")
 parser.add_argument(
     "--log_binning", action="store_true",
     help="binning on log scale, in which case binning_min_max_Nbin are treated in log scale.")
@@ -114,23 +124,30 @@ in_file_sim = args.in_file_sim
 out_path = args.out_path
 col_g1, col_g2, col_e1, col_e2, col_tile = args.cols_g12_e12_tile
 e_type = args.e_type
+
 col_binning = args.col_binning
-min_bin, max_bin, N_bin = args.binning_min_max_Nbin
 log_binning = args.log_binning
+if col_binning is not None:
+    if (args.binning_edges is not None) and (args.binning_min_max_Nbin is not None):
+        raise Exception('cannot assign both binning_edges and binning_min_max_Nbin!')
+    if args.binning_edges is not None:
+        bin_edges = np.array(args.binning_edges)
+    elif args.binning_min_max_Nbin is not None:
+        min_bin, max_bin, N_bin = args.binning_min_max_Nbin
+        if log_binning:
+            bin_edges = np.logspace(min_bin, max_bin, int(N_bin))
+        else:
+            bin_edges = np.linspace(min_bin, max_bin, int(N_bin))
+    else:
+        raise Exception('either binning_edges or binning_min_max_Nbin should be assigned for col_binning==True!')
+
+    print('binning on:', col_binning)
+    print('edges:', bin_edges)
+
 col_weight = args.col_weight
 show_plot = args.show_plot
 nboot = args.nboot
 rng_seed_boot = args.rng_seed_boot
-
-## binning array
-if col_binning is not None:
-    if log_binning:
-        bin_edges = np.logspace(min_bin, max_bin, int(N_bin))
-    else:
-        bin_edges = np.linspace(min_bin, max_bin, int(N_bin))
-
-    print('binning on:', col_binning)
-    print('edges:', bin_edges)
 
 # +++++++++++++++++++++++++++++ workhorse
 # load simulation catalogue
@@ -194,7 +211,7 @@ cols = '# ' + '    '.join(list(res.keys()))
 vals = '    '.join(["{0:0.4f}".format(val) for val in res.values()])
 if col_binning is not None:
     cols = cols + f'    {col_binning}_min    {col_binning}_max    Number'
-    vals = vals + f'    {min_bin}      {max_bin}      {N_s}'    
+    vals = vals + f'    -999      -999      {N_s}'    
 print(cols, file=f)
 print(vals, file=f)
 
