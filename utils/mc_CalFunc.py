@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-14 17:04:09
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-07-15 01:42:08
+# @Last Modified time: 2021-08-26 13:37:41
 
 ### Module to calculate the shear bias with the linear regression
 ### Two main functions: 
@@ -87,17 +87,16 @@ def mcCalFunc_simple(dataSim, nboot=0, rng_seed_boot=201294):
     g_in_unique = np.unique(g_in_unique, axis=0)
 
     # check sufficiency
-    N_points = len(g_in_unique)*len(tile_labels)
-    if(N_points<3):
+    if(len(g_in_unique)*len(tile_labels)<3):
         raise Exception(f'Cannot do the linear regression, less than 3 points!')
 
     # get measured shear for each tile
-    g1_out_list = np.zeros(N_points)
-    g2_out_list = np.zeros(N_points)
-    sigma_out_list = np.zeros(N_points)
-    g1_in_list = np.zeros(N_points)
-    g2_in_list = np.zeros(N_points)
-    i_point = 0
+    g1_out_list = []
+    g2_out_list = []
+    sigma_out_list = []
+    g1_in_list = []
+    g2_in_list = []
+    N_points = 0
     for tile_label in tile_labels:
         dataSim_selec = dataSim[dataSim['tile_label']==tile_label]
 
@@ -115,13 +114,20 @@ def mcCalFunc_simple(dataSim, nboot=0, rng_seed_boot=201294):
         # get measured shear by averaging over the measured ellipticity
         for g_in_tmp in g_in_unique:
             maskShear = (g1Sim == g_in_tmp[0]) & (g2Sim == g_in_tmp[1])
-            g1_out_list[i_point] = np.average(e1Sim[maskShear], weights=wgSim[maskShear])
-            g2_out_list[i_point] = np.average(e2Sim[maskShear], weights=wgSim[maskShear])
-            sigma_out_list[i_point] = 1./(np.sum(wgSim[maskShear]))**0.5
+            if np.sum(wgSim[maskShear])>0:
+                g1_out_list.append(np.average(e1Sim[maskShear], weights=wgSim[maskShear]))
+                g2_out_list.append(np.average(e2Sim[maskShear], weights=wgSim[maskShear]))
+                sigma_out_list.append(1./(np.sum(wgSim[maskShear]))**0.5)
 
-            g1_in_list[i_point] = g_in_tmp[0]
-            g2_in_list[i_point] = g_in_tmp[1]
-            i_point += 1
+                g1_in_list.append(g_in_tmp[0])
+                g2_in_list.append(g_in_tmp[1])
+                N_points += 1
+    g1_out_list = np.array(g1_out_list)
+    g2_out_list = np.array(g2_out_list)
+    sigma_out_list = np.array(sigma_out_list)
+    g1_in_list = np.array(g1_in_list)
+    g2_in_list = np.array(g2_in_list)
+    # print('Total number of points for mc fitting', N_points)
 
     # fitting input and output shear with a linear function
     m1c1, err1 = optimize.curve_fit(_mcFitFunc, xdata=g1_in_list, ydata=g1_out_list, sigma=sigma_out_list)
@@ -171,7 +177,72 @@ def mcCalFunc_simple(dataSim, nboot=0, rng_seed_boot=201294):
 
     return res
 
-def mcCalFunc_reweight_R_SNR_KiDS(dataSim, dataReal, Nbin_SNR=20, Nbin_R=20, nboot=0, rng_seed_boot=201294):
+def mcCalFunc_least_squares(dataSim, nboot=500):
+    """
+    Calculate the residual shear bias for a given set of simulated catalogue
+        by requiring sum(g_out - (1+m)g_in) -> min
+
+        It is slower than simple method, but gives consistent results.
+        Better used for cases with random input shears.
+
+        Used columns and their names:
+            g1_in, g2_in: input shear
+            e1_out, e2_out: measured ellipticity
+            shape_weight: shape measurement weights
+    """
+
+    # for saving
+    res = {}
+
+    # input shear
+    g1_in = np.array(dataSim['g1_in'])
+    g2_in = np.array(dataSim['g2_in'])
+    Ngal = len(g1_in)
+
+    # out shear
+    e1_out = np.array(dataSim['e1_out'])
+    e2_out = np.array(dataSim['e2_out'])
+    wgSim = np.array(dataSim['shape_weight'])
+    totwgSim = np.sum(wgSim)
+
+    # get least square values
+    g1e1 = g1_in*e1_out*wgSim
+    g1g1 = g1_in*g1_in*wgSim
+    res['m1'] = np.sum(g1e1) / np.sum(g1g1) - 1
+    g2e2 = g2_in*e2_out*wgSim
+    g2g2 = g2_in*g2_in*wgSim
+    res['m2'] = np.sum(g2e2) / np.sum(g2g2) - 1
+
+    # get c
+    res['c1'] = np.sum((e1_out - (1+res['m1']) * g1_in)*wgSim) / totwgSim
+    res['c2'] = np.sum((e2_out - (1+res['m2']) * g2_in)*wgSim) / totwgSim
+
+    # get error from boots
+    Relications_index = np.array([np.random.randint(Ngal, size=Ngal) for _ in range(nboot)])
+
+    m1_BS = np.sum(g1e1[Relications_index], axis = 1) / np.sum(g1g1[Relications_index], axis = 1) - 1
+    m2_BS = np.sum(g2e2[Relications_index], axis = 1) / np.sum(g2g2[Relications_index], axis = 1) - 1
+
+    totwgSim_BS = np.sum(wgSim[Relications_index], axis = 1)
+    c1_BS = np.sum((e1_out[Relications_index] - (1+m1_BS.reshape(nboot, 1)) * g1_in[Relications_index])*wgSim[Relications_index], axis = 1) / totwgSim_BS
+    c2_BS = np.sum((e2_out[Relications_index] - (1+m2_BS.reshape(nboot, 1)) * g2_in[Relications_index])*wgSim[Relications_index], axis = 1) / totwgSim_BS
+
+    ## difference 
+    sigma_m1_BS = m1_BS - res['m1'] 
+    sigma_m2_BS = m2_BS - res['m2'] 
+    sigma_c1_BS = c1_BS - res['c1'] 
+    sigma_c2_BS = c2_BS - res['c2'] 
+
+    ## choose the 1 sigma range
+    name_BS = ['m1', 'm2', 'c1', 'c2']
+    for i_name, sigma_BS in enumerate([sigma_m1_BS, sigma_m2_BS, sigma_c1_BS, sigma_c2_BS]):
+        name = name_BS[i_name]
+        res[f'{name}_err_BS_16'] = np.abs(np.percentile(sigma_BS, 16))
+        res[f'{name}_err_BS_84'] = np.abs(np.percentile(sigma_BS, 84))
+
+    return res
+
+def mcCalFunc_reweight_R_SNR_KiDS(dataSim, dataReal, Nbin_SNR=20, Nbin_R=20, nboot=0, rng_seed_boot=201294, fitting_method='simple'):
     """
     Calculating the residual shear bias with KiDS-like data reweighting.
         The two bins performed in resolution parameter R & SNR.
@@ -228,21 +299,27 @@ def mcCalFunc_reweight_R_SNR_KiDS(dataSim, dataReal, Nbin_SNR=20, Nbin_R=20, nbo
     for i in range(Nbin_SNR):
         mask1Sim = (snrSim>=bin_SNR_bounds[i]) & (snrSim<bin_SNR_bounds[i+1])
         mask1Real = (snrReal>=bin_SNR_bounds[i]) & (snrReal<bin_SNR_bounds[i+1])
-        # print(f'working on SNR bin: [{bin_SNR_bounds[i]:.2f}, {bin_SNR_bounds[i+1]:.2f})')
+        # print(f'In SNR bin: [{bin_SNR_bounds[i]:.2f}, {bin_SNR_bounds[i+1]:.2f})')
 
         for j in range(Nbin_R):
             mask2Sim = (RSim>=bin_R_bounds[i][j]) & (RSim<bin_R_bounds[i][j+1])
             mask2Real = (RReal>=bin_R_bounds[i][j]) & (RReal<bin_R_bounds[i][j+1])
             maskSim = mask1Sim & mask2Sim
             maskReal = mask1Real & mask2Real
-            # print(f'working on R bin: [{bin_R_bounds[i][j]:.2f}, {bin_R_bounds[i][j+1]:.2f})')
+            # print(f'In R bin: [{bin_R_bounds[i][j]:.2f}, {bin_R_bounds[i][j+1]:.2f})')
+            # print('Number simulation, data', np.sum(maskSim), np.sum(maskReal))
 
             # weights from data for re-weighting
             wgRealBin = np.sum(wgReal[maskReal])
             wgRealSum += wgRealBin
 
             # mc fitting
-            res_bin = mcCalFunc_simple(dataSim[maskSim], nboot=nboot, rng_seed_boot=rng_seed_boot)
+            if fitting_method == 'simple':
+                res_bin = mcCalFunc_simple(dataSim[maskSim], nboot=nboot, rng_seed_boot=rng_seed_boot)
+            elif fitting_method == 'lsq':
+                res_bin = mcCalFunc_least_squares(dataSim[maskSim], nboot=nboot)
+            else:
+                raise Exception(f'Unsupported fitting_method {fitting_method}!')
             for key, value in res_bin.items():
                 if 'err' in key:
                     try:
