@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-08-03 12:59:45
+# @Last Modified time: 2021-08-27 14:07:03
 
 ### module to generate an example configuration file
 
@@ -115,10 +115,12 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
     if not os.path.isfile(noise_configs['file']):
         tmp = noise_configs['file']
         raise Exception(f"noise file {tmp} not found!")
-    if noise_configs['file4varChips'] is not None:
+    if noise_configs['file4varChips']:
         if not os.path.isfile(noise_configs['file4varChips']):
             tmp = noise_configs['file4varChips']
             raise Exception(f"separate psf file {tmp} not found!")
+    else:
+        noise_configs['file4varChips'] = None
 
     ## === e. ImSim
     config_imsim = config['ImSim']
