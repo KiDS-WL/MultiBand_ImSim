@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:34:12
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-07-22 13:47:24
+# @Last Modified time: 2021-09-07 14:39:38
 
 ### Everything about simple images
 __all__ = ['_PSFNoisySkyImages_simple']
@@ -40,7 +40,8 @@ def _PSFNoisySkyImages_simple(para_list):
         outpath_PSF_basename, N_PSF, sep_PSF,
         save_image_chips, save_image_PSF, image_PSF_size,
         outpath_dir,
-        gal_position_type) = para_list
+        gal_position_type,
+        g_const) = para_list
 
     logger.info(f'Simulating simple image for tile {tile_label} band {band} rot {gal_rotation_angle}...')
 
@@ -149,7 +150,8 @@ def _PSFNoisySkyImages_simple(para_list):
 
         # galaxy images
         image_galaxies = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                        gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type)
+                                        gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type,
+                                        g_const=g_const)
 
         ## add stars
         if (image_stars is not None):

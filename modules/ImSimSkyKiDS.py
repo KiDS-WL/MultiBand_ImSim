@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:25:05
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-07-27 20:19:40
+# @Last Modified time: 2021-09-07 14:39:17
 
 ### Everything about KiDS-like images
 __all__ = ['_PSFNoisySkyImages_KiDS_sameExpo', '_PSFNoisySkyImages_KiDS_singleExpo', '_PSFNoisySkyImages_KiDS_varChips']
@@ -47,7 +47,8 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         outpath_PSF_basename, N_PSF, sep_PSF,
         save_image_chips, save_image_PSF, image_PSF_size,
         outpath_dir,
-        gal_position_type) = para_list
+        gal_position_type,
+        g_const) = para_list
 
     logger.info(f'Simulating KiDS_sameExpo image for tile {tile_label} band {band} rot {gal_rotation_angle}...')
 
@@ -202,7 +203,8 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
 
         # galaxy images
         image_galaxies0 = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type)
+                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type,
+                                g_const=g_const)
 
         # cut to exposures
         for i_ima, outpath_image_exist in enumerate(outpath_image_exist_list):
@@ -266,7 +268,8 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         save_image_PSF, image_PSF_size,
         outpath_dir,
         i_expo,
-        gal_position_type) = para_list
+        gal_position_type,
+        g_const) = para_list
 
     logger.info(f'Simulating KiDS exposure for tile {tile_label} band {band} expo {i_expo} rot {gal_rotation_angle}...')
 
@@ -378,7 +381,8 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
 
                 # galaxy image
                 image_galaxies = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type)
+                                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type,
+                                                g_const=g_const)
 
                 ## add stars
                 if (stars_info_band is not None):
@@ -419,7 +423,8 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
         save_image_PSF, image_PSF_size,
         outpath_dir,
         i_expo,
-        gal_position_type) = para_list
+        gal_position_type,
+        g_const) = para_list
     logger.info(f'Simulating KiDS exposure with varChips for tile {tile_label} band {band} expo {i_expo} rot {gal_rotation_angle}...')
 
     # outpath
@@ -515,7 +520,8 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
 
                 # galaxy image
                 image_galaxies = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type)
+                                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type,
+                                                g_const=g_const)
 
                 ## add stars
                 if (stars_info_band is not None):

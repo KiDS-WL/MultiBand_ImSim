@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-08-03 13:04:16
+# @Last Modified time: 2021-09-07 14:31:51
 
 ### running module for ImSim
 
@@ -45,6 +45,14 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
     logger.info(f'Pixel scales: {pixel_scale_list}')
     logger.info(f'Image types: {image_type_list}')
     logger.info(f'Maximum number of processes: {Nmax_proc}')
+
+    # constant shear or variable
+    if 'gamma1' in gals_info.columns:
+        g_const = False
+        logger.info('Using variable shears')
+    else:
+        g_const = True
+        logger.info('Using a constant shear')
 
     # check if the noise_info is enough for desired N_tiles
     if len(noise_info) < N_tiles:
@@ -184,6 +192,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
         ## output galaxies info
         output_col_tmp = ['index', 'RA', 'DEC', 'redshift', 'Re', 'axis_ratio', 'position_angle', 'sersic_n'] + bands
+        if not g_const:
+            output_col_tmp += ['gamma1', 'gamma2']
         output_tmp = gals_info_selec[output_col_tmp].copy()
         ### better naming
         output_tmp = output_tmp.add_suffix(f'_input')
@@ -313,6 +323,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                 'sersic_n','Re','axis_ratio','position_angle',
                 'bulge_fraction','bulge_Re','bulge_axis_ratio','bulge_n',
                 'disk_Re','disk_axis_ratio', band]
+            if not g_const:
+                name += ['gamma1', 'gamma2']
             gals_info_band = gals_info_tile[name]
 
             # stars
@@ -357,7 +369,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                         save_image_PSF, image_PSF_size, 
                                         outpath_dir,
                                         i_expo,
-                                        gal_position_type)
+                                        gal_position_type,
+                                        g_const)
                             para_lists.append(para_list)
                             # label
                             image_type_labels.append(image_type)
@@ -401,7 +414,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                         save_image_PSF, image_PSF_size, 
                                         outpath_dir,
                                         i_expo,
-                                        gal_position_type)
+                                        gal_position_type,
+                                        g_const)
                             para_lists.append(para_list)
                             # label
                             image_type_labels.append(image_type)
@@ -426,7 +440,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                 outpath_PSF_basename, N_PSF, sep_PSF,
                                 save_image_chips, save_image_PSF, image_PSF_size,
                                 outpath_dir,
-                                gal_position_type)
+                                gal_position_type,
+                                g_const)
                     para_lists.append(para_list)
                     # label
                     image_type_labels.append(image_type)

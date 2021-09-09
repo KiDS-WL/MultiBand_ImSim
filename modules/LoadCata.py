@@ -21,7 +21,8 @@ def GalInfo(cata_pathfile, bands,
             RaDec_names,
             shape_names,
             z_name,
-            rng_seed=940120, mag_cut=[], size_cut=[]):
+            rng_seed=940120, mag_cut=[], size_cut=[],
+            g_columns=None):
     """
     Get galaxy information from the input catalogue.
 
@@ -51,6 +52,8 @@ def GalInfo(cata_pathfile, bands,
         Min & Max value of the primary band (the brightest & faintest galaxies will be simulated).
     size_cut (optional) : a list of float (default: [])
         Min & Max value of the effective radius in arcsec (the smallest & largest galaxies will be simulated).
+    g_columns (optional) : a list of str (default: None)
+        column names to the input shear, only provided for variable shear setup
     """
     logger.info('Collect galaxy info from input catalogue...')
     logger.info(f'Query bands {bands}, the detection band {primary_mag_name}')
@@ -160,6 +163,11 @@ def GalInfo(cata_pathfile, bands,
                 'disk_Re','disk_axis_ratio'] + bands
     gals_info = pd.DataFrame(data=data, columns=name)
     gals_info = gals_info.astype({'index': int})
+
+    # input shear if provided
+    if g_columns is not None:
+        gals_info.loc[:, 'gamma1'] = np.array(cata[g_columns[0]]).astype(float)
+        gals_info.loc[:, 'gamma2'] = np.array(cata[g_columns[1]]).astype(float)
 
     # select based on size
     ### only size within size_cut is simulated

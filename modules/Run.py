@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-08-03 13:28:26
+# @Last Modified time: 2021-09-07 14:40:47
 
 ### main module to run the whole pipeline
 
@@ -55,7 +55,12 @@ parser.add_argument(
     help="A tag to label the current run.")
 parser.add_argument(
     "--cosmic_shear", type=float, nargs=2, default=[0.00, 0.00],
-    help="2D cosmic shear values: g1 g2.")
+    help="2D cosmic shear values: g1 g2. \n"
+         "   (ignored if shear_columns is provided)")
+parser.add_argument(
+    "--shear_columns", type=str, nargs=2, default=None,
+    help="column names to the input shear. \n"
+         "   (use cosmic_shear instead if need constant shear)")
 parser.add_argument(
     "-c", "--config", type=str, metavar='config_file',
     help="A configuration file including all necessary setups.\n"
@@ -82,6 +87,7 @@ args = parser.parse_args()
 taskIDs = args.taskIDs
 run_tag = args.runTag
 g_cosmic = args.cosmic_shear
+g_columns = args.shear_columns
 config_file = args.config
 Nmax_proc = args.threads
 rng_seed = args.rng_seed
@@ -127,9 +133,12 @@ f = open(outfile_tmp, 'w')
 print(f'# Some basic info about the simulated images in this directory\n\
 run_tag            =   {run_tag}\n\
 survey             =   {survey}\n\
-g_cosmic           =   {g_cosmic[0]} {g_cosmic[1]}\n\
 gal_position_type  =   {gal_position_type}\n\
 contain_stars      =   {contain_stars}', file=f)
+if g_columns is None:
+    print(f'g_cosmic           =   {g_cosmic[0]} {g_cosmic[1]}', file=f)
+else:
+    print(f'g_cosmic           =    variable', file=f)
 if contain_stars=='True':
     star_position_type = configs_dict['star']['position_type']
     print(f'star_position_type =   {star_position_type}', file=f)
@@ -186,7 +195,8 @@ if ('1' in taskIDs) or ('all' in taskIDs):
                         configs_dict['gal']['RaDec_names'],
                         configs_dict['gal']['shape_names'],
                         configs_dict['gal']['z_name'],
-                        rng_seed=rng_seed, mag_cut=configs_dict['gal']['mag_cut'], size_cut=configs_dict['gal']['size_cut'])
+                        rng_seed=rng_seed, mag_cut=configs_dict['gal']['mag_cut'], size_cut=configs_dict['gal']['size_cut'],
+                        g_columns=g_columns)
 
     ## load star info
     if configs_dict['star']['file']:

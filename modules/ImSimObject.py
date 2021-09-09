@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-11-26 16:03:10
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-06-16 20:31:28
+# @Last Modified time: 2021-09-07 14:37:09
 
 ### Everything about celestial objects
 
@@ -64,7 +64,8 @@ def SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale, edge_sep=18.):
     return canvas
 
 def GalaxiesImage(canvas, band, pixel_scale, PSF,
-                    gals_info, gal_rotation_angle=0., g_cosmic=[0, 0], gal_position_type=['true', 18.]):
+                    gals_info, gal_rotation_angle=0., g_cosmic=[0, 0], gal_position_type=['true', 18.],
+                    g_const=True):
     """
     Generate pure sky image with only galaxies
 
@@ -86,6 +87,8 @@ def GalaxiesImage(canvas, band, pixel_scale, PSF,
         Cosmic shear.
     gal_position_type : [str, float], optional (default: ['true', 18])
         galaxies position type, mainly useful for grid case.
+    g_const : bool, optional (default: True)
+        useing constant shear or variable ones
 
     Returns
     -------
@@ -199,7 +202,10 @@ def GalaxiesImage(canvas, band, pixel_scale, PSF,
                 galaxy = flux_gal * bulge_gal
 
         # cosmic shear
-        galaxy = galaxy.shear(g1=g_cosmic[0], g2=g_cosmic[1])
+        if g_const:
+            galaxy = galaxy.shear(g1=g_cosmic[0], g2=g_cosmic[1])
+        else:
+            galaxy = galaxy.shear(g1=gal_info['gamma1'], g2=gal_info['gamma2'])
 
         # convolve with the PSF
         galaxy = galsim.Convolve(galaxy, PSF)
