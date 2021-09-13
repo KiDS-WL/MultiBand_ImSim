@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-06-30 14:11:00
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-07-19 11:05:34
+# @Last Modified time: 2021-09-09 14:17:35
 
 ### create KiDS-phase1-like catalogue from ImSim outputs
 ###### reference: https://github.com/KiDS-WL/THELI_catalogues/blob/master/scripts/create_catalogue_products_K1000_Phase1.sh
@@ -131,11 +131,17 @@ for subdir in subdirs:
 
     # basic info for input shear values
     with open(os.path.join(subdir, 'basic_info.txt'), 'r') as opened_file:
-        all_lines = opened_file.readlines()
+        all_lines = opened_file.read().splitlines()
     useful_line = [line for line in all_lines if 'g_cosmic' in line][0]
     g1g2 = useful_line.split('=')[1]
-    g1 = float(g1g2.split()[0])
-    g2 = float(g1g2.split()[1])
+    ## variable shears
+    if 'variable' in g1g2:
+        g_const = False
+    ## constant shear
+    else:
+        g_const = True
+        g1 = float(g1g2.split()[0])
+        g2 = float(g1g2.split()[1])
 
     # main catalogues from simulation
     file_list = glob.glob(os.path.join(subdir, 'catalogues', '*_combined.*'))
@@ -154,6 +160,11 @@ for subdir in subdirs:
                 tile_cata = Table(hdul[1].data).to_pandas()
         else:
             raise Exception(f'Not supported input file type! {file}')
+
+        # get the shear in case of variable shears
+        if not g_const:
+            g1 = np.array(tile_cata['gamma1_input'])
+            g2 = np.array(tile_cata['gamma2_input'])
 
         # select wanted columns
         if wanted_cols is not None:
