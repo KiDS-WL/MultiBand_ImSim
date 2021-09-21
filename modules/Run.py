@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-09-07 14:40:47
+# @Last Modified time: 2021-09-20 16:49:32
 
 ### main module to run the whole pipeline
 
@@ -503,18 +503,34 @@ if ('4' in taskIDs) or ('all' in taskIDs):
                 clean_up_level=configs_dict['MP']['clean_up_level'])
 
         ## work pool
-        work_pool = mp.Pool(processes=Nmax_proc)
+        rots_tasks = configs_dict['imsim']['gal_rotation_angles'] * len(tile_labels)
+        tile_labels_tasks = np.repeat(tile_labels, len(configs_dict['imsim']['gal_rotation_angles']))
+        N_tasks = len(rots_tasks)
+        logger.info(f'Total number of tasks (tiles*rot): {N_tasks}')
+        N_gaap = int(Nmax_proc/N_tasks) # for each subprocess
+        if N_gaap < 1:
+            N_gaap = 1
+        logger.info(f'number of processes in each GAaP run: {N_gaap}')
         proc_list = []
-        for tile_label in tile_labels:
-
-            ### star info for psf estimation
-            if not configs_dict['MP']['use_PSF_map']:
-                star_info_file = os.path.join(ori_cata_dir_tmp, f'stars_info_tile{tile_label}.feather')
-                star_info = pd.read_feather(star_info_file)
+        i_worker = 0
+        i_tile = 0
+        while True:
+            N_running = len(mp.active_children())
+            logger.debug(f'Number of running {N_running}')
+            if i_worker == N_tasks:
+                break
+            elif N_running >= Nmax_proc:
+                time.sleep(5.)
             else:
-                star_info = None
+                tile_label = tile_labels_tasks[i_worker]
+                gal_rotation_angle = rots_tasks[i_worker]
 
-            for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
+                ### star info for psf estimation
+                if not configs_dict['MP']['use_PSF_map']:
+                    star_info_file = os.path.join(ori_cata_dir_tmp, f'stars_info_tile{tile_label}.feather')
+                    star_info = pd.read_feather(star_info_file)
+                else:
+                    star_info = None
 
                 ### detection file
                 MP_detec_band = configs_dict['MP']['detection_band']
@@ -548,15 +564,16 @@ if ('4' in taskIDs) or ('all' in taskIDs):
                 # output
                 FinalFile = os.path.join(out_dir_tmp, f'tile{tile_label}_rot{gal_rotation_angle:.0f}.feather')
 
-                proc = work_pool.apply_async(func=gaap.RunSingleTile,
-                                args=(FinalFile, SKYcataFile, configs_dict['MP']['bands'], SKYimaFile_list, SKYweiFile_list, PSFimaFile_list, star_info))
+                proc = mp.Process(target=gaap.RunSingleTile, 
+                    args=(N_gaap, FinalFile, SKYcataFile, configs_dict['MP']['bands'], SKYimaFile_list, SKYweiFile_list, PSFimaFile_list, star_info))
+                i_worker += 1
+                proc.start()
                 proc_list.append(proc)
+                time.sleep(1.)
 
-        work_pool.close()
-        work_pool.join()
         ### check for any errors during run
         for proc in proc_list:
-            proc.get()
+            proc.join()
 
     logger.info(f'====== Task 4: measure photometry === finished in {(time.time()-start_time)/3600.} h ======')
 
