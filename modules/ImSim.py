@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-09-07 14:31:51
+# @Last Modified time: 2021-09-27 10:46:12
 
 ### running module for ImSim
 
@@ -69,7 +69,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
     # survey type
     if 'simple' in survey:
-        area_tot = int(re.findall(r"\d+", survey)[0])
+        numeric_const_pattern = r"[-+]?(?:(?:\d*\.\d+)|(?:\d+\.?))(?:[Ee][+-]?\d+)?"
+        area_tot = float(re.findall(numeric_const_pattern, survey)[0])
         # area for each tile
         area_ra = (area_tot)**0.5
         area_dec = area_ra

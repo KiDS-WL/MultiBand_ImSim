@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-08-27 14:07:03
+# @Last Modified time: 2021-09-27 10:47:05
 
 ### module to generate an example configuration file
 
@@ -431,7 +431,7 @@ noise_psf_basenames =   none, none, none, none, none, none, none, none\n\
 survey =              KiDS                     # survey being simulated\n\
                                                # current supported surveys:\n\
                                                #    one_tile: simple one image including all the galaxies\n\
-                                               #    simple_Ndeg: N can be any int corresponding to the tile sky area\n\
+                                               #    simple_Nsqdeg: N can be any float corresponding to the tile sky area\n\
                                                #    KiDS: KiDS-like images (5 exposures, 32 chips, dither patterns and chip gaps)\n\
 band_list =             u, g, r, i, Z, Y, J, H, Ks\n\
                                                # bands being simulated\n\
