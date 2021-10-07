@@ -2,15 +2,15 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:25:05
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-09-07 14:39:17
+# @Last Modified time: 2021-09-30 15:25:24
 
 ### Everything about KiDS-like images
 __all__ = ['_PSFNoisySkyImages_KiDS_sameExpo', '_PSFNoisySkyImages_KiDS_singleExpo', '_PSFNoisySkyImages_KiDS_varChips']
 
 ###### dependence:
-######      ImSimPSF: everthing about PSF
+######      ImSimPSF: everything about PSF
 ######      ImSimObject: everything about celestial objects
-######      ImSimNoiseBackground: everthing about background noise
+######      ImSimNoiseBackground: everything about background noise
 ######      ImSimKiDS: everything about KiDS observations (instrumental setup & data acquisition procedure)
 import ImSimPSF as PSFModule
 import ImSimObject as ObjModule

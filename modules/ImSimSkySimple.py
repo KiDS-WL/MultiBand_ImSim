@@ -2,15 +2,15 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:34:12
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-09-07 14:39:38
+# @Last Modified time: 2021-09-30 15:25:12
 
 ### Everything about simple images
 __all__ = ['_PSFNoisySkyImages_simple']
 
 ###### dependence:
-######      ImSimPSF: everthing about PSF
+######      ImSimPSF: everything about PSF
 ######      ImSimObject: everything about celestial objects
-######      ImSimNoiseBackground: everthing about background noise
+######      ImSimNoiseBackground: everything about background noise
 import ImSimPSF as PSFModule
 import ImSimObject as ObjModule
 import ImSimNoiseBackground as NoiseModule
