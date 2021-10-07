@@ -111,22 +111,23 @@ class BPZwrapper(object):
         # +++++++ prepare input file
         input_file = os.path.join(self._tmp_dir, infile_basename.replace('.feather', '.input'))
         if os.path.isfile(input_file):
-            logger.info(f'input file {input_file} already exists.')
-        else:
-            N_bands = len(self._bands)
-            data_out = np.empty([len(cata), int(N_bands*2)])
-            for i_band in range(N_bands):
-                data_out[:, int(2*i_band)] = np.array(cata[self._bands_CataName[i_band]])
-                data_out[:, int(2*i_band+1)] = np.array(cata[self._banderrs_CataName[i_band]])
-            ## save
-            np.savetxt(input_file, data_out)
-            logger.info(f'BPZ input file created as {input_file}')
+            os.remove(input_file)
+            logger.info(f'Removed existing input file.')
+        N_bands = len(self._bands)
+        data_out = np.empty([len(cata), int(N_bands*2)])
+        for i_band in range(N_bands):
+            data_out[:, int(2*i_band)] = np.array(cata[self._bands_CataName[i_band]])
+            data_out[:, int(2*i_band+1)] = np.array(cata[self._banderrs_CataName[i_band]])
+        ## save
+        np.savetxt(input_file, data_out)
+        logger.info(f'BPZ input file created as {input_file}')
 
         # +++++++ BPZ running
         output_file = os.path.join(self._tmp_dir, infile_basename.replace('.feather', '.output'))
         ## remove potential intermediate file
         if os.path.isfile(output_file):
             os.remove(output_file)
+            logger.info(f'Removed existing output file.')
 
         # running info
         if self._running_log:

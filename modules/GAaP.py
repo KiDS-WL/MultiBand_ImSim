@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-09-17 21:28:17
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-09-20 20:39:13
+# @Last Modified time: 2021-10-07 16:09:32
 
 ### Wrapper for GAaP code
 
@@ -421,9 +421,9 @@ class GAaPwrapper(object):
         queue.put([band, GaapFile])
 
         # check if already exist
-        if os.path.isfile(GaapFile) and (os.path.getsize(GaapFile)>0):
-            logger.info(f"Final GaapFile already exist, end for {SKYimaFile_name}.")
-            return 1
+        if os.path.isfile(GaapFile):
+            os.remove(GaapFile)
+            logger.info(f"Removed existing GaapFile.")
 
         # prepare log info
         if self._running_log:

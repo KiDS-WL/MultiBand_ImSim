@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-07-29 18:52:28
+# @Last Modified time: 2021-10-07 16:22:06
 
 ### Wrapper for lensfit code
 
@@ -50,8 +50,9 @@ class LensFITwrapper(object):
         self._outDir = out_dir
         ## a temp directory for intermediate files
         self._tmp_dir = tmp_dir
-        if not os.path.exists(self._tmp_dir):
-            os.mkdir(self._tmp_dir)
+        if os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir)
+        os.mkdir(tmp_dir)
         ## log info
         self._running_log = running_log
         if running_log:
@@ -113,8 +114,9 @@ class LensFITwrapper(object):
 
             ## save to head if required
             if head_dir is not None:
-                if not os.path.exists(head_dir):
-                    os.mkdir(head_dir)
+                if os.path.exists(head_dir):
+                    shutil.rmtree(head_dir)
+                os.mkdir(head_dir)
                 outpath_tmp = os.path.join(head_dir, f'expo{id_exposure}_chip{i_chip}.head')
                 f = open(outpath_tmp, 'w')
                 for line in head_tmp.cards:
@@ -127,8 +129,9 @@ class LensFITwrapper(object):
         """
 
         psf_coeff_dir = os.path.join(psf_dir, os.path.basename(psf_dir) + '_coeff')
-        if not os.path.exists(psf_coeff_dir):
-            os.mkdir(psf_coeff_dir)
+        if os.path.exists(psf_coeff_dir):
+            shutil.rmtree(psf_coeff_dir)
+        os.mkdir(psf_coeff_dir)
 
         # psf vary between different chips
         if varChips:
