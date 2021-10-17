@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-07 16:22:06
+# @Last Modified time: 2021-10-17 14:17:26
 
 ### Wrapper for lensfit code
 
@@ -114,9 +114,6 @@ class LensFITwrapper(object):
 
             ## save to head if required
             if head_dir is not None:
-                if os.path.exists(head_dir):
-                    shutil.rmtree(head_dir)
-                os.mkdir(head_dir)
                 outpath_tmp = os.path.join(head_dir, f'expo{id_exposure}_chip{i_chip}.head')
                 f = open(outpath_tmp, 'w')
                 for line in head_tmp.cards:
@@ -195,6 +192,7 @@ class LensFITwrapper(object):
 
         # >>>>>>>>>>>>> 2. prepare headers for lensfit 
         head_dir = os.path.join(tmp_dir, os.path.basename(chip_dir)+'_head')
+        os.mkdir(head_dir)
         self._LensfitShape_head(chip_dir, head_dir)
 
         # >>>>>>>>>>>>> 3. running lensfit
