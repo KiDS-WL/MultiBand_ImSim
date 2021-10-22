@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-09-20 16:49:32
+# @Last Modified time: 2021-10-20 16:18:12
 
 ### main module to run the whole pipeline
 
@@ -102,8 +102,14 @@ logging.basicConfig(format='%(name)s : %(levelname)s - %(message)s', level=numer
 logger = logging.getLogger(__name__)
 
 ## host info
-user_name = os.getlogin()
-host_name = os.uname()[1]
+try:
+    user_name = os.getlogin()
+except OSError:
+    user_name = 'unknown'
+try:
+    host_name = os.uname()[1]
+except OSError:
+    host_name = 'unknown'
 date_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 logger.info(f'~~~~~~~~~~~~ {__version__} started by {user_name} ~~~~~~~~~~~~')
 logger.info(f'~~~~~~~~~~~~ {date_time} ~~~~~~~~~~~~')
