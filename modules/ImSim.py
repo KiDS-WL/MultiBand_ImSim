@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-09-27 10:46:12
+# @Last Modified time: 2021-10-22 16:33:21
 
 ### running module for ImSim
 
@@ -32,7 +32,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                             gals_info, gal_rotation_angles=[0.], g_cosmic=[0, 0], gal_position_type=['true', 18],
                                             stars_area=None, stars_info=None, star_position_type='random',
                                             PSF_map=[], N_PSF=100, sep_PSF=120,
-                                            image_chips=None, image_PSF=None):
+                                            image_chips=None, image_PSF=None,
+                                            psf_type='moffat'):
     '''
     Run ImSim for multi-tile of mutli-band with parallel process.
         Support extending input catalogues
@@ -44,6 +45,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
     logger.info(f'Bands: {bands}')
     logger.info(f'Pixel scales: {pixel_scale_list}')
     logger.info(f'Image types: {image_type_list}')
+    logger.info(f'PSF profile: {psf_type}')
     logger.info(f'Maximum number of processes: {Nmax_proc}')
 
     # constant shear or variable
@@ -353,16 +355,29 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                         # noise is still same for varChips
                         rms = noise_info_tile[f'rms_{band}_expo{i_expo}']
                         # psf is different
-                        seeing_chips = [noise_info_tile[f'seeing_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
-                        beta_chips = [noise_info_tile[f'beta_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
+                        ## psf profiles
+                        if psf_type.lower() == 'moffat':
+                            seeing_chips = [noise_info_tile[f'seeing_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
+                            beta_chips = [noise_info_tile[f'beta_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
+                            psf_info_chips = [psf_type, seeing_chips, beta_chips]
+                            del seeing_chips, beta_chips
+                        elif psf_type.lower() == 'airy':
+                            lam_chips = [noise_info_tile[f'lam_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
+                            diam_chips = [noise_info_tile[f'diam_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
+                            obscuration_chips = [noise_info_tile[f'obscuration_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
+                            psf_info_chips = [psf_type, lam_chips, diam_chips, obscuration_chips]
+                            del lam_chips, diam_chips, obscuration_chips
+                        ## psf e
                         psf_e_chips = [[noise_info_tile[f'psf_e1_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)], 
-                                        [noise_info_tile[f'psf_e2_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]]
+                                            [noise_info_tile[f'psf_e2_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]]
+                        psf_info_chips.append(psf_e_chips)
+                        del psf_e_chips
 
                         # collected parameters
                         ## rotations simulated separately
                         for gal_rotation_angle in gal_rotation_angles:
                             para_list = (tile_label, band, pixel_scale, rng_seed_band,
-                                        rms, seeing_chips, beta_chips, psf_e_chips,
+                                        rms, psf_info_chips,
                                         g_cosmic,
                                         gals_info_band, gal_rotation_angle,
                                         stars_info_band,
@@ -399,15 +414,30 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                     for i_expo in range(n_exposures):
                         # noise info
                         rms = noise_info_tile[f'rms_{band}_expo{i_expo}']
-                        seeing = noise_info_tile[f'seeing_{band}_expo{i_expo}']
-                        beta = noise_info_tile[f'beta_{band}_expo{i_expo}']
+
+                        # psf profiles
+                        if psf_type.lower() == 'moffat':
+                            seeing = noise_info_tile[f'seeing_{band}_expo{i_expo}']
+                            beta = noise_info_tile[f'beta_{band}_expo{i_expo}']
+                            psf_info = [psf_type, seeing, beta]
+                            del seeing, beta
+                        elif psf_type.lower() == 'airy':
+                            lam = noise_info_tile[f'lam_{band}_expo{i_expo}']
+                            diam = noise_info_tile[f'diam_{band}_expo{i_expo}']
+                            obscuration = noise_info_tile[f'obscuration_{band}_expo{i_expo}']
+                            psf_info = [psf_type, lam, diam, obscuration]
+                            del lam, diam, obscuration
+
+                        # psf e
                         psf_e = [noise_info_tile[f'psf_e1_{band}_expo{i_expo}'], noise_info_tile[f'psf_e2_{band}_expo{i_expo}']]
+                        psf_info.append(psf_e)
+                        del psf_e
 
                         # collected parameters
                         ## rotations simulated separately
                         for gal_rotation_angle in gal_rotation_angles:
                             para_list = (tile_label, band, pixel_scale, rng_seed_band,
-                                        rms, seeing, beta, psf_e,
+                                        rms, psf_info,
                                         g_cosmic,
                                         gals_info_band, gal_rotation_angle,
                                         stars_info_band,
@@ -426,15 +456,30 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             else:
                 # noise info
                 rms = noise_info_tile[f'rms_{band}']
-                seeing = noise_info_tile[f'seeing_{band}']
-                beta = noise_info_tile[f'beta_{band}']
+
+                # psf profiles
+                if psf_type.lower() == 'moffat': 
+                    seeing = noise_info_tile[f'seeing_{band}']
+                    beta = noise_info_tile[f'beta_{band}']
+                    psf_info = [psf_type, seeing, beta]
+                    del seeing, beta
+                elif psf_type.lower() == 'airy':
+                    lam = noise_info_tile[f'lam_{band}']
+                    diam = noise_info_tile[f'diam_{band}']
+                    obscuration = noise_info_tile[f'obscuration_{band}']
+                    psf_info = [psf_type, lam, diam, obscuration]
+                    del lam, diam, obscuration
+
+                # psf e
                 psf_e = [noise_info_tile[f'psf_e1_{band}'], noise_info_tile[f'psf_e2_{band}']]
+                psf_info.append(psf_e)
+                del psf_e
 
                 # collected parameters
                 ## rotations simulated separately
                 for gal_rotation_angle in gal_rotation_angles:
                     para_list = (tile_label, band, pixel_scale, rng_seed_band, outpath_image_basename,
-                                rms, seeing, beta, psf_e,
+                                rms, psf_info,
                                 g_cosmic,
                                 gals_info_band, gal_rotation_angle,
                                 stars_info_band,

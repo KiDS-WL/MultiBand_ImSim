@@ -56,7 +56,7 @@ def GalInfo(cata_pathfile, bands,
         column names to the input shear, only provided for variable shear setup
     """
     logger.info('Collect galaxy info from input catalogue...')
-    logger.info(f'Query bands {bands}, the detection band {primary_mag_name}')
+    logger.info(f'Query bands {mag_name_list}, the detection band {primary_mag_name}')
     if mag_cut:
         logger.info(f"Magnitude cut in: {mag_cut}")
     if size_cut:
@@ -208,7 +208,7 @@ def StarInfo(cata_pathfile, bands,
         Min & Max value of the primary band (the brightest & faintest stars will be simulated).
     """
     logger.info('Collect star info from input catalogue...')
-    logger.info(f'Query bands {bands}, the primary band {primary_mag_name}')
+    logger.info(f'Query bands {mag_name_list}, the primary band {primary_mag_name}')
     if mag_cut:
         logger.info(f"Magnitude cut in: {mag_cut}")
 
@@ -262,7 +262,11 @@ def StarInfo(cata_pathfile, bands,
 
     return stars_info
 
-def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list=[], N_exposures=0, varChips_list=[], file4varChips=None, N_chips=0):
+def NoiseInfo(cata_pathfile, bands, psf_type='moffat',
+                noise_psf_basenames=None,
+                label_basename=None, noise_basenames=None, psf_basenames=None, id_basenames=None,
+                multiple_exposures_list=None, N_exposures_list=None, 
+                file4varChips=None, varChips_list=None, N_chips_list=None):
     """
     Get noise information from the noise catalogue.
 
@@ -272,18 +276,32 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list
         Path to the input catalogue.
     bands : str
         A list of bands being queried.
-    noise_psf_basenames : list of str [label, rms, seeing, MoffatBeta, psf_e1, psf_e2]
+    psf_type : str, ['moffat', 'airy']
+        Type of PSF profile.
+    noise_psf_basenames (deprecated) : list of str [label, rms, seeing, MoffatBeta, psf_e1, psf_e2]
         A list of base names for noise and psf info.
         Not all required, if not available, simply set 'none'
-    multiple_exposures_list : a list of boolean, optional (default: [])
+    label_basename : str
+        column name for the noise label.
+    noise_basenames : a list of str 
+        A list of base names for noise info.
+        [rms, ]
+    psf_basenames : a list of str
+        A list of base names for psf info.
+        Moffat: [seeing, beta, e1, e2]
+        Airy: [lam, diam, obscuration]
+    id_basenames : a list of str
+        A list of column names for varChips.
+        [chip_id, expo_id]
+    multiple_exposures_list : a list of boolean
         Use multiple noise info for multiple exposures or not, a list for MultiBand.
-    N_exposures : int, optional (default: 0)
+    N_exposures_list : a list of int
         Number of exposures, only used when multiple_exposures==True or varChips==True 
-    varChips_list : list of boolean, optional (default: [])
-        Use different psfs for different chips or not, a list for MultiBand.
     file4varChips : str
         Path to the noise file with psf for each chip, only used for varChips==True
-    N_chips : int, optional (default: 0)
+    varChips_list : list of boolean
+        Use different psfs for different chips or not, a list for MultiBand.
+    N_chips_list : a list of int
         Number of chips in each exposure, only used when varChips==True 
     """
     logger.info('Collect observation info from input noise catalogue...')
@@ -301,7 +319,7 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list
         raise Exception(f'Not supported file type! {cata_pathfile}')
     logger.info(f'noise cata: {cata_pathfile}')
     ## for varChips
-    if file4varChips is not None:
+    if file4varChips:
         file_type = file4varChips[-3:]
         if file_type == 'csv':
             cata_varChips = pd.read_csv(file4varChips)
@@ -315,23 +333,64 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list
         logger.info(f'cata for varChips: {file4varChips}')
 
     # noise and seeing info
-    name_label, name_rms, name_seeing, name_MoffatBeta, name_psf_e1, name_psf_e2, name_chip_id, name_expo_id = noise_psf_basenames
+    ### >>> for old version
+    if noise_psf_basenames:
+        if psf_type.lower() != 'moffat':
+            raise Exception('old noise_psf_basenames does not support other psf_type!')
+        name_label, name_rms, name_seeing, name_MoffatBeta, name_psf_e1, name_psf_e2, name_chip_id, name_expo_id = noise_psf_basenames
+    ### >>> new version
+    else:
 
+        name_label = label_basename
+        name_rms = noise_basenames[0]
+        try:
+            name_chip_id, name_expo_id = id_basenames
+        except ValueError:
+            name_chip_id = 'none'
+            name_expo_id = 'none'
+
+        # PSF
+        if psf_type.lower() == 'moffat':
+            try:
+                name_seeing, name_MoffatBeta, name_psf_e1, name_psf_e2 = psf_basenames
+            except ValueError:
+                name_seeing, name_MoffatBeta = psf_basenames
+                name_psf_e1 = 'none'
+                name_psf_e2 = 'none'
+        elif psf_type.lower() == 'airy':
+            try:
+                name_lam, name_diam, name_obscuration, name_psf_e1, name_psf_e2 = psf_basenames
+            except ValueError:
+                name_lam, name_diam, name_obscuration = psf_basenames
+                name_psf_e1 = 'none'
+                name_psf_e2 = 'none'
+        else:
+            raise Exception(f'Not supported psf_type: {psf_type}')
+
+    # collect info
     noise_info = pd.DataFrame({'label': cata[name_label]})
     for i_band, band in enumerate(bands):
         try:
             multiple_exposures = multiple_exposures_list[i_band]
-        except IndexError:
+        except (IndexError, TypeError) as error:
             multiple_exposures = False
         try:
             varChips = varChips_list[i_band]
-        except IndexError:
+        except (IndexError, TypeError) as error:
             varChips = False
 
         if varChips:
             logger.info(f'band {band} uses varChips.')
-            if file4varChips is None:
+            if not file4varChips:
                 raise Exception('noise catalogue for varChips is not provided!')
+
+            # number of exposures
+            N_exposures = N_exposures_list[i_band]
+            logger.info(f'number of exposures {N_exposures}')
+
+            # number of chips
+            N_chips = N_chips_list[i_band]
+            logger.info(f'number of chips {N_chips}')
 
             for i_expo in range(N_exposures):
                 ## noise info still from the main noise catalogue
@@ -350,14 +409,32 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list
                         if np.sum(mask_chip) != 1:
                             raise Exception(f'Number of psf in tile {tile_label}, expo {i_expo}, chip {i_chip} is wrong with value {np.sum(mask_chip)}!')
                         # always assume cata contains all desired parameters
-                        noise_info.loc[noise_info['label']==tile_label, f'seeing_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_seeing}_{band}']).astype(float)[0]
-                        noise_info.loc[noise_info['label']==tile_label, f'beta_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_MoffatBeta}_{band}']).astype(float)[0]
-                        noise_info.loc[noise_info['label']==tile_label, f'psf_e1_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_psf_e1}_{band}']).astype(float)[0]
-                        noise_info.loc[noise_info['label']==tile_label, f'psf_e2_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_psf_e2}_{band}']).astype(float)[0]
+                        if psf_type.lower() == 'moffat':
+                            noise_info.loc[noise_info['label']==tile_label, f'seeing_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_seeing}_{band}']).astype(float)[0]
+                            noise_info.loc[noise_info['label']==tile_label, f'beta_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_MoffatBeta}_{band}']).astype(float)[0]
+                        elif psf_type.lower() == 'airy':
+                            noise_info.loc[noise_info['label']==tile_label, f'lam_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_lam}_{band}']).astype(float)[0]
+                            noise_info.loc[noise_info['label']==tile_label, f'diam_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_diam}_{band}']).astype(float)[0]
+                            noise_info.loc[noise_info['label']==tile_label, f'obscuration_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_obscuration}_{band}']).astype(float)[0]
+
+                        # psf e 
+                        try:
+                            noise_info.loc[noise_info['label']==tile_label, f'psf_e1_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_psf_e1}_{band}']).astype(float)[0]
+                            noise_info.loc[noise_info['label']==tile_label, f'psf_e2_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_psf_e2}_{band}']).astype(float)[0]
+                        except KeyError:
+                            noise_info.loc[noise_info['label']==tile_label, f'psf_e1_{band}_expo{i_expo}_chip{i_chip}'] = 0
+                            noise_info.loc[noise_info['label']==tile_label, f'psf_e2_{band}_expo{i_expo}_chip{i_chip}'] = 0
 
         elif multiple_exposures:
             logger.info(f'band {band} uses diffExpo.')
+
+            # number of exposures
+            N_exposures = N_exposures_list[i_band]
+            logger.info(f'number of exposures {N_exposures}')
+
             for i_expo in range(N_exposures):
+
+                # noise
                 try:
                     noise_info.loc[:, f'rms_{band}_expo{i_expo}'] = np.array(cata[f'{name_rms}_{band}_expo{i_expo}']).astype(float)
                 except KeyError:
@@ -365,14 +442,16 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list
                     noise_info.loc[:, f'rms_{band}_expo{i_expo}'] = np.array(cata[f'{name_rms}_{band}']).astype(float)
                     if i_expo == 0:
                         logger.warning('Use same rms for all exposures in diffExpo mode!')
-                try:
-                    noise_info.loc[:, f'seeing_{band}_expo{i_expo}'] = np.array(cata[f'{name_seeing}_{band}_expo{i_expo}']).astype(float)
-                except KeyError:
-                    ## same value for all exposures
-                    noise_info.loc[:, f'seeing_{band}_expo{i_expo}'] = np.array(cata[f'{name_seeing}_{band}']).astype(float)
-                    if i_expo == 0:
-                        logger.warning('Use same seeing for all exposures in diffExpo mode!')
-                try:
+
+                # PSF
+                if psf_type.lower() == 'moffat':
+                    try:
+                        noise_info.loc[:, f'seeing_{band}_expo{i_expo}'] = np.array(cata[f'{name_seeing}_{band}_expo{i_expo}']).astype(float)
+                    except KeyError:
+                        ## same value for all exposures
+                        noise_info.loc[:, f'seeing_{band}_expo{i_expo}'] = np.array(cata[f'{name_seeing}_{band}']).astype(float)
+                        if i_expo == 0:
+                            logger.warning('Use same seeing for all exposures in diffExpo mode!')
                     try:
                         noise_info.loc[:, f'beta_{band}_expo{i_expo}'] = np.array(cata[f'{name_MoffatBeta}_{band}_expo{i_expo}']).astype(float)
                     except KeyError:
@@ -380,11 +459,30 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list
                         noise_info.loc[:, f'beta_{band}_expo{i_expo}'] = np.array(cata[f'{name_MoffatBeta}_{band}']).astype(float)
                         if i_expo == 0:
                             logger.warning('Use same beta for all exposures in diffExpo mode!')
-                except KeyError:
-                    # (if not provided using 3.5)
-                    noise_info.loc[:, f'beta_{band}_expo{i_expo}'] = np.full(len(cata), 3.5)
-                    if i_expo == 0:
-                        logger.warning('Beta not provided, use 3.5!')
+                elif psf_type.lower() == 'airy':
+                    try:
+                        noise_info.loc[:, f'lam_{band}_expo{i_expo}'] = np.array(cata[f'{name_lam}_{band}_expo{i_expo}']).astype(float)
+                    except KeyError:
+                        ## same value for all exposures
+                        noise_info.loc[:, f'lam_{band}_expo{i_expo}'] = np.array(cata[f'{name_lam}_{band}']).astype(float)
+                        if i_expo == 0:
+                            logger.warning('Use same lam for all exposures in diffExpo mode!')
+                    try:
+                        noise_info.loc[:, f'diam_{band}_expo{i_expo}'] = np.array(cata[f'{name_diam}_{band}_expo{i_expo}']).astype(float)
+                    except KeyError:
+                        ## same value for all exposures
+                        noise_info.loc[:, f'diam_{band}_expo{i_expo}'] = np.array(cata[f'{name_diam}_{band}']).astype(float)
+                        if i_expo == 0:
+                            logger.warning('Use same diam for all exposures in diffExpo mode!')
+                    try:
+                        noise_info.loc[:, f'obscuration_{band}_expo{i_expo}'] = np.array(cata[f'{name_obscuration}_{band}_expo{i_expo}']).astype(float)
+                    except KeyError:
+                        ## same value for all exposures
+                        noise_info.loc[:, f'obscuration_{band}_expo{i_expo}'] = np.array(cata[f'{name_obscuration}_{band}']).astype(float)
+                        if i_expo == 0:
+                            logger.warning('Use same obscuration for all exposures in diffExpo mode!')
+
+                # psf e
                 try:
                     try:
                         noise_info.loc[:, f'psf_e1_{band}_expo{i_expo}'] = np.array(cata[f'{name_psf_e1}_{band}_expo{i_expo}']).astype(float)
@@ -413,14 +511,21 @@ def NoiseInfo(cata_pathfile, bands, noise_psf_basenames, multiple_exposures_list
                         logger.warning('psf_e2 not provided, set to 0!')
         else:
             logger.info(f'band {band} uses simple noise.')
+
+            # noise
             noise_info.loc[:, f'rms_{band}'] = np.array(cata[f'{name_rms}_{band}']).astype(float)
-            noise_info.loc[:, f'seeing_{band}'] = np.array(cata[f'{name_seeing}_{band}']).astype(float)
-            try:
+
+            # psf
+            if psf_type.lower() == 'moffat':
+                noise_info.loc[:, f'seeing_{band}'] = np.array(cata[f'{name_seeing}_{band}']).astype(float)
                 noise_info.loc[:, f'beta_{band}'] = np.array(cata[f'{name_MoffatBeta}_{band}']).astype(float)
-            except KeyError:
-                # (if not provided using 3.5)
-                noise_info.loc[:, f'beta_{band}'] = np.full(len(cata), 3.5)
-                logger.warning('Beta not provided, use 3.5!')
+
+            elif psf_type.lower() == 'airy':
+                noise_info.loc[:, f'lam_{band}'] = np.array(cata[f'{name_lam}_{band}']).astype(float)
+                noise_info.loc[:, f'diam_{band}'] = np.array(cata[f'{name_diam}_{band}']).astype(float)
+                noise_info.loc[:, f'obscuration_{band}'] = np.array(cata[f'{name_obscuration}_{band}']).astype(float)
+
+            # psf e
             try:
                 noise_info.loc[:, f'psf_e1_{band}'] = np.array(cata[f'{name_psf_e1}_{band}']).astype(float)
             except KeyError:

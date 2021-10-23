@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:34:12
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-09-30 15:25:12
+# @Last Modified time: 2021-10-22 17:31:46
 
 ### Everything about simple images
 __all__ = ['_PSFNoisySkyImages_simple']
@@ -33,7 +33,7 @@ def _PSFNoisySkyImages_simple(para_list):
     '''
 
     (tile_label, band, pixel_scale, rng_seed_band, outpath_image_basename,
-        rms, seeing, beta, psf_e,
+        rms, psf_info,
         g_cosmic,
         gals_info_band, gal_rotation_angle,
         stars_info_band,
@@ -44,6 +44,27 @@ def _PSFNoisySkyImages_simple(para_list):
         g_const) = para_list
 
     logger.info(f'Simulating simple image for tile {tile_label} band {band} rot {gal_rotation_angle}...')
+
+    # PSF profiles
+    if psf_info[0].lower() == 'moffat':
+
+        seeing, beta, psf_e = psf_info[1:]
+        # if psf e is zero, replace with None
+        if (psf_e[0] == 0.) and (psf_e[1] == 0.):
+            psf_e = None
+
+        psf_paras = (seeing, beta, psf_e)
+        psf_func = PSFModule.MoffatPSF
+
+    elif psf_info[0].lower() == 'airy':
+
+        lam, diam, obscuration, psf_e = psf_info[1:]
+        # if psf e is zero, replace with None
+        if (psf_e[0] == 0.) and (psf_e[1] == 0.):
+            psf_e = None
+
+        psf_paras = (lam, diam, obscuration, psf_e)
+        psf_func = PSFModule.AiryPSF
 
     # warning
     if save_image_chips:
@@ -95,7 +116,7 @@ def _PSFNoisySkyImages_simple(para_list):
         if os.path.isfile(psf_ima_file_tmp):
             logger.info('PSF images already exist.')
         else:
-            PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
+            PSF = psf_func(*psf_paras)
             psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size)
             psf_ima.write(psf_ima_file_tmp)
             logger.info(f'PSF image saved as {psf_ima_file_tmp}')
@@ -106,7 +127,7 @@ def _PSFNoisySkyImages_simple(para_list):
         return 1
 
     # +++ PSF
-    PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
+    PSF = psf_func(*psf_paras)
 
     # +++ background noise
     noise = NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle))

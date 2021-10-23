@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:25:05
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-09-30 15:25:24
+# @Last Modified time: 2021-10-22 17:31:31
 
 ### Everything about KiDS-like images
 __all__ = ['_PSFNoisySkyImages_KiDS_sameExpo', '_PSFNoisySkyImages_KiDS_singleExpo', '_PSFNoisySkyImages_KiDS_varChips']
@@ -40,7 +40,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
     '''
 
     (tile_label, band, pixel_scale, rng_seed_band, outpath_image_basename,
-        rms, seeing, beta, psf_e,
+        rms, psf_info,
         g_cosmic,
         gals_info_band, gal_rotation_angle,
         stars_info_band,
@@ -51,6 +51,27 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         g_const) = para_list
 
     logger.info(f'Simulating KiDS_sameExpo image for tile {tile_label} band {band} rot {gal_rotation_angle}...')
+
+    # PSF profiles
+    if psf_info[0].lower() == 'moffat':
+
+        seeing, beta, psf_e = psf_info[1:]
+        # if psf e is zero, replace with None
+        if (psf_e[0] == 0.) and (psf_e[1] == 0.):
+            psf_e = None
+
+        psf_paras = (seeing, beta, psf_e)
+        psf_func = PSFModule.MoffatPSF
+
+    elif psf_info[0].lower() == 'airy':
+
+        lam, diam, obscuration, psf_e = psf_info[1:]
+        # if psf e is zero, replace with None
+        if (psf_e[0] == 0.) and (psf_e[1] == 0.):
+            psf_e = None
+
+        psf_paras = (lam, diam, obscuration, psf_e)
+        psf_func = PSFModule.AiryPSF
 
     # number of exposures
     if band == 'u':
@@ -117,7 +138,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                 shutil.rmtree(psf_dir_tmp)
             os.mkdir(psf_dir_tmp)
 
-            PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
+            PSF = psf_func(*psf_paras)
             psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size)
 
             for i_expo in range(n_exposures):
@@ -151,7 +172,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         return 1
 
     # +++ PSF
-    PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
+    PSF = psf_func(*psf_paras)
 
     # +++ background noise
     noise_list = [NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle+94*i_expo))
@@ -260,7 +281,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         Adjoint to RunParallel_PSFNoisySkyImages in ImSim.py
     '''
     (tile_label, band, pixel_scale, rng_seed_band,
-        rms, seeing, beta, psf_e,
+        rms, psf_info,
         g_cosmic,
         gals_info_band, gal_rotation_angle,
         stars_info_band,
@@ -272,6 +293,27 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         g_const) = para_list
 
     logger.info(f'Simulating KiDS exposure for tile {tile_label} band {band} expo {i_expo} rot {gal_rotation_angle}...')
+
+    # PSF profiles
+    if psf_info[0].lower() == 'moffat':
+
+        seeing, beta, psf_e = psf_info[1:]
+        # if psf e is zero, replace with None
+        if (psf_e[0] == 0.) and (psf_e[1] == 0.):
+            psf_e = None
+
+        psf_paras = (seeing, beta, psf_e)
+        psf_func = PSFModule.MoffatPSF
+
+    elif psf_info[0].lower() == 'airy':
+
+        lam, diam, obscuration, psf_e = psf_info[1:]
+        # if psf e is zero, replace with None
+        if (psf_e[0] == 0.) and (psf_e[1] == 0.):
+            psf_e = None
+
+        psf_paras = (lam, diam, obscuration, psf_e)
+        psf_func = PSFModule.AiryPSF
 
     # outpath
     outpath_image_name_list = [os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', f'expo{i_expo}_chip{i_chip}.fits')
@@ -322,7 +364,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         if os.path.isfile(psf_ima_file_tmp):
             logger.info('PSF image already exist.')
         else:
-            PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
+            PSF = psf_func(*psf_paras)
             psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size)
             psf_ima.write(psf_ima_file_tmp)
             logger.info(f'PSF image saved as {psf_ima_file_tmp}')
@@ -333,7 +375,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         return 1
 
     # +++ PSF
-    PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
+    PSF = psf_func(*psf_paras)
 
     # +++ background noise
     noise = NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle+94*i_expo))
@@ -415,7 +457,7 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
         Adjoint to RunParallel_PSFNoisySkyImages in ImSim.py
     '''
     (tile_label, band, pixel_scale, rng_seed_band,
-        rms, seeing_chips, beta_chips, psf_e_chips,
+        rms, psf_info_chips,
         g_cosmic,
         gals_info_band, gal_rotation_angle,
         stars_info_band,
@@ -426,6 +468,48 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
         gal_position_type,
         g_const) = para_list
     logger.info(f'Simulating KiDS exposure with varChips for tile {tile_label} band {band} expo {i_expo} rot {gal_rotation_angle}...')
+
+    # PSF profiles
+    if psf_info_chips[0].lower() == 'moffat':
+
+        # function
+        psf_func = PSFModule.MoffatPSF
+
+        # paras
+        seeing_chips, beta_chips, psf_e_chips = psf_info_chips[1:]
+        psf_paras_chips = []
+        for i_chip in range(32):
+            seeing = seeing_chips[i_chip]
+            beta = beta_chips[i_chip]
+            psf_e = [psf_e_chips[0][i_chip], psf_e_chips[1][i_chip]]
+            # if psf e is zero, replace with None
+            if (psf_e[0] == 0.) and (psf_e[1] == 0.):
+                psf_e = None
+
+            psf_paras_chips.append((seeing, beta, psf_e))
+            del seeing, beta, psf_e
+        del seeing_chips, beta_chips, psf_e_chips, psf_info_chips
+
+    elif psf_info_chips[0].lower() == 'airy':
+
+        # function
+        psf_func = PSFModule.AiryPSF
+
+        # paras
+        lam_chips, diam_chips, obscuration_chips, psf_e_chips = psf_info[1:]
+        psf_paras_chips = []
+        for i_chip in range(32):
+            lam = lam_chips[i_chip]
+            diam = diam_chips[i_chip]
+            obscuration = obscuration_chips[i_chip]
+            psf_e = [psf_e_chips[0][i_chip], psf_e_chips[1][i_chip]]
+            # if psf e is zero, replace with None
+            if (psf_e[0] == 0.) and (psf_e[1] == 0.):
+                psf_e = None
+
+            psf_paras_chips.append((lam, diam, obscuration, psf_e))
+            del lam, diam, obscuration, psf_e
+        del lam_chips, diam_chips, obscuration_chips, psf_e_chips, psf_info_chips
 
     # outpath
     outpath_image_name_list = [os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', f'expo{i_expo}_chip{i_chip}.fits')
@@ -465,11 +549,9 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
             hdu_list[0].header['GS_SCALE'] = (pixel_scale, 'GalSim image scale')
             # produce 32 psf images
             for i_chip in range(32):
-                seeing = seeing_chips[i_chip]
-                beta = beta_chips[i_chip]
-                psf_e = [psf_e_chips[0][i_chip], psf_e_chips[1][i_chip]]
+                psf_paras = psf_paras_chips[i_chip]
 
-                PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
+                PSF = psf_func(*psf_paras)
                 psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size)
 
                 # collect to hdul
@@ -513,10 +595,8 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
                 canvas = canvases_list[i_chip]
 
                 # get PSF
-                seeing = seeing_chips[i_chip]
-                beta = beta_chips[i_chip]
-                psf_e = [psf_e_chips[0][i_chip], psf_e_chips[1][i_chip]]
-                PSF = PSFModule.MoffatPSF(seeing, moffat_beta=beta, psf_e=psf_e)
+                psf_paras = psf_paras_chips[i_chip]
+                PSF = psf_func(*psf_paras)
 
                 # galaxy image
                 image_galaxies = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,

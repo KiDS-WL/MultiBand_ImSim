@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-20 16:18:12
+# @Last Modified time: 2021-10-22 17:34:35
 
 ### main module to run the whole pipeline
 
@@ -32,7 +32,7 @@ import CrossMatch
 
 import RunConfigFile
 
-__version__ = "MultiBand_ImSim v0.4"
+__version__ = "MultiBand_ImSim v0.41"
 
 # ++++++++++++++ parser for command-line interfaces
 parser = argparse.ArgumentParser(
@@ -152,22 +152,49 @@ f.close()
 logger.info(f'Setup info saved to {outfile_tmp}')
 
 # load noise info
+
+### survey specified
 if configs_dict['imsim']['survey'].lower() == 'kids':
+
     # diffexpo ?
     multiple_exposures_list = [x.lower()=='diffexpo' for x in configs_dict['imsim']['image_type_list']]
-    N_exposures = 5
+    ## KiDS u only 4 exposures
+    N_exposures_list = [4 if x=='u' else 5 for x in configs_dict['imsim']['bands']]
+
     # varChips ?
     varChips_list = [x.lower()=='varchips' for x in configs_dict['imsim']['image_type_list']]
-    N_chips = 32
-else:
-    multiple_exposures_list = []
-    N_exposures = 0
-    varChips_list = []
-    N_chips = 0
+    N_chips_list = [32] * len(varChips_list)
 
-noise_info = LoadCata.NoiseInfo(configs_dict['noise']['file'], configs_dict['imsim']['bands'], configs_dict['noise']['noise_psf_basenames'],
-                                multiple_exposures_list=multiple_exposures_list, N_exposures=N_exposures, 
-                                varChips_list=varChips_list, file4varChips=configs_dict['noise']['file4varChips'], N_chips=N_chips)
+else:
+    multiple_exposures_list = None
+    N_exposures_list = None
+    varChips_list = None
+    N_chips_list = None
+
+### noise and psf info
+###### >>> for old versions
+try:
+    noise_psf_basenames = configs_dict['noise']['noise_psf_basenames']
+    label_basename = None 
+    noise_basenames = None
+    psf_basenames = None
+    id_basenames = None
+
+###### >>> new version
+except KeyError:
+    noise_psf_basenames = None
+    label_basename = configs_dict['noise']['label_basename'] 
+    noise_basenames = configs_dict['noise']['noise_basenames']
+    psf_basenames = configs_dict['noise']['psf_basenames']
+    id_basenames = configs_dict['noise']['id_basenames']
+
+### load from file
+noise_info = LoadCata.NoiseInfo(configs_dict['noise']['file'], configs_dict['imsim']['bands'], 
+                psf_type=configs_dict['noise']['psf_type'],
+                noise_psf_basenames=noise_psf_basenames,
+                label_basename=label_basename, noise_basenames=noise_basenames, psf_basenames=psf_basenames, id_basenames=id_basenames,
+                multiple_exposures_list=multiple_exposures_list, N_exposures_list=N_exposures_list, 
+                file4varChips=configs_dict['noise']['file4varChips'], varChips_list=varChips_list, N_chips_list=N_chips_list)    
 
 # varChips dictionary 
 varChips_dic = {}
@@ -225,7 +252,8 @@ if ('1' in taskIDs) or ('all' in taskIDs):
                                             gals_info, gal_rotation_angles=configs_dict['imsim']['gal_rotation_angles'], g_cosmic=g_cosmic, gal_position_type=[configs_dict['gal']['position_type'], configs_dict['gal']['grid_size']],
                                             stars_area=star_area, stars_info=stars_info, star_position_type=star_position_type,
                                             PSF_map=configs_dict['imsim']['PSF_map'], N_PSF=100, sep_PSF=120,
-                                            image_chips=configs_dict['imsim']['image_chips'], image_PSF=[configs_dict['imsim']['image_PSF'], configs_dict['imsim']['image_PSF_size']])
+                                            image_chips=configs_dict['imsim']['image_chips'], image_PSF=[configs_dict['imsim']['image_PSF'], configs_dict['imsim']['image_PSF_size']],
+                                            psf_type=configs_dict['noise']['psf_type'])
 
     logger.info(f'====== Task 1: simulate images === finished in {(time.time()-start_time)/3600.} h ======')
 

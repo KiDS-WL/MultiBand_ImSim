@@ -2,9 +2,11 @@
 # @Author: lshuns
 # @Date:   2020-11-26 15:00:22
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-01-20 15:31:15
+# @Last Modified time: 2021-10-22 17:33:44
 
 ### Everything about PSF
+__all__ = ['MoffatPSF', 'AiryPSF', \
+            'PSFima', 'PSFmap', 'PSFmap_MultiPSF', 'PSFmap_DiffMag', 'PSFmap_MultiPSF_DiffMag']
 
 import galsim
 import logging
@@ -12,9 +14,9 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-def MoffatPSF(seeing, moffat_beta=3.5, psf_e=[]):
+def MoffatPSF(seeing, moffat_beta, psf_e=None):
     """
-    Generate PSF model.
+    Generate PSF model as a Moffat profile.
 
     Parameters
     ----------
@@ -23,16 +25,16 @@ def MoffatPSF(seeing, moffat_beta=3.5, psf_e=[]):
     moffat_beta : float
         Beta parameter for Moffat profile.
     psf_e : list, optional (default: [0, 0])
-        List of psf ellipticity [e1, e2] (e = 1 - q).
+        List of psf ellipticity [e1, e2] 
+        NOTE: e = 1 - q, as from KiDS AW data.
 
     Returns
     -------
-    psf: galsim Moffat
-        PSF model.
+    psf : galsim PSF model.
     """
 
     psf = galsim.Moffat(beta=moffat_beta, fwhm=seeing, trunc=4.5*seeing)
-    if psf_e != []:
+    if psf_e:
         psf_e1 = psf_e[0]
         psf_e2 = psf_e[1]
 
@@ -44,53 +46,57 @@ def MoffatPSF(seeing, moffat_beta=3.5, psf_e=[]):
 
     return psf
 
-
-def MoffatPSF_list(seeing_list, moffat_beta_list, psf_e_list=[]):
+def AiryPSF(lam, diam, obscuration, psf_e=None):
     """
-    Generate PSF model with variable inputs.
+    Generate PSF model as an Airy profile.
 
     Parameters
     ----------
-    seeing : float
-        Full-width-half-max of the PSF.
-    moffat_beta : float
-        Beta parameter for Moffat profile.
+    lam (nanometre) : float
+        Wavelength in unit of nanometre.
+    diam (metre) : float
+        Telescope diameter in unit of metre.
+    obscuration : float
+        The linear dimension of a central obscuration as a fraction of the pupil dimension.
     psf_e : list, optional (default: [0, 0])
-        List of psf ellipticity [e1, e2] (e = 1 - q).
+        List of psf ellipticity [e1, e2] 
+        NOTE: e = 1 - q, as from KiDS AW data.
 
     Returns
     -------
-    psf: galsim Moffat
-        PSF model.
+    psf : galsim PSF model.
     """
 
-    N_psf = len(seeing_list)
+    psf = galsim.Airy(lam=lam, diam=diam, obscuration=obscuration, scale_unit=galsim.arcsec)
+    if psf_e:
+        psf_e1 = psf_e[0]
+        psf_e2 = psf_e[1]
 
-    psf_list = []
-    for i_psf in range(N_psf):
-        seeing = seeing_list[i_psf]
-        moffat_beta = moffat_beta_list[i_psf]
+        psf_e = np.sqrt(psf_e1**2+psf_e2**2)
+        # g_i = e_i/(2-e)
+        psf_g1, psf_g2 = psf_e1/(2-psf_e), psf_e2/(2-psf_e)
 
-        psf = galsim.Moffat(beta=moffat_beta, fwhm=seeing, trunc=4.5*seeing)
+        psf = psf.shear(g1=psf_g1, g2=psf_g2)
 
-        if psf_e_list != []:
-            psf_e = psf_e_list[i_psf]
-            psf_e1 = psf_e[0]
-            psf_e2 = psf_e[1]
-
-            psf_e = np.sqrt(psf_e1**2+psf_e2**2)
-            # g_i = e_i/(2-e)
-            psf_g1, psf_g2 = psf_e1/(2-psf_e), psf_e2/(2-psf_e)
-
-            psf=psf.shear(g1=psf_g1, g2=psf_g2)
-
-        psf_list.append(psf)
-
-    return psf_list
+    return psf
 
 def PSFima(PSF, pixel_scale, size=32):
     """
-    draw a single PSF image
+    Draw a single PSF image from a PSF model.
+
+    Parameters
+    ----------
+    PSF : galsim object:
+        PSF model.
+    pixel_scale (arcsec) : float
+        Pixel size in unit of arcsec.
+    size : int, optional (default: 32)
+        The image size in unit of pixel
+
+    Returns
+    -------
+    psf_image : galsim Images
+        Image for the PSF.
     """
 
     psf_image = galsim.Image(size, size)
@@ -99,11 +105,10 @@ def PSFima(PSF, pixel_scale, size=32):
 
     return psf_image
 
-
 def PSFmap(PSF, pixel_scale, mag_input, mag_zero=30., N_PSF=100, sep_PSF=120, rng_seed=940120):
     """ 
-    Generate PSF stars for the image
-        with uniform magnitude
+    Generate N_PSF PSF stars from a single PSF model,
+        with uniform magnitude.
 
     Parameters
     ----------
@@ -124,7 +129,7 @@ def PSFmap(PSF, pixel_scale, mag_input, mag_zero=30., N_PSF=100, sep_PSF=120, rn
 
     Returns
     -------
-    psf_image: galsim Images
+    psf_image : galsim Images
         Image for PSFs.
     """
 
@@ -178,8 +183,8 @@ def PSFmap(PSF, pixel_scale, mag_input, mag_zero=30., N_PSF=100, sep_PSF=120, rn
 
 def PSFmap_MultiPSF(PSF_list, pixel_scale, mag_input, mag_zero=30., sep_PSF=120, rng_seed=940120):
     """ 
-    Generate PSF stars for the image
-        with uniform magnitude
+    Generate PSF stars from a list of PSF models,
+        with uniform magnitude.
 
     Parameters
     ----------
@@ -198,7 +203,7 @@ def PSFmap_MultiPSF(PSF_list, pixel_scale, mag_input, mag_zero=30., sep_PSF=120,
 
     Returns
     -------
-    psf_image: galsim Images
+    psf_image : galsim Images
         Image for PSFs.
     """
 
@@ -257,11 +262,10 @@ def PSFmap_MultiPSF(PSF_list, pixel_scale, mag_input, mag_zero=30., sep_PSF=120,
 
     return psf_image
 
-
 def PSFmap_DiffMag(PSF, pixel_scale, mag_inputs, mag_zero=30., sep_type='random', rng_seed=940120, area=1.):
     """ 
-    Generate PSF stars for the image
-        with variable magnitudes
+    Generate PSF stars from a single PSF model,
+        with variable magnitudes.
 
     Parameters
     ----------
@@ -282,7 +286,7 @@ def PSFmap_DiffMag(PSF, pixel_scale, mag_inputs, mag_zero=30., sep_type='random'
 
     Returns
     -------
-    psf_image: galsim Images
+    psf_image : galsim Images
         Image for PSFs.
     """
 
@@ -326,11 +330,10 @@ def PSFmap_DiffMag(PSF, pixel_scale, mag_inputs, mag_zero=30., sep_type='random'
 
     return psf_image
 
-
 def PSFmap_MultiPSF_DiffMag(PSF_list, pixel_scale, mag_list, mag_zero=30., sep_PSF=120, rng_seed=940120):
     """ 
-    Generate PSF stars for the image
-        with variable PSF as well as variable magnitude
+    Generate PSF stars from a list of PSF models,
+        with variable magnitudes.
 
     Parameters
     ----------
@@ -349,7 +352,7 @@ def PSFmap_MultiPSF_DiffMag(PSF_list, pixel_scale, mag_list, mag_zero=30., sep_P
 
     Returns
     -------
-    psf_image: galsim Images
+    psf_image : galsim Images
         Image for PSFs.
     """
 
