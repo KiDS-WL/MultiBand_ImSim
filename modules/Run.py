@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-22 17:34:35
+# @Last Modified time: 2021-10-24 16:18:59
 
 ### main module to run the whole pipeline
 
@@ -366,13 +366,18 @@ if ('3' in taskIDs) or ('all' in taskIDs):
     logger.info(f'pixel scale: {pixel_scale}')
     logger.info(f'image type: {image_label}')
     ### seeing info
+    ###### only matters for CLASS_STAR classifier
     try:
         SeeingFWHM_list = noise_info[f'seeing_{detection_band}'].to_list()
     except KeyError:
         try:
             SeeingFWHM_list = noise_info[f'seeing_{detection_band}_expo0'].to_list()
         except KeyError:
-            SeeingFWHM_list = noise_info[f'seeing_{detection_band}_expo0_chip0'].to_list()
+            try:
+                SeeingFWHM_list = noise_info[f'seeing_{detection_band}_expo0_chip0'].to_list()
+            except KeyError:
+                SeeingFWHM_list = [1.0] * N_tiles
+                logger.warning('seeing not found in noise info, do NOT trust CLASS_STAR!')
 
     SeeingFWHM_list = SeeingFWHM_list[:N_tiles]
 
