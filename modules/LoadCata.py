@@ -14,6 +14,14 @@ import pandas as pd
 from astropy.io import fits
 from astropy.table import Table
 
+# let us ignore pandas PerformanceWarning for now
+## as it is not the bottleneck, and it is hard to improve now...
+### if you are curious, it is about the `frame.insert`,
+###     basically I call df.loc[:, new_col]=new_val too many times...
+#### it is recommended to pd.concat in the end to join all columns
+import warnings
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+
 logger = logging.getLogger(__name__)
 
 def GalInfo(cata_pathfile, bands,
