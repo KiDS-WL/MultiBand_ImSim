@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-22 17:10:38
+# @Last Modified time: 2021-10-31 16:11:18
 
 ### module to generate an example configuration file
 
@@ -97,6 +97,7 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             raise Exception(f"galaxies file {tmp} not found!")
 
     except KeyError:
+        gal_configs = {'file': None}
         logger.warning('No GalInfo provided, cannot simulate any images!')
 
     ## === c. star info

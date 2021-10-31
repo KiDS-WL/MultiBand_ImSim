@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-24 16:18:59
+# @Last Modified time: 2021-10-31 16:14:51
 
 ### main module to run the whole pipeline
 
@@ -130,27 +130,6 @@ configs_dict = RunConfigFile.ParseConfig(config_file, taskIDs, run_tag, running_
 # # ++++++++++++++ Running tasks
 start_time0 = time.time()
 
-# save all the basic info
-contain_stars = 'True' if configs_dict['star']['file'] else 'False'
-survey = configs_dict['imsim']['survey']
-gal_position_type = configs_dict['gal']['position_type']
-outfile_tmp = os.path.join(configs_dict['work_dirs']['main'], f'basic_info.txt')
-f = open(outfile_tmp, 'w')
-print(f'# Some basic info about the simulated images in this directory\n\
-run_tag            =   {run_tag}\n\
-survey             =   {survey}\n\
-gal_position_type  =   {gal_position_type}\n\
-contain_stars      =   {contain_stars}', file=f)
-if g_columns is None:
-    print(f'g_cosmic           =   {g_cosmic[0]} {g_cosmic[1]}', file=f)
-else:
-    print(f'g_cosmic           =    variable', file=f)
-if contain_stars=='True':
-    star_position_type = configs_dict['star']['position_type']
-    print(f'star_position_type =   {star_position_type}', file=f)
-f.close()
-logger.info(f'Setup info saved to {outfile_tmp}')
-
 # load noise info
 
 ### survey specified
@@ -211,6 +190,27 @@ tile_labels = tile_labels[:N_tiles]
 if ('1' in taskIDs) or ('all' in taskIDs):
     logger.info('====== Task 1: simulate images === started ======')
     start_time = time.time()
+
+    ## save all the basic info
+    contain_stars = 'True' if configs_dict['star']['file'] else 'False'
+    survey = configs_dict['imsim']['survey']
+    gal_position_type = configs_dict['gal']['position_type']
+    outfile_tmp = os.path.join(configs_dict['work_dirs']['main'], f'basic_info.txt')
+    f = open(outfile_tmp, 'w')
+    print(f'# Some basic info about the simulated images in this directory\n\
+    run_tag            =   {run_tag}\n\
+    survey             =   {survey}\n\
+    gal_position_type  =   {gal_position_type}\n\
+    contain_stars      =   {contain_stars}', file=f)
+    if g_columns is None:
+        print(f'g_cosmic           =   {g_cosmic[0]} {g_cosmic[1]}', file=f)
+    else:
+        print(f'g_cosmic           =    variable', file=f)
+    if contain_stars=='True':
+        star_position_type = configs_dict['star']['position_type']
+        print(f'star_position_type =   {star_position_type}', file=f)
+    f.close()
+    logger.info(f'Setup info saved to {outfile_tmp}')
 
     ## I/O
     ### for images
