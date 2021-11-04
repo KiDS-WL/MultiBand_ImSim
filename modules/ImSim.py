@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-22 16:33:21
+# @Last Modified time: 2021-11-04 17:57:00
 
 ### running module for ImSim
 
@@ -508,7 +508,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         logger.debug(f'Number of running {N_running}')
         if i_worker == N_tasks:
             break
-        elif N_running >= Nmax_proc:
+        elif N_running >= (Nmax_proc-1):
             time.sleep(5.)
         else:
             logger.debug(f'Start worker {i_worker}')
