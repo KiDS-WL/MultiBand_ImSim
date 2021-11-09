@@ -3,6 +3,6 @@ Multiband Image Simulations for KiDS
 
 ## Link to the input catalogues
 
-* [SKiLLS galaxies](https://ftp.strw.leidenuniv.nl/ssli/ImSim_Input/galaxies/SKiLLS/)
-* [Trilegal stars](https://ftp.strw.leidenuniv.nl/ssli/ImSim_Input/stars/trilegal/)
+* [SKiLLS galaxies](https://surfdrive.surf.nl/files/index.php/s/uegK5tc15TbWib7)
+* [Trilegal stars](https://surfdrive.surf.nl/files/index.php/s/dMsqnkeEUFSSLHE)
 
