@@ -114,7 +114,7 @@ def SwarpImage(image_in, swarp_config_file,
             ## update info
             head_tmp['flag_sim'] = 2
     except FileNotFoundError:
-        raise Exception('Cannot find coadded images, something is run with Swarp, check out running_log for Swarp!')
+        raise Exception('Cannot find coadded images, something is wrong with Swarp, check out running_log for Swarp!')
 
     # saving info
     if only_resample:
