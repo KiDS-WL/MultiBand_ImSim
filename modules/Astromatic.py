@@ -108,10 +108,13 @@ def SwarpImage(image_in, swarp_config_file,
         os.rename(os.path.join(RESAMPLE_DIR, basename.replace('.fits', '.resamp.fits')), image_out)
 
     # mark success to the header
-    with fits.open(image_out, mode='update') as hdul:
-        head_tmp = hdul[0].header
-        ## update info
-        head_tmp['flag_sim'] = 2
+    try:
+        with fits.open(image_out, mode='update') as hdul:
+            head_tmp = hdul[0].header
+            ## update info
+            head_tmp['flag_sim'] = 2
+    except FileNotFoundError:
+        raise Exception('Cannot find coadded images, something is run with Swarp, check out running_log for Swarp!')
 
     # saving info
     if only_resample:

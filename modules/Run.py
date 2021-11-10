@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-31 16:14:51
+# @Last Modified time: 2021-11-10 10:37:51
 
 ### main module to run the whole pipeline
 
@@ -310,7 +310,10 @@ if ('2' in taskIDs) or ('all' in taskIDs):
                         image_in = glob.glob(os.path.join(in_dir_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}_expo?.fits'))
                         if not image_in:
                             ## chips
-                            image_in = os.path.join(in_dir_tmp, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', '*.fits')
+                            # image_in = os.path.join(in_dir_tmp, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', '*.fits')
+                            image_in = glob.glob(os.path.join(in_dir_tmp, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', '*.fits'))
+                            ## avoid weight images
+                            image_in = [tmp for tmp in image_in if '.weight.' not in tmp]
 
                     # check weight images
                     if isinstance(image_in, str):
