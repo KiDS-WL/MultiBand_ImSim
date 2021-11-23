@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-31 16:11:18
+# @Last Modified time: 2021-11-19 16:40:29
 
 ### module to generate an example configuration file
 
@@ -338,8 +338,49 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
         ### collect
         configs_dict['MZ'] = MZ_configs
 
+    ## === PSF modelling
+    if ('6_1' in taskIDs) or ('all' in taskIDs):
+        config_PSF = config['PSFmodelling']
+        PSF_method = config_PSF.get('method')
+        PSF_configs = {'method': PSF_method,
+                        'detection_band': config_PSF.get('detection_band'),
+                        'bands': [x.strip() for x in config_PSF.get('band_list').split(',')],
+                        'image_label_list': [x.strip() for x in config_PSF.get('image_label_list').split(',')]}
+
+        if PSF_method.lower() == 'ima2coeffs':
+            config_tmp = config['ima2coeffs']
+            PSF_configs['ima2coeffs_dir'] = config_tmp.get('ima2coeffs_dir')
+
+            ### legitimate check
+            if not os.path.isdir(PSF_configs['ima2coeffs_dir']):
+                tmp = PSF_configs['ima2coeffs_dir']
+                raise Exception(f"ima2coeffs dir {tmp} not found!")
+        
+        elif PSF_method.lower() == 'makeglobalpsf':
+            config_makeglobalpsf = config['makeglobalpsf']
+            PSF_configs['makeglobalpsf_dir'] = config_makeglobalpsf.get('makeglobalpsf_dir')
+            PSF_configs['clean_intermediate'] = config_makeglobalpsf.getboolean('clean_intermediate')
+            PSF_configs['global_order'] = config_makeglobalpsf.get('global_order')
+            PSF_configs['chip_order'] = config_makeglobalpsf.get('chip_order')
+            PSF_configs['snratio'] = config_makeglobalpsf.get('snratio')
+            PSF_configs['start_mag'] = config_makeglobalpsf.get('start_mag')
+            PSF_configs['end_mag'] = config_makeglobalpsf.get('end_mag')
+            PSF_configs['CAMERA'] = config_makeglobalpsf.get('CAMERA').upper()
+            PSF_configs['SWARP_CONFIG'] = config_makeglobalpsf.get('SWARP_CONFIG')
+
+            ### legitimate check
+            if not os.path.isdir(PSF_configs['makeglobalpsf_dir']):
+                tmp = PSF_configs['makeglobalpsf_dir']
+                raise Exception(f"makeglobalpsf dir {tmp} not found!")
+
+        else:
+            raise Exception(f'Unsupported shape measurement method {MS_method}!')
+
+        ### collect
+        configs_dict['PSFmodelling'] = PSF_configs
+
     ## === measure galaxy shapes
-    if ('6' in taskIDs) or ('all' in taskIDs):
+    if ('6_2' in taskIDs) or ('all' in taskIDs):
         config_MS = config['MeasureShape']
         MS_method = config_MS.get('method')
         MS_configs = {'method': MS_method,
@@ -626,9 +667,36 @@ lkl_dz =                 0.01\n\
 lkl_odds =               0.68\n\
 lkl_min_rms =            0.0\n\
 \n\n\
+################################## PSFmodelling #################################################\n\
+[PSFmodelling]\n\n\
+method =                makeglobalpsf          # method for PSF modelling\n\
+                                               # supported method:\n\
+                                               #    makeglobalpsf\n\
+                                               #    ima2coeffs\n\
+detection_band =        r                      # band with detection catalogue\n\
+band_list =             r                      # bands being measured\n\
+image_label_list =      original\n\
+                                               # a list of labels for the image types, can be either:\n\
+                                               #    original (for original simulated images)\n\
+                                               #    any label specified in `swarp_labels`\n\
+\n\n\
+[ima2coeffs]\n\n\
+ima2coeffs_dir =                            # directory containing psfimage2coeffs\n\
+\n\n\
+[makeglobalpsf]\n\n\
+makeglobalpsf_dir =                            # directory containing makeglobalpsf and globalshifts\n\
+clean_intermediate =    true              # clean log files or not\n\
+global_order =          4\n\
+chip_order =            1\n\
+snratio =               20\n\
+start_mag =             18.0\n\
+end_mag =               24.0\n\
+CAMERA =                KIDS\n\
+SWARP_CONFIG =                            # config file for swarp, can be found in lensfit/input_files\n\
+\n\n\
 ################################## MeasureShape #################################################\n\
 [MeasureShape]\n\n\
-method =               lensfit                 # method for galaxy shape measurement\n\
+method =                lensfit                # method for galaxy shape measurement\n\
                                                # supported method:\n\
                                                #    lensfit\n\
 detection_band =        r                      # band with detection catalogue\n\

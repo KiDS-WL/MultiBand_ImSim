@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-11-10 10:37:51
+# @Last Modified time: 2021-11-19 16:41:41
 
 ### main module to run the whole pipeline
 
@@ -25,6 +25,7 @@ from astropy.table import Table
 import BPZ
 import GAaP
 import ImSim
+import PSFmodelling
 import LensFit
 import LoadCata
 import Astromatic
@@ -32,14 +33,14 @@ import CrossMatch
 
 import RunConfigFile
 
-__version__ = "MultiBand_ImSim v0.41"
+__version__ = "MultiBand_ImSim v0.5"
 
 # ++++++++++++++ parser for command-line interfaces
 parser = argparse.ArgumentParser(
     description=f"{__version__}: generate realistic multi-band sky images using galaxy & star mock catalogues.",
     formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument(
-    "taskIDs", nargs="+", type=str, choices=['0', '1', '2', '3', '4', '5', '6', '7', 'all'], metavar='taskIDs',
+    "taskIDs", nargs="+", type=str, choices=['0', '1', '2', '3', '4', '5', '6_1', '6_2', '7', 'all'], metavar='taskIDs',
     help="Select a set of IDs for processes:\n\
     0: generate an example configuration file\n\
     1: simulate images\n\
@@ -47,7 +48,8 @@ parser.add_argument(
     3: detect objects\n\
     4: measure photometry\n\
     5: measure photo-z\n\
-    6: measure shapes\n\
+    6_1: psf modelling\n\
+    6_2: measure shapes\n\
     7: create a combined catalogue\n\
     all: run all tasks in a sequence")
 parser.add_argument(
@@ -679,8 +681,126 @@ if ('5' in taskIDs) or ('all' in taskIDs):
 
     logger.info(f'====== Task 5: measure photo-z === finished in {(time.time()-start_time)/3600.} h ======')
 
-# 6: measure galaxy shapes
-if ('6' in taskIDs) or ('all' in taskIDs):
+# 6_1: PSF modelling
+if ('6_1' in taskIDs) or ('all' in taskIDs):
+    logger.info('====== Task 6_1: PSF modelling === started ======')
+    start_time = time.time()
+
+    # basic info
+    detection_band = configs_dict['PSFmodelling']['detection_band']
+
+    if configs_dict['PSFmodelling']['method'].lower() == 'ima2coeffs':
+        logger.info('Model PSF from PSF image.')
+
+        ## external codes
+        ima2coeffs_dir = configs_dict['PSFmodelling']['ima2coeffs_dir']
+
+        ## work pool
+        logger.info(f'Number of processes for PSF modelling: {Nmax_proc}')
+        work_pool = mp.Pool(processes=Nmax_proc)
+        proc_list = []
+        for i_band, band in enumerate(configs_dict['PSFmodelling']['bands']):
+            logger.info(f'PSF model for band {band}...')
+
+            ima_label = configs_dict['PSFmodelling']['image_label_list'][i_band]
+            in_ima_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], ima_label)
+            varChips = varChips_dic[band]
+
+            for tile_label in tile_labels:
+
+                psf_ima_dir = os.path.join(in_ima_dir_tmp, f'psf_tile{tile_label}_band{band}')
+
+                psf_coeff_dir = os.path.join(in_ima_dir_tmp, f'psf_coeff_tile{tile_label}_band{band}')
+                if os.path.exists(psf_coeff_dir):
+                    shutil.rmtree(psf_coeff_dir)
+                os.mkdir(psf_coeff_dir)
+
+                # run
+                proc = work_pool.apply_async(func=PSFmodelling.ima2coeffsFunc,
+                            args=(ima2coeffs_dir, psf_ima_dir, psf_coeff_dir, varChips))
+                proc_list.append(proc)
+
+        work_pool.close()
+        work_pool.join()
+        ### check for any errors during run
+        for proc in proc_list:
+            proc.get()
+
+    elif configs_dict['PSFmodelling']['method'].lower() == 'makeglobalpsf':
+        logger.info('Model PSF from stars with makeglobalpsf.')
+
+        ## I/O
+        in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
+
+        ## some general parameters
+        makeglobalpsf_dir = configs_dict['PSFmodelling']['makeglobalpsf_dir']
+        makeglobalpsf_clean =  configs_dict['PSFmodelling']['clean_intermediate']
+        SWARP_CONFIG = configs_dict['PSFmodelling']['SWARP_CONFIG']
+        CAMERA = configs_dict['PSFmodelling']['CAMERA']
+        global_order = configs_dict['PSFmodelling']['global_order']
+        chip_order = configs_dict['PSFmodelling']['chip_order']
+        snratio = configs_dict['PSFmodelling']['snratio']
+        start_mag = configs_dict['PSFmodelling']['start_mag']
+        end_mag = configs_dict['PSFmodelling']['end_mag']
+
+        ## log info
+        if running_log:
+            log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'makeglobalpsf')
+            if not os.path.exists(log_dir_tmp):
+                os.mkdir(log_dir_tmp)
+        else:
+            log_dir_tmp = None
+
+        ## work pool
+        logger.info(f'Number of processes for PSF modelling: {Nmax_proc}')
+        work_pool = mp.Pool(processes=Nmax_proc)
+        proc_list = []
+        for i_band, band in enumerate(configs_dict['PSFmodelling']['bands']):
+            logger.info(f'PSF model for band {band}...')
+
+            WAVEBAND = band.upper()
+
+            ima_label = configs_dict['PSFmodelling']['image_label_list'][i_band]
+            in_ima_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], ima_label)
+
+            for tile_label in tile_labels:
+
+                # detection catalogue
+                path_input_cata = os.path.join(in_cata_dir_tmp, f'tile{tile_label}_band{detection_band}_rot0.feather')
+
+                # images
+                chip_dir = os.path.join(in_ima_dir_tmp, f'chips_tile{tile_label}_band{band}_rot0')
+
+                # weight images
+                weight_dir = None
+
+                # outputs
+                psf_coeff_dir = os.path.join(in_ima_dir_tmp, f'psf_coeff_tile{tile_label}_band{band}')
+                if os.path.exists(psf_coeff_dir):
+                    shutil.rmtree(psf_coeff_dir)
+                os.mkdir(psf_coeff_dir)
+
+                # run
+                proc = work_pool.apply_async(func=PSFmodelling.makeglobalpsfFunc,
+                            args=(makeglobalpsf_dir, path_input_cata, 
+                                    chip_dir, psf_coeff_dir,    
+                                    SWARP_CONFIG, CAMERA, WAVEBAND,
+                                    global_order, chip_order, snratio, start_mag, end_mag, 
+                                    weight_dir,
+                                    running_log, log_dir_tmp,
+                                    makeglobalpsf_clean))
+                proc_list.append(proc)
+
+        work_pool.close()
+        work_pool.join()
+        ### check for any errors during run
+        for proc in proc_list:
+            proc.get()
+
+    logger.info(f'====== Task 6_2: PSF modelling === finished in {(time.time()-start_time)/3600.} h ======')
+
+# 6_2: measure galaxy shapes
+if ('6_2' in taskIDs) or ('all' in taskIDs):
     logger.info('====== Task 6: measure galaxy shapes === started ======')
     start_time = time.time()
 
@@ -738,21 +858,22 @@ if ('6' in taskIDs) or ('all' in taskIDs):
 
                 ### data info
                 weight_dir = None
-                psf_dir = os.path.join(in_ima_dir_tmp, f'psf_tile{tile_label}_band{band}')
 
                 ### psf coefficients for lensfit
-                psf_coeff_dir = lensfit.LensfitShape_psf(psf_dir, varChips=varChips)
+                psf_coeff_dir = os.path.join(in_ima_dir_tmp, f'psf_coeff_tile{tile_label}_band{band}')
+                if not os.path.exists(psf_coeff_dir):
+                    raise Exception('no PSF coeff found, please run 6_1 for PSF modelling first!')
 
                 for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
 
                     # output
-                    output_file = f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather'
+                    output_file = f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.feather'
 
                     # detection catalogue
                     path_input_cata = os.path.join(in_cata_dir_tmp, f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
 
                     # images
-                    chip_dir = os.path.join(in_ima_dir_tmp, f'chips_tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}')
+                    chip_dir = os.path.join(in_ima_dir_tmp, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
 
                     # run
                     proc = work_pool.apply_async(func=lensfit.LensfitShape,
@@ -767,7 +888,7 @@ if ('6' in taskIDs) or ('all' in taskIDs):
         for proc in proc_list:
             proc.get()
 
-    logger.info(f'====== Task 6: measure galaxy shapes === finished in {(time.time()-start_time)/3600.} h ======')
+    logger.info(f'====== Task 6_2: measure galaxy shapes === finished in {(time.time()-start_time)/3600.} h ======')
 
 # 7: create a combined catalogue
 if ('7' in taskIDs) or ('all' in taskIDs):

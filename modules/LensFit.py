@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-17 14:17:26
+# @Last Modified time: 2021-11-11 18:08:25
 
 ### Wrapper for lensfit code
 
@@ -78,7 +78,7 @@ class LensFITwrapper(object):
             raise Exception(f'Unsupported CAMERA {CAMERA} for lensfit!')
         for i_expo in range(N_expo):
             for i_chip in range(N_chips):
-                print(f'expo{i_expo}_chip{i_chip}', file=f)
+                print(f'exp{i_expo}chip_{i_chip+1}OFCS', file=f)
         f.close()
         logger.debug(f'input info saved to {self._input_file}')
 
@@ -107,50 +107,19 @@ class LensFITwrapper(object):
                 head_tmp = hdul[0].header
 
                 ## update info
-                head_tmp['IMAGEID'] = int(i_chip)+1
+                head_tmp['IMAGEID'] = int(i_chip)
                 head_tmp['EXPTIME'] = 360
                 head_tmp['GAIN'] = 1
                 head_tmp['SATLEVEL'] = 60000
 
             ## save to head if required
             if head_dir is not None:
-                outpath_tmp = os.path.join(head_dir, f'expo{id_exposure}_chip{i_chip}.head')
+                outpath_tmp = os.path.join(head_dir, f'exp{id_exposure}chip_{i_chip}.head')
                 f = open(outpath_tmp, 'w')
                 for line in head_tmp.cards:
                     print(line, file=f)
                 f.close()
-
-    def LensfitShape_psf(self, psf_dir, varChips=False):
-        """
-        prepare psf polynomial coefficients from psf image
-        """
-
-        psf_coeff_dir = os.path.join(psf_dir, os.path.basename(psf_dir) + '_coeff')
-        if os.path.exists(psf_coeff_dir):
-            shutil.rmtree(psf_coeff_dir)
-        os.mkdir(psf_coeff_dir)
-
-        # psf vary between different chips
-        if varChips:
-            logger.info('PSF varies between chips')
-            psfimage2coeffs_path = self._lensfitDir + '/utils/psf_meimage2coeffs'
-        # psf constant across the field
-        else:
-            logger.info('PSF is constant across the field')
-            psfimage2coeffs_path = self._lensfitDir + '/utils/psfimage2coeffs'
-
-
-        # apply to all the PSF images
-        psf_imas = glob.glob(os.path.join(psf_dir, '*.fits'))
-        for psf_ima in psf_imas:
-            psf_coeff = os.path.join(psf_coeff_dir, os.path.basename(psf_ima).replace('.fits', '.psfcoeffs.fits'))
-            cmd = [psfimage2coeffs_path, psf_ima, psf_coeff]
-            # run
-            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-        logger.info(f'PSF polynomial coefficients saved to {psf_coeff_dir}')
-        return psf_coeff_dir
-
+            
     def LensfitShape(self, output_file,
                         path_input_cata, chip_dir, psf_coeff_dir, weight_dir=None,
                         WAVEBAND='R'):
@@ -191,9 +160,10 @@ class LensFITwrapper(object):
         logger.debug(f'catalogue info saved to {input_cata_path}')
 
         # >>>>>>>>>>>>> 2. prepare headers for lensfit 
-        head_dir = os.path.join(tmp_dir, os.path.basename(chip_dir)+'_head')
-        os.mkdir(head_dir)
-        self._LensfitShape_head(chip_dir, head_dir)
+        head_dir = os.path.join(chip_dir, 'head_info')
+        if not os.path.exists(head_dir):
+            os.mkdir(head_dir)
+            self._LensfitShape_head(chip_dir, head_dir)
 
         # >>>>>>>>>>>>> 3. running lensfit
         ## output

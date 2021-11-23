@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:25:05
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-22 17:31:31
+# @Last Modified time: 2021-11-11 18:04:50
 
 ### Everything about KiDS-like images
 __all__ = ['_PSFNoisySkyImages_KiDS_sameExpo', '_PSFNoisySkyImages_KiDS_singleExpo', '_PSFNoisySkyImages_KiDS_varChips']
@@ -82,12 +82,12 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         raise Exception(f'{band} is not in OmegaCAM! Cannot use KiDS_sameExpo!')
 
     # outpath
-    outpath_image_name_list = [outpath_image_basename + f'_rot{gal_rotation_angle:.0f}_expo{i_expo}.fits'
-                                                                for i_expo in range(n_exposures)]
+    outpath_image_name_list = [outpath_image_basename + f'_rot{gal_rotation_angle:.0f}_expo{id_exposure}.fits'
+                                                                for id_exposure in range(n_exposures)]
 
     if (outpath_PSF_basename is not None):
-        outpath_PSF_name_list = [outpath_PSF_basename + f'_rot{gal_rotation_angle:.0f}_expo{i_expo}.fits'
-                                                                for i_expo in range(n_exposures)]
+        outpath_PSF_name_list = [outpath_PSF_basename + f'_rot{gal_rotation_angle:.0f}_expo{id_exposure}.fits'
+                                                                for id_exposure in range(n_exposures)]
 
     # first check if already exist
     outpath_image_exist_list = np.zeros_like(outpath_image_name_list, dtype=bool)
@@ -141,8 +141,8 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
             PSF = psf_func(*psf_paras)
             psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size)
 
-            for i_expo in range(n_exposures):
-                outpath_tmp = os.path.join(psf_dir_tmp, f'expo{i_expo}.fits')
+            for id_exposure in range(n_exposures):
+                outpath_tmp = os.path.join(psf_dir_tmp, f'expo{id_exposure}.fits')
                 psf_ima.write(outpath_tmp)
             logger.info(f'PSF images saved to {psf_dir_tmp}')
 
@@ -154,7 +154,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                 id_exposure = int(re.search(r'_expo(\d+)', outpath_image_name).group(1))
 
                 chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
-                n_files = len(glob.glob(os.path.join(chip_dir_tmp, f'expo{id_exposure}_chip*.fits')))
+                n_files = len(glob.glob(os.path.join(chip_dir_tmp, f'exp{id_exposure}chip_*.fits')))
                 if n_files == 32:
                     logger.info(f'chips already exist for rot{gal_rotation_angle:.0f} expo{id_exposure}.')
                 else:
@@ -162,7 +162,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                     image_chips = KiDSModule.cutKiDSchips(image_tile)
 
                     for i_chip, image_chip in enumerate(image_chips):
-                        outpath_tmp = os.path.join(chip_dir_tmp, f'expo{id_exposure}_chip{i_chip}.fits')
+                        outpath_tmp = os.path.join(chip_dir_tmp, f'exp{id_exposure}chip_{i_chip+1}OFCS.fits')
                         image_chip.write(outpath_tmp)
                     logger.info(f'Image chips saved to {chip_dir_tmp} for expo{id_exposure}.')
 
@@ -175,8 +175,8 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
     PSF = psf_func(*psf_paras)
 
     # +++ background noise
-    noise_list = [NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle+94*i_expo))
-                                                        for i_expo in range(n_exposures)]
+    noise_list = [NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle+94*id_exposure))
+                                                        for id_exposure in range(n_exposures)]
 
     # +++ PSF map
     if (False in outpath_PSF_exist_list):
@@ -265,7 +265,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                     image_chips = KiDSModule.cutKiDSchips(image_tile)
                     chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
                     for i_chip, image_chip in enumerate(image_chips):
-                        outpath_tmp = os.path.join(chip_dir_tmp, f'expo{id_exposure}_chip{i_chip}.fits')
+                        outpath_tmp = os.path.join(chip_dir_tmp, f'exp{id_exposure}chip_{i_chip+1}OFCS.fits')
                         image_chip.write(outpath_tmp)
                     logger.info(f'Image chips saved to {chip_dir_tmp} for exposure {id_exposure}.')
 
@@ -288,11 +288,11 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         outpath_PSF_basename, N_PSF, sep_PSF,
         save_image_PSF, image_PSF_size,
         outpath_dir,
-        i_expo,
+        id_exposure,
         gal_position_type,
         g_const) = para_list
 
-    logger.info(f'Simulating KiDS exposure for tile {tile_label} band {band} expo {i_expo} rot {gal_rotation_angle}...')
+    logger.info(f'Simulating KiDS exposure for tile {tile_label} band {band} expo {id_exposure} rot {gal_rotation_angle}...')
 
     # PSF profiles
     if psf_info[0].lower() == 'moffat':
@@ -316,11 +316,11 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         psf_func = PSFModule.AiryPSF
 
     # outpath
-    outpath_image_name_list = [os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', f'expo{i_expo}_chip{i_chip}.fits')
+    outpath_image_name_list = [os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', f'exp{id_exposure}chip_{i_chip+1}OFCS.fits')
                                 for i_chip in range(32)]
 
     if (outpath_PSF_basename is not None):
-        outpath_PSF_name = outpath_PSF_basename + f'_rot{gal_rotation_angle:.0f}_expo{i_expo}.fits'
+        outpath_PSF_name = outpath_PSF_basename + f'_rot{gal_rotation_angle:.0f}_expo{id_exposure}.fits'
 
     # first check if already exist
     outpath_image_exist_list = np.zeros_like(outpath_image_name_list, dtype=bool)
@@ -360,7 +360,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
     ### different rotation has same psf, so only make once
     if (save_image_PSF) and (gal_rotation_angle==0.):
         psf_dir_tmp = os.path.join(outpath_dir, f'psf_tile{tile_label}_band{band}')
-        psf_ima_file_tmp = os.path.join(psf_dir_tmp, f'expo{i_expo}.fits')
+        psf_ima_file_tmp = os.path.join(psf_dir_tmp, f'expo{id_exposure}.fits')
         if os.path.isfile(psf_ima_file_tmp):
             logger.info('PSF image already exist.')
         else:
@@ -378,7 +378,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
     PSF = psf_func(*psf_paras)
 
     # +++ background noise
-    noise = NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle+94*i_expo))
+    noise = NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle+94*id_exposure))
 
     # +++ PSF map
     if (not outpath_PSF_exist):
@@ -407,7 +407,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         DEC_gals = gals_info_band['DEC'] # degree
         RA0 = (np.max(RA_gals) + np.min(RA_gals))/2.
         DEC0 = (np.max(DEC_gals) + np.min(DEC_gals))/2.
-        canvases_list = KiDSModule.getKiDScanvases(RA0, DEC0, id_exposure=i_expo)
+        canvases_list = KiDSModule.getKiDScanvases(RA0, DEC0, id_exposure=id_exposure)
         del RA0, DEC0
 
         # all desired images
@@ -417,7 +417,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
                 outpath_image_name = outpath_image_name_list[i_ima]
 
                 # chip id
-                i_chip = int(re.search(r'_chip(\d+)', outpath_image_name).group(1))
+                i_chip = int(re.search(r'chip_(\d+)', outpath_image_name).group(1)) - 1
                 ## get the canvas accordingly
                 canvas = canvases_list[i_chip]
 
@@ -445,7 +445,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
                     ## update info
                     head_tmp['flag_sim'] = 1
 
-    logger.info(f'Finished for tile {tile_label} band {band} expo {i_expo} rot {gal_rotation_angle}...')
+    logger.info(f'Finished for tile {tile_label} band {band} expo {id_exposure} rot {gal_rotation_angle}...')
     return 0
 
 def _PSFNoisySkyImages_KiDS_varChips(para_list):
@@ -464,10 +464,10 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
         outpath_PSF_basename, N_PSF, sep_PSF,
         save_image_PSF, image_PSF_size,
         outpath_dir,
-        i_expo,
+        id_exposure,
         gal_position_type,
         g_const) = para_list
-    logger.info(f'Simulating KiDS exposure with varChips for tile {tile_label} band {band} expo {i_expo} rot {gal_rotation_angle}...')
+    logger.info(f'Simulating KiDS exposure with varChips for tile {tile_label} band {band} expo {id_exposure} rot {gal_rotation_angle}...')
 
     # PSF profiles
     if psf_info_chips[0].lower() == 'moffat':
@@ -512,7 +512,7 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
         del lam_chips, diam_chips, obscuration_chips, psf_e_chips, psf_info_chips
 
     # outpath
-    outpath_image_name_list = [os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', f'expo{i_expo}_chip{i_chip}.fits')
+    outpath_image_name_list = [os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', f'exp{id_exposure}chip_{i_chip+1}OFCS.fits')
                                 for i_chip in range(32)]
 
     if (outpath_PSF_basename is not None):
@@ -539,7 +539,7 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
     ### different rotation has same psf, so only make once
     if (save_image_PSF) and (gal_rotation_angle==0.):
         psf_dir_tmp = os.path.join(outpath_dir, f'psf_tile{tile_label}_band{band}')
-        psf_ima_file_tmp = os.path.join(psf_dir_tmp, f'expo{i_expo}.fits')
+        psf_ima_file_tmp = os.path.join(psf_dir_tmp, f'expo{id_exposure}.fits')
         if os.path.isfile(psf_ima_file_tmp):
             logger.info(f'PSF image already exist.')
         else:
@@ -569,7 +569,7 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
 
     # +++ background noise 
     ## same for all chips
-    noise = NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle+94*i_expo))
+    noise = NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle+94*id_exposure))
 
     # +++ sky image
     if (False in outpath_image_exist_list):
@@ -579,7 +579,7 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
         DEC_gals = gals_info_band['DEC'] # degree
         RA0 = (np.max(RA_gals) + np.min(RA_gals))/2.
         DEC0 = (np.max(DEC_gals) + np.min(DEC_gals))/2.
-        canvases_list = KiDSModule.getKiDScanvases(RA0, DEC0, id_exposure=i_expo)
+        canvases_list = KiDSModule.getKiDScanvases(RA0, DEC0, id_exposure=id_exposure)
         del RA0, DEC0
 
         # all desired images
@@ -589,7 +589,7 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
                 outpath_image_name = outpath_image_name_list[i_ima]
 
                 # chip id
-                i_chip = int(re.search(r'_chip(\d+)', outpath_image_name).group(1))
+                i_chip = int(re.search(r'chip_(\d+)', outpath_image_name).group(1)) - 1
 
                 # get the canvas accordingly
                 canvas = canvases_list[i_chip]
@@ -622,5 +622,5 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
                     ## update info
                     head_tmp['flag_sim'] = 1
 
-    logger.info(f'Finished for tile {tile_label} band {band} expo {i_expo} rot {gal_rotation_angle}...')
+    logger.info(f'Finished for tile {tile_label} band {band} expo {id_exposure} rot {gal_rotation_angle}...')
     return 0
