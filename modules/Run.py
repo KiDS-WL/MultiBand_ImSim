@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-11-19 16:41:41
+# @Last Modified time: 2021-11-29 12:40:21
 
 ### main module to run the whole pipeline
 
@@ -33,7 +33,7 @@ import CrossMatch
 
 import RunConfigFile
 
-__version__ = "MultiBand_ImSim v0.5"
+__version__ = "MultiBand_ImSim v0.6"
 
 # ++++++++++++++ parser for command-line interfaces
 parser = argparse.ArgumentParser(
@@ -132,61 +132,31 @@ configs_dict = RunConfigFile.ParseConfig(config_file, taskIDs, run_tag, running_
 # # ++++++++++++++ Running tasks
 start_time0 = time.time()
 
-# load noise info
-
-### survey specified
-if configs_dict['imsim']['survey'].lower() == 'kids':
-
-    # diffexpo ?
-    multiple_exposures_list = [x.lower()=='diffexpo' for x in configs_dict['imsim']['image_type_list']]
-    ## KiDS u only 4 exposures
-    N_exposures_list = [4 if x=='u' else 5 for x in configs_dict['imsim']['bands']]
-
-    # varChips ?
-    varChips_list = [x.lower()=='varchips' for x in configs_dict['imsim']['image_type_list']]
-    N_chips_list = [32] * len(varChips_list)
-
-else:
-    multiple_exposures_list = None
-    N_exposures_list = None
-    varChips_list = None
-    N_chips_list = None
-
-### noise and psf info
-###### >>> for old versions
-try:
-    noise_psf_basenames = configs_dict['noise']['noise_psf_basenames']
-    label_basename = None 
-    noise_basenames = None
-    psf_basenames = None
-    id_basenames = None
-
-###### >>> new version
-except KeyError:
-    noise_psf_basenames = None
-    label_basename = configs_dict['noise']['label_basename'] 
-    noise_basenames = configs_dict['noise']['noise_basenames']
-    psf_basenames = configs_dict['noise']['psf_basenames']
-    id_basenames = configs_dict['noise']['id_basenames']
-
-### load from file
-noise_info = LoadCata.NoiseInfo(configs_dict['noise']['file'], configs_dict['imsim']['bands'], 
-                psf_type=configs_dict['noise']['psf_type'],
-                noise_psf_basenames=noise_psf_basenames,
-                label_basename=label_basename, noise_basenames=noise_basenames, psf_basenames=psf_basenames, id_basenames=id_basenames,
-                multiple_exposures_list=multiple_exposures_list, N_exposures_list=N_exposures_list, 
-                file4varChips=configs_dict['noise']['file4varChips'], varChips_list=varChips_list, N_chips_list=N_chips_list)    
-
 # varChips dictionary 
 varChips_dic = {}
 for i_band, band in enumerate(configs_dict['imsim']['bands']):
     varChips = (configs_dict['imsim']['image_type_list'][i_band].lower()=='varchips')
     varChips_dic[band] = varChips
 
-# tile label list
-tile_labels = noise_info['label'].to_list()
+# number of tiles required
 N_tiles = configs_dict['imsim']['N_tiles']
+logger.info(f'Number of tiles: {N_tiles}')
+
+# tile label list
+### noise and psf info
+###### >>> for old versions
+try:
+    noise_psf_basenames = configs_dict['noise']['noise_psf_basenames']
+    label_basename = None 
+###### >>> new version
+except KeyError:
+    noise_psf_basenames = None
+    label_basename = configs_dict['noise']['label_basename'] 
+tile_labels = LoadCata.NoiseInfo(configs_dict['noise']['file'], configs_dict['imsim']['bands'],
+                    only_labels=True,
+                    noise_psf_basenames=noise_psf_basenames, label_basename=label_basename)
 tile_labels = tile_labels[:N_tiles]
+logger.info(f'Targeted tiles: {tile_labels}')
 
 # 1: simulate images
 if ('1' in taskIDs) or ('all' in taskIDs):
@@ -224,6 +194,50 @@ if ('1' in taskIDs) or ('all' in taskIDs):
     if not os.path.exists(outcata_dir_tmp):
         os.mkdir(outcata_dir_tmp)
 
+    ## load noise info
+    ### survey specified
+    if configs_dict['imsim']['survey'].lower() == 'kids':
+        # diffexpo ?
+        multiple_exposures_list = [x.lower()=='diffexpo' for x in configs_dict['imsim']['image_type_list']]
+        ## KiDS u only 4 exposures
+        N_exposures_list = [4 if x=='u' else 5 for x in configs_dict['imsim']['bands']]
+        # varChips ?
+        varChips_list = [x.lower()=='varchips' for x in configs_dict['imsim']['image_type_list']]
+        N_chips_list = [32] * len(varChips_list)
+    else:
+        multiple_exposures_list = None
+        N_exposures_list = None
+        varChips_list = None
+        N_chips_list = None
+    ### noise and psf info
+    ###### >>> for old versions
+    try:
+        noise_psf_basenames = configs_dict['noise']['noise_psf_basenames']
+        label_basename = None 
+        noise_basenames = None
+        psf_basenames_moffat = None
+        psf_basenames_airy = None
+        id_basenames = None
+    ###### >>> new version
+    except KeyError:
+        noise_psf_basenames = None
+        label_basename = configs_dict['noise']['label_basename'] 
+        noise_basenames = configs_dict['noise']['noise_basenames']
+        psf_basenames_moffat = configs_dict['noise']['psf_basenames_moffat']
+        psf_basenames_airy = configs_dict['noise']['psf_basenames_airy']
+        id_basenames = configs_dict['noise']['id_basenames']
+    ### get info
+    noise_info = LoadCata.NoiseInfo(configs_dict['noise']['file'], configs_dict['imsim']['bands'], 
+                    only_labels=False,
+                    psf_type_list=configs_dict['noise']['psf_type_list'],
+                    noise_psf_basenames=noise_psf_basenames,
+                    label_basename=label_basename, noise_basenames=noise_basenames, 
+                    psf_basenames_moffat=psf_basenames_moffat, psf_basenames_airy=psf_basenames_airy, 
+                    id_basenames=id_basenames,
+                    multiple_exposures_list=multiple_exposures_list, N_exposures_list=N_exposures_list, 
+                    file4varChips=configs_dict['noise']['file4varChips'], varChips_list=varChips_list, N_chips_list=N_chips_list,
+                    psf_PixelIma_dir=configs_dict['noise']['psf_PixelIma_dir'])    
+
     ## load galaxy info
     gals_info = LoadCata.GalInfo(configs_dict['gal']['file'], configs_dict['imsim']['bands'],
                         configs_dict['gal']['id_name'], configs_dict['gal']['detection_mag_name'], configs_dict['gal']['mag_name_list'],
@@ -255,7 +269,8 @@ if ('1' in taskIDs) or ('all' in taskIDs):
                                             stars_area=star_area, stars_info=stars_info, star_position_type=star_position_type,
                                             PSF_map=configs_dict['imsim']['PSF_map'], N_PSF=100, sep_PSF=120,
                                             image_chips=configs_dict['imsim']['image_chips'], image_PSF=[configs_dict['imsim']['image_PSF'], configs_dict['imsim']['image_PSF_size']],
-                                            psf_type=configs_dict['noise']['psf_type'])
+                                            psf_type_list=configs_dict['noise']['psf_type_list'])
+    del noise_info, gals_info, stars_info
 
     logger.info(f'====== Task 1: simulate images === finished in {(time.time()-start_time)/3600.} h ======')
 
@@ -317,6 +332,13 @@ if ('2' in taskIDs) or ('all' in taskIDs):
                             ## avoid weight images
                             image_in = [tmp for tmp in image_in if '.weight.' not in tmp]
 
+                    # check exsitence
+                    if isinstance(image_in, str) and (not os.path.isfile(image_in)):
+                        raise Exception(f'{image_in} not found, make sure image is successfully simulated!')
+                    elif (not image_in):
+                        raise Exception(f'No images found for tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}, \n\
+                                make sure images are successfully simulated!')
+
                     # check weight images
                     if isinstance(image_in, str):
                         if os.path.isfile(image_in.replace('.fits', '.weight.fits')):
@@ -372,17 +394,19 @@ if ('3' in taskIDs) or ('all' in taskIDs):
     logger.info(f'image type: {image_label}')
     ### seeing info
     ###### only matters for CLASS_STAR classifier
-    try:
-        SeeingFWHM_list = noise_info[f'seeing_{detection_band}'].to_list()
-    except KeyError:
-        try:
-            SeeingFWHM_list = noise_info[f'seeing_{detection_band}_expo0'].to_list()
-        except KeyError:
-            try:
-                SeeingFWHM_list = noise_info[f'seeing_{detection_band}_expo0_chip0'].to_list()
-            except KeyError:
-                SeeingFWHM_list = [1.0] * N_tiles
-                logger.warning('seeing not found in noise info, do NOT trust CLASS_STAR!')
+    # try:
+    #     SeeingFWHM_list = noise_info[f'seeing_{detection_band}'].to_list()
+    # except KeyError:
+    #     try:
+    #         SeeingFWHM_list = noise_info[f'seeing_{detection_band}_expo0'].to_list()
+    #     except KeyError:
+    #         try:
+    #             SeeingFWHM_list = noise_info[f'seeing_{detection_band}_expo0_chip0'].to_list()
+    #         except KeyError:
+    #             SeeingFWHM_list = [1.0] * N_tiles
+    #             logger.warning('seeing not found in noise info, do NOT trust CLASS_STAR!')
+    SeeingFWHM_list = [1.0] * N_tiles
+    logger.warning('seeing not used in SExtractor, do NOT trust CLASS_STAR!')
 
     SeeingFWHM_list = SeeingFWHM_list[:N_tiles]
 
@@ -797,11 +821,11 @@ if ('6_1' in taskIDs) or ('all' in taskIDs):
         for proc in proc_list:
             proc.get()
 
-    logger.info(f'====== Task 6_2: PSF modelling === finished in {(time.time()-start_time)/3600.} h ======')
+    logger.info(f'====== Task 6_1: PSF modelling === finished in {(time.time()-start_time)/3600.} h ======')
 
 # 6_2: measure galaxy shapes
 if ('6_2' in taskIDs) or ('all' in taskIDs):
-    logger.info('====== Task 6: measure galaxy shapes === started ======')
+    logger.info('====== Task 6_2: measure galaxy shapes === started ======')
     start_time = time.time()
 
     # basic info

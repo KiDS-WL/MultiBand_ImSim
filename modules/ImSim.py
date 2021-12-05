@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-11-11 17:12:19
+# @Last Modified time: 2021-11-26 10:01:24
 
 ### running module for ImSim
 
@@ -33,20 +33,27 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                             stars_area=None, stars_info=None, star_position_type='random',
                                             PSF_map=[], N_PSF=100, sep_PSF=120,
                                             image_chips=None, image_PSF=None,
-                                            psf_type='moffat'):
+                                            psf_type_list=['moffat']):
     '''
     Run ImSim for multi-tile of mutli-band with parallel process.
         Support extending input catalogues
         Simulate tiles with 1sqdeg
     '''
+
+    # due to compatibility
+    if len(psf_type_list) != len(bands):
+        psf_type_list *= len(bands)
+
+    # basic info
     logger.info('Running ImSim pipeline...')
     logger.info(f'Survey: {survey}')
-    logger.info(f'Number of tiles: {N_tiles}')
+    contain_stars = 'yes' if (stars_info is not None) else 'no' 
+    logger.info(f'Contain stars: {contain_stars}')
+    del contain_stars
     logger.info(f'Bands: {bands}')
     logger.info(f'Pixel scales: {pixel_scale_list}')
     logger.info(f'Image types: {image_type_list}')
-    logger.info(f'PSF profile: {psf_type}')
-    logger.info(f'Maximum number of processes: {Nmax_proc}')
+    logger.info(f'PSF profiles: {psf_type_list}')
 
     # constant shear or variable
     if 'gamma1' in gals_info.columns:
@@ -139,7 +146,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             logger.warning(f'repeating patterns started from tile {tile_label}')
 
         # rng seed associated with tile labels
-        rng_seed_tile = rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=np.int).sum()*1000000
+        rng_seed_tile = rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=int).sum()*1000000
         rng_seed_list.append(rng_seed_tile)
 
         ## output noise info
@@ -287,6 +294,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
             pixel_scale = pixel_scale_list[i_band]
             image_type = image_type_list[i_band]
+            psf_type = psf_type_list[i_band]
 
             # save image chips or not
             if image_chips is not None:
@@ -356,22 +364,29 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                         rms = noise_info_tile[f'rms_{band}_expo{i_expo}']
                         # psf is different
                         ## psf profiles
-                        if psf_type.lower() == 'moffat':
-                            seeing_chips = [noise_info_tile[f'seeing_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
-                            beta_chips = [noise_info_tile[f'beta_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
-                            psf_info_chips = [psf_type, seeing_chips, beta_chips]
-                            del seeing_chips, beta_chips
-                        elif psf_type.lower() == 'airy':
-                            lam_chips = [noise_info_tile[f'lam_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
-                            diam_chips = [noise_info_tile[f'diam_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
-                            obscuration_chips = [noise_info_tile[f'obscuration_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
-                            psf_info_chips = [psf_type, lam_chips, diam_chips, obscuration_chips]
-                            del lam_chips, diam_chips, obscuration_chips
-                        ## psf e
-                        psf_e_chips = [[noise_info_tile[f'psf_e1_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)], 
-                                            [noise_info_tile[f'psf_e2_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]]
-                        psf_info_chips.append(psf_e_chips)
-                        del psf_e_chips
+                        if psf_type.lower() == 'pixelima':
+                            fits_chips = [os.path.join(noise_info_tile[f'PixelIma_dir_{band}'], 
+                                                    f'psfIma_exp{i_expo}_chip{i_chip+1}.fits') 
+                                            for i_chip in range(32)]
+                            psf_info_chips = [psf_type, fits_chips]
+                            del fits_chips
+                        else:
+                            if psf_type.lower() == 'moffat':
+                                seeing_chips = [noise_info_tile[f'seeing_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
+                                beta_chips = [noise_info_tile[f'beta_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
+                                psf_info_chips = [psf_type, seeing_chips, beta_chips]
+                                del seeing_chips, beta_chips
+                            elif psf_type.lower() == 'airy':
+                                lam_chips = [noise_info_tile[f'lam_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
+                                diam_chips = [noise_info_tile[f'diam_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
+                                obscuration_chips = [noise_info_tile[f'obscuration_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
+                                psf_info_chips = [psf_type, lam_chips, diam_chips, obscuration_chips]
+                                del lam_chips, diam_chips, obscuration_chips
+                            ## psf e
+                            psf_e_chips = [[noise_info_tile[f'psf_e1_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)], 
+                                                [noise_info_tile[f'psf_e2_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]]
+                            psf_info_chips.append(psf_e_chips)
+                            del psf_e_chips
 
                         # collected parameters
                         ## rotations simulated separately
@@ -416,22 +431,27 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                         rms = noise_info_tile[f'rms_{band}_expo{i_expo}']
 
                         # psf profiles
-                        if psf_type.lower() == 'moffat':
-                            seeing = noise_info_tile[f'seeing_{band}_expo{i_expo}']
-                            beta = noise_info_tile[f'beta_{band}_expo{i_expo}']
-                            psf_info = [psf_type, seeing, beta]
-                            del seeing, beta
-                        elif psf_type.lower() == 'airy':
-                            lam = noise_info_tile[f'lam_{band}_expo{i_expo}']
-                            diam = noise_info_tile[f'diam_{band}_expo{i_expo}']
-                            obscuration = noise_info_tile[f'obscuration_{band}_expo{i_expo}']
-                            psf_info = [psf_type, lam, diam, obscuration]
-                            del lam, diam, obscuration
-
-                        # psf e
-                        psf_e = [noise_info_tile[f'psf_e1_{band}_expo{i_expo}'], noise_info_tile[f'psf_e2_{band}_expo{i_expo}']]
-                        psf_info.append(psf_e)
-                        del psf_e
+                        if psf_type.lower() == 'pixelima':
+                            fits_exp = os.path.join(noise_info_tile[f'PixelIma_dir_{band}'], 
+                                                    f'psfIma_exp{i_expo}.fits') 
+                            psf_info = [psf_type, fits_exp]
+                            del fits_exp
+                        else:
+                            if psf_type.lower() == 'moffat':
+                                seeing = noise_info_tile[f'seeing_{band}_expo{i_expo}']
+                                beta = noise_info_tile[f'beta_{band}_expo{i_expo}']
+                                psf_info = [psf_type, seeing, beta]
+                                del seeing, beta
+                            elif psf_type.lower() == 'airy':
+                                lam = noise_info_tile[f'lam_{band}_expo{i_expo}']
+                                diam = noise_info_tile[f'diam_{band}_expo{i_expo}']
+                                obscuration = noise_info_tile[f'obscuration_{band}_expo{i_expo}']
+                                psf_info = [psf_type, lam, diam, obscuration]
+                                del lam, diam, obscuration
+                            ## psf e
+                            psf_e = [noise_info_tile[f'psf_e1_{band}_expo{i_expo}'], noise_info_tile[f'psf_e2_{band}_expo{i_expo}']]
+                            psf_info.append(psf_e)
+                            del psf_e
 
                         # collected parameters
                         ## rotations simulated separately
@@ -458,22 +478,27 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                 rms = noise_info_tile[f'rms_{band}']
 
                 # psf profiles
-                if psf_type.lower() == 'moffat': 
-                    seeing = noise_info_tile[f'seeing_{band}']
-                    beta = noise_info_tile[f'beta_{band}']
-                    psf_info = [psf_type, seeing, beta]
-                    del seeing, beta
-                elif psf_type.lower() == 'airy':
-                    lam = noise_info_tile[f'lam_{band}']
-                    diam = noise_info_tile[f'diam_{band}']
-                    obscuration = noise_info_tile[f'obscuration_{band}']
-                    psf_info = [psf_type, lam, diam, obscuration]
-                    del lam, diam, obscuration
-
-                # psf e
-                psf_e = [noise_info_tile[f'psf_e1_{band}'], noise_info_tile[f'psf_e2_{band}']]
-                psf_info.append(psf_e)
-                del psf_e
+                if psf_type.lower() == 'pixelima':
+                    fits_tile = os.path.join(noise_info_tile[f'PixelIma_dir_{band}'], 
+                                            f'psfIma.fits') 
+                    psf_info = [psf_type, fits_tile]
+                    del fits_tile
+                else:
+                    if psf_type.lower() == 'moffat': 
+                        seeing = noise_info_tile[f'seeing_{band}']
+                        beta = noise_info_tile[f'beta_{band}']
+                        psf_info = [psf_type, seeing, beta]
+                        del seeing, beta
+                    elif psf_type.lower() == 'airy':
+                        lam = noise_info_tile[f'lam_{band}']
+                        diam = noise_info_tile[f'diam_{band}']
+                        obscuration = noise_info_tile[f'obscuration_{band}']
+                        psf_info = [psf_type, lam, diam, obscuration]
+                        del lam, diam, obscuration
+                    ## psf e
+                    psf_e = [noise_info_tile[f'psf_e1_{band}'], noise_info_tile[f'psf_e2_{band}']]
+                    psf_info.append(psf_e)
+                    del psf_e
 
                 # collected parameters
                 ## rotations simulated separately

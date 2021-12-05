@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-11-26 16:03:10
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-09-07 14:37:09
+# @Last Modified time: 2021-11-24 18:10:20
 
 ### Everything about celestial objects
 
@@ -65,7 +65,8 @@ def SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale, edge_sep=18.):
 
 def GalaxiesImage(canvas, band, pixel_scale, PSF,
                     gals_info, gal_rotation_angle=0., g_cosmic=[0, 0], gal_position_type=['true', 18.],
-                    g_const=True):
+                    g_const=True, 
+                    pixelPSF=False):
     """
     Generate pure sky image with only galaxies
 
@@ -89,6 +90,8 @@ def GalaxiesImage(canvas, band, pixel_scale, PSF,
         galaxies position type, mainly useful for grid case.
     g_const : bool, optional (default: True)
         useing constant shear or variable ones
+    pixelPSF : bool, optional (default: False)
+        if the PSF provided already including pixel response
 
     Returns
     -------
@@ -136,8 +139,8 @@ def GalaxiesImage(canvas, band, pixel_scale, PSF,
         x_gal = x_gals[i_gal] + 0.5
         y_gal = y_gals[i_gal] + 0.5
         ## to int
-        ix_gal = int(x_gal)
-        iy_gal = int(y_gal)
+        ix_gal = int(math.floor(x_gal + 0.5))
+        iy_gal = int(math.floor(y_gal + 0.5))
         ## offset
         dx = x_gal - ix_gal
         dy = y_gal - iy_gal
@@ -211,11 +214,15 @@ def GalaxiesImage(canvas, band, pixel_scale, PSF,
         galaxy = galsim.Convolve(galaxy, PSF)
 
         # draw image
+        if pixelPSF:
+            draw_method = 'no_pixel'
+        else:
+            draw_method = 'auto'
         if gal_position_type[0] == 'grid':
             canvas_stamp = galsim.ImageF(bounds=bounds_stamp, scale=pixel_scale)
-            stamp_gal = galaxy.drawImage(image=canvas_stamp, offset=offset_gal)
+            stamp_gal = galaxy.drawImage(image=canvas_stamp, offset=offset_gal, method=draw_method)
         else:
-            stamp_gal = galaxy.drawImage(scale=pixel_scale, offset=offset_gal)
+            stamp_gal = galaxy.drawImage(scale=pixel_scale, offset=offset_gal, method=draw_method)
 
         # locate the stamp
         stamp_gal.setCenter(ix_gal, iy_gal)
@@ -227,7 +234,8 @@ def GalaxiesImage(canvas, band, pixel_scale, PSF,
     return full_image
 
 def StarsImage(canvas, band, pixel_scale, PSF,
-                    stars_info):
+                    stars_info, 
+                    pixelPSF=False):
     """
     Generate pure sky image with only stars
 
@@ -243,6 +251,8 @@ def StarsImage(canvas, band, pixel_scale, PSF,
         PSF model.
     stars_info : DataFrame
         Stars information.
+    pixelPSF : bool, optional (default: False)
+        if the PSF provided already including pixel response
 
     Returns
     -------
@@ -285,8 +295,8 @@ def StarsImage(canvas, band, pixel_scale, PSF,
         x_star = x_stars[i_star] + 0.5
         y_star = y_stars[i_star] + 0.5
         ## to int
-        ix_star = int(x_star)
-        iy_star = int(y_star)
+        ix_star = int(math.floor(x_star + 0.5))
+        iy_star = int(math.floor(y_star + 0.5))
         ## offset
         dx = x_star - ix_star
         dy = y_star - iy_star
@@ -295,11 +305,16 @@ def StarsImage(canvas, band, pixel_scale, PSF,
         # flux
         flux_star = star_info[band]
 
-        # draw star
-        star = flux_star * PSF
+        # generate star
+        # star = PSF.withFlux(flux_star)
+        star = galsim.Convolve(galsim.DeltaFunction(flux=flux_star), PSF)
 
         ## draw stamp
-        stamp_star = star.drawImage(scale=pixel_scale, offset=offset_star)
+        if pixelPSF:
+            draw_method = 'no_pixel'
+        else:
+            draw_method = 'auto'
+        stamp_star = star.drawImage(scale=pixel_scale, offset=offset_star, method=draw_method)
 
         # position the stamp
         stamp_star.setCenter(ix_star, iy_star)

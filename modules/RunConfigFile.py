@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-11-19 16:40:29
+# @Last Modified time: 2021-11-25 16:43:13
 
 ### module to generate an example configuration file
 
@@ -70,103 +70,6 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                     'cata': cata_dir,
                     'log': log_dir}
 
-    ## === b. galaxy info
-    try:
-        config_gal = config['GalInfo']
-        gal_configs = {'file': config_gal.get('cata_file'),
-                        'position_type': config_gal.get('position_type'),
-                        'mag_cut': [float(i_p.strip()) for i_p in config_gal.get('mag_cut').split(',')],
-                        'size_cut': [float(i_p.strip()) for i_p in config_gal.get('Re_cut').split(',')],
-                        'id_name': config_gal.get('id_name'),
-                        'detection_mag_name': config_gal.get('detection_mag_name'),
-                        'mag_name_list': [x.strip() for x in config_gal.get('mag_name_list').split(',')],
-                        'RaDec_names': [x.strip() for x in config_gal.get('RaDec_names').split(',')],
-                        'shape_names': [x.strip() for x in config_gal.get('shape_names').split(',')],
-                        'z_name': config_gal.get('z_name')}
-
-        ### grid size 
-        grid_size = config_gal.get('grid_size')
-        if not grid_size:
-            gal_configs['grid_size'] = float(grid_size)
-        else:
-            gal_configs['grid_size'] = 18 #arcsec
-
-        ### check existence
-        if not os.path.isfile(gal_configs['file']):
-            tmp = gal_configs['file']
-            raise Exception(f"galaxies file {tmp} not found!")
-
-    except KeyError:
-        gal_configs = {'file': None}
-        logger.warning('No GalInfo provided, cannot simulate any images!')
-
-    ## === c. star info
-    try:
-        config_star = config['StarInfo']
-        star_file = config_star.get('cata_file')
-
-        if star_file:
-
-            ### check existence
-            if not os.path.isfile(star_file):
-                raise Exception(f"star file {star_file} not found!")
-
-            star_configs = {'file': star_file,
-                            'cata_area': config_star.getfloat('cata_area'),
-                            'position_type': config_star.get('position_type'),
-                            'mag_cut': [float(i_p.strip()) for i_p in config_star.get('mag_cut').split(',')],
-                            'id_name': config_star.get('id_name'),
-                            'detection_mag_name': config_star.get('detection_mag_name'),
-                            'mag_name_list': [x.strip() for x in config_star.get('mag_name_list').split(',')],
-                            'RaDec_names': [x.strip() for x in config_star.get('RaDec_names').split(',')] if (config_star.get('position_type') == 'true') else None}
-
-        else:
-            star_configs = {'file': None}
-
-    except KeyError:
-        star_configs = {'file': None}
-        logger.warning('No StarInfo provided, will not contain any stars!')
-
-    ## === d. noise info
-    config_noise = config['NoiseInfo']
-    noise_configs = {'file': config_noise.get('cata_file'),
-                    'file4varChips': config_noise.get('file4varChips')}
-
-    ### check existence
-    if not os.path.isfile(noise_configs['file']):
-        tmp = noise_configs['file']
-        raise Exception(f"noise file {tmp} not found!")
-    if (noise_configs['file4varChips']) and (not os.path.isfile(noise_configs['file4varChips'])):
-        tmp = noise_configs['file4varChips']
-        raise Exception(f"separate psf file {tmp} not found!")
-
-    ### psf profile type 
-    psf_type = config_noise.get('psf_type')
-    if psf_type:
-        noise_configs['psf_type'] = psf_type.lower()
-    else:
-        noise_configs['psf_type'] = 'moffat'
-    ###### supported types
-    if noise_configs['psf_type'] not in ['moffat', 'airy']:
-        raise Exception(f'not supported psf_type: {psf_type}')
-
-    ### >>> for old versions                      
-    noise_psf_basenames = config_noise.get('noise_psf_basenames')
-    if noise_psf_basenames:
-        logger.warning('Using old noise_psf_basenames parameter, please update ASAP!')
-        noise_configs['noise_psf_basenames'] = [x.strip() for x in noise_psf_basenames.split(',')]
-
-        ###### fill none for missed basenames 
-        while len(noise_configs['noise_psf_basenames']) < 8:
-            noise_configs['noise_psf_basenames'].append('none')
-
-    ### >>> for new versions
-    else:
-        noise_configs['label_basename'] = config_noise.get('label_basename')
-        noise_configs['noise_basenames'] = [x.strip() for x in config_noise.get('noise_basenames').split(',')]
-        noise_configs['psf_basenames'] = [x.strip() for x in config_noise.get('psf_basenames').split(',')]
-        noise_configs['id_basenames'] = [x.strip() for x in config_noise.get('id_basenames').split(',')]
-
     ## === e. ImSim
     config_imsim = config['ImSim']
     imsim_configs = {'survey': config_imsim.get('survey'),
@@ -199,10 +102,136 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
     else:
         imsim_configs['image_PSF_size'] = 48 #pixels
 
+    ## === d. noise info
+    config_noise = config['NoiseInfo']
+    noise_configs = {'file': config_noise.get('cata_file'),
+                    'file4varChips': config_noise.get('file4varChips'),
+                    'psf_PixelIma_dir': config_noise.get('psf_PixelIma_dir')}
+
+    ### check existence
+    if not os.path.isfile(noise_configs['file']):
+        tmp = noise_configs['file']
+        raise Exception(f"noise file {tmp} not found!")
+    if (noise_configs['file4varChips']) and (not os.path.isfile(noise_configs['file4varChips'])):
+        tmp = noise_configs['file4varChips']
+        raise Exception(f"separate psf file {tmp} not found!")
+    if (noise_configs['psf_PixelIma_dir']) and (not os.path.isdir(noise_configs['psf_PixelIma_dir'])):
+        tmp = noise_configs['psf_PixelIma_dir']
+        raise Exception(f"psf image dir {tmp} not found!")
+
+    ### psf profile type 
+    try:
+        psf_type_list = [x.strip().lower() for x in config_noise.get('psf_type_list').split(',')]
+    except AttributeError:
+        logger.warning('Using old psf_type parameter, please update ASAP!')
+        psf_type = config_noise.get('psf_type')
+        if not psf_type:
+            psf_type = 'moffat'
+        psf_type_list = [psf_type.lower()] 
+    if len(psf_type_list) == 1:
+        psf_type_list *= len(imsim_configs['bands'])
+    noise_configs['psf_type_list'] = psf_type_list
+    ###### supported types
+    for psf_type in noise_configs['psf_type_list']:
+        if psf_type not in ['moffat', 'airy', 'pixelima']:
+            raise Exception(f'not supported psf_type: {psf_type}')
+
+    ### >>> for old version                     
+    noise_psf_basenames = config_noise.get('noise_psf_basenames')
+    if noise_psf_basenames:
+        logger.warning('Using old noise_psf_basenames parameter, please update ASAP!')
+        noise_configs['noise_psf_basenames'] = [x.strip() for x in noise_psf_basenames.split(',')]
+
+        ###### fill none for missed basenames 
+        while len(noise_configs['noise_psf_basenames']) < 8:
+            noise_configs['noise_psf_basenames'].append('none')
+
+    ### >>> for new versions
+    else:
+        noise_configs['label_basename'] = config_noise.get('label_basename')
+        noise_configs['noise_basenames'] = [x.strip() for x in config_noise.get('noise_basenames').split(',')]
+        noise_configs['id_basenames'] = [x.strip() for x in config_noise.get('id_basenames').split(',')]
+
+        # >>> for old version
+        psf_basenames = config_noise.get('psf_basenames')
+        if psf_basenames:
+            logger.warning('Using old psf_basenames parameter, please update ASAP!')
+            noise_configs['psf_basenames_moffat'] = [x.strip() for x in psf_basenames.split(',')]
+            noise_configs['psf_basenames_airy'] = [x.strip() for x in psf_basenames.split(',')]
+        else:
+            try:
+                noise_configs['psf_basenames_moffat'] = [x.strip() for x in config_noise.get('psf_basenames_moffat').split(',')]
+            except AttributeError:    
+                noise_configs['psf_basenames_moffat'] = None
+
+            try:
+                noise_configs['psf_basenames_airy'] = [x.strip() for x in config_noise.get('psf_basenames_airy').split(',')]
+            except AttributeError:    
+                noise_configs['psf_basenames_airy'] = None
+
     ## === dictionary for collecting all config info
-    configs_dict = {'work_dirs': work_dirs, 'gal': gal_configs, 'star': star_configs, 'noise': noise_configs, 'imsim': imsim_configs}
+    configs_dict = {'work_dirs': work_dirs, 'noise': noise_configs, 'imsim': imsim_configs}
 
     # ++++++++++++++ 2. some specific info (required only by certain tasks)
+
+    ## === b. galaxy & star info
+    if ('1' in taskIDs) or ('all' in taskIDs):
+        ## == galaxy
+        config_gal = config['GalInfo']
+        gal_configs = {'file': config_gal.get('cata_file'),
+                        'position_type': config_gal.get('position_type'),
+                        'mag_cut': [float(i_p.strip()) for i_p in config_gal.get('mag_cut').split(',')],
+                        'size_cut': [float(i_p.strip()) for i_p in config_gal.get('Re_cut').split(',')],
+                        'id_name': config_gal.get('id_name'),
+                        'detection_mag_name': config_gal.get('detection_mag_name'),
+                        'mag_name_list': [x.strip() for x in config_gal.get('mag_name_list').split(',')],
+                        'RaDec_names': [x.strip() for x in config_gal.get('RaDec_names').split(',')],
+                        'shape_names': [x.strip() for x in config_gal.get('shape_names').split(',')],
+                        'z_name': config_gal.get('z_name')}
+
+        ### grid size 
+        grid_size = config_gal.get('grid_size')
+        if not grid_size:
+            gal_configs['grid_size'] = float(grid_size)
+        else:
+            gal_configs['grid_size'] = 18 #arcsec
+
+        ### check existence
+        if not os.path.isfile(gal_configs['file']):
+            tmp = gal_configs['file']
+            raise Exception(f"galaxies file {tmp} not found!")
+
+        ### collect
+        configs_dict['gal'] = gal_configs
+
+        ## == star
+        try:
+            config_star = config['StarInfo']
+            star_file = config_star.get('cata_file')
+
+            if star_file:
+
+                ### check existence
+                if not os.path.isfile(star_file):
+                    raise Exception(f"star file {star_file} not found!")
+
+                star_configs = {'file': star_file,
+                                'cata_area': config_star.getfloat('cata_area'),
+                                'position_type': config_star.get('position_type'),
+                                'mag_cut': [float(i_p.strip()) for i_p in config_star.get('mag_cut').split(',')],
+                                'id_name': config_star.get('id_name'),
+                                'detection_mag_name': config_star.get('detection_mag_name'),
+                                'mag_name_list': [x.strip() for x in config_star.get('mag_name_list').split(',')],
+                                'RaDec_names': [x.strip() for x in config_star.get('RaDec_names').split(',')] if (config_star.get('position_type') == 'true') else None}
+
+            else:
+                star_configs = {'file': None}
+
+        except KeyError:
+            star_configs = {'file': None}
+
+        ### collect
+        configs_dict['star'] = star_configs
 
     # === swarp images
     if ('2' in taskIDs) or ('all' in taskIDs):
@@ -333,7 +362,6 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
 
         else:
             raise Exception(f'Unsupported photo-z measurement method {MZ_method}!')
-
 
         ### collect
         configs_dict['MZ'] = MZ_configs
@@ -508,22 +536,33 @@ cata_file =                                    # input noise background & psf ca
                                                # NOTE: tiles are orderly selected\n\
 file4varChips =                                # a separate psf info catalogue for varChips mode (see ImSim)\n\
                                                # not required for other modes\n\
+psf_PixelIma_dir =                             # directory contains psf images\n\
+                                               # only required for psf_type==PixelIma\n\
 label_basename =        label                  # column name for label\n\
 noise_basenames =       rms                    # base names for noise background\n\
                                                # order: rms\n\
                                                # the real column name is associated with band labels as `rms_r` etc\n\
-psf_basenames =         seeing, beta, psf_e1, psf_e2\n\
+psf_basenames_moffat =  seeing, beta, psf_e1, psf_e2\n\
                                                # base names for psf profile\n\
+                                               # used by psf_type == Moffat\n\
                                                # order:\n\
-                                               #    (Moffat): seeing, MoffatBeta, e1, e2\n\
-                                               #    (Airy): lam (in nanometre), diam (in metre), obscuration, e1, e2\n\
+                                               #    seeing, MoffatBeta, e1, e2\n\
+                                               # the real column name is associated with band labels\n\
+                                               # not all required, for those missed, simply ignore or feed none\n\
+psf_basenames_airy =    lam, diam, obscuration, psf_e1, psf_e2\n\
+                                               # base names for psf profile\n\
+                                               # used by psf_type == Airy\n\
+                                               # order:\n\
+                                               #    lam (in nanometre), diam (in metre), obscuration, e1, e2\n\
                                                # the real column name is associated with band labels\n\
                                                # not all required, for those missed, simply ignore or feed none\n\
 id_basenames =          chip_id, expo_id       # column names for IDs used by file4varChips\n\
                                                # not used otherwise\n\
                                                # order: chip_id, expo_id\n\
-psf_type =              Moffat                 # PSF profile, supported types:\n\
-                                               #    Moffat, Airy\n\
+psf_type_list =  Moffat, Moffat, PixelIma, Moffat, Moffat, Moffat, Moffat, Moffat, Moffat\n\
+                                               # PSF profile list, same order as band_list\n\
+                                               # supported types:\n\
+                                               #    Moffat, Airy, PixelIma\n\
 \n\n\
 ################################## ImSim ###################################################\n\
 [ImSim]\n\n\

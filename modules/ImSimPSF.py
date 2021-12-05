@@ -2,10 +2,10 @@
 # @Author: lshuns
 # @Date:   2020-11-26 15:00:22
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-22 17:33:44
+# @Last Modified time: 2021-11-24 13:47:16
 
 ### Everything about PSF
-__all__ = ['MoffatPSF', 'AiryPSF', \
+__all__ = ['MoffatPSF', 'AiryPSF', 'loadPixelPSF', \
             'PSFima', 'PSFmap', 'PSFmap_MultiPSF', 'PSFmap_DiffMag', 'PSFmap_MultiPSF_DiffMag']
 
 import galsim
@@ -80,7 +80,30 @@ def AiryPSF(lam, diam, obscuration, psf_e=None):
 
     return psf
 
-def PSFima(PSF, pixel_scale, size=32):
+def loadPixelPSF(inpath, pixel_scale, offset=(0.5, 0.5)):
+    """
+    Load pixelized PSF images as PSF model.
+
+    Parameters
+    ----------
+    inpath : str
+        FITS file includes psf image.
+    pixel_scale : float
+        pixel scale corresponding to the psf image.
+    offset : (float, float), optional (default: [0.5, 0.5])
+        offset relative to the center.
+        Use the default (0.5, 0.5) value for PSF from lensfit
+
+    Returns
+    -------
+    PixelPSF : galsim InterpolatedImage.
+    """
+
+    PixelPSF = galsim.InterpolatedImage(inpath, scale=pixel_scale, flux=1., offset=offset)
+
+    return PixelPSF
+
+def PSFima(PSF, pixel_scale, size=32, pixelPSF=False):
     """
     Draw a single PSF image from a PSF model.
 
@@ -92,6 +115,8 @@ def PSFima(PSF, pixel_scale, size=32):
         Pixel size in unit of arcsec.
     size : int, optional (default: 32)
         The image size in unit of pixel
+    pixelPSF : bool, optional (default: False)
+        if the PSF provided already including pixel response
 
     Returns
     -------
@@ -101,11 +126,16 @@ def PSFima(PSF, pixel_scale, size=32):
 
     psf_image = galsim.Image(size, size)
     PSF_lf = PSF.shift(0.5*pixel_scale, 0.5*pixel_scale)
-    psf_image = PSF_lf.drawImage(image=psf_image, scale=pixel_scale)
+
+    if pixelPSF:
+        draw_method = 'no_pixel'
+    else:
+        draw_method = 'auto'
+    psf_image = PSF_lf.drawImage(image=psf_image, scale=pixel_scale, method=draw_method)
 
     return psf_image
 
-def PSFmap(PSF, pixel_scale, mag_input, mag_zero=30., N_PSF=100, sep_PSF=120, rng_seed=940120):
+def PSFmap(PSF, pixel_scale, mag_input, mag_zero=30., N_PSF=100, sep_PSF=120, rng_seed=940120, pixelPSF=False):
     """ 
     Generate N_PSF PSF stars from a single PSF model,
         with uniform magnitude.
@@ -126,6 +156,8 @@ def PSFmap(PSF, pixel_scale, mag_input, mag_zero=30., N_PSF=100, sep_PSF=120, rn
         Seperation between PSFs.        
     rng_seed : int, optional (default: 940120) 
         Seed for random number generator.
+    pixelPSF : bool, optional (default: False)
+        if the PSF provided already including pixel response
 
     Returns
     -------
@@ -167,7 +199,11 @@ def PSFmap(PSF, pixel_scale, mag_input, mag_zero=30., N_PSF=100, sep_PSF=120, rn
     # draw PSF 
     star_like_PSF = PSF.withFlux(flux)
     ## draw stamp
-    stamp_PSF = star_like_PSF.drawImage(scale=pixel_scale)
+    if pixelPSF:
+        draw_method = 'no_pixel'
+    else:
+        draw_method = 'auto'
+    stamp_PSF = star_like_PSF.drawImage(scale=pixel_scale, method=draw_method)
 
     # place PSF
     for i in range(N_PSF):
@@ -181,7 +217,7 @@ def PSFmap(PSF, pixel_scale, mag_input, mag_zero=30., N_PSF=100, sep_PSF=120, rn
 
     return psf_image
 
-def PSFmap_MultiPSF(PSF_list, pixel_scale, mag_input, mag_zero=30., sep_PSF=120, rng_seed=940120):
+def PSFmap_MultiPSF(PSF_list, pixel_scale, mag_input, mag_zero=30., sep_PSF=120, rng_seed=940120, pixelPSF=False):
     """ 
     Generate PSF stars from a list of PSF models,
         with uniform magnitude.
@@ -200,6 +236,8 @@ def PSFmap_MultiPSF(PSF_list, pixel_scale, mag_input, mag_zero=30., sep_PSF=120,
         Seperation between PSFs.        
     rng_seed : int, optional (default: 940120) 
         Seed for random number generator.
+    pixelPSF : bool, optional (default: False)
+        if the PSF provided already including pixel response
 
     Returns
     -------
@@ -249,7 +287,11 @@ def PSFmap_MultiPSF(PSF_list, pixel_scale, mag_input, mag_zero=30., sep_PSF=120,
         star_like_PSF = PSF.withFlux(flux)
         logger.debug(f'PSF flux {flux} added.')
         ## draw stamp
-        stamp_PSF = star_like_PSF.drawImage(scale=pixel_scale)
+        if pixelPSF:
+            draw_method = 'no_pixel'
+        else:
+            draw_method = 'auto'
+        stamp_PSF = star_like_PSF.drawImage(scale=pixel_scale, method=draw_method)
         logger.debug(f'PSF drawed (pixel {pixel_scale}).')
 
         # position the stamp
@@ -262,7 +304,7 @@ def PSFmap_MultiPSF(PSF_list, pixel_scale, mag_input, mag_zero=30., sep_PSF=120,
 
     return psf_image
 
-def PSFmap_DiffMag(PSF, pixel_scale, mag_inputs, mag_zero=30., sep_type='random', rng_seed=940120, area=1.):
+def PSFmap_DiffMag(PSF, pixel_scale, mag_inputs, mag_zero=30., sep_type='random', rng_seed=940120, area=1., pixelPSF=False):
     """ 
     Generate PSF stars from a single PSF model,
         with variable magnitudes.
@@ -283,6 +325,8 @@ def PSFmap_DiffMag(PSF, pixel_scale, mag_inputs, mag_zero=30., sep_type='random'
         Seed for random number generator.
     area (deg^2) : float, optional (default: 1)
         Total area for simulated image (used when sep_type='random')
+    pixelPSF : bool, optional (default: False)
+        if the PSF provided already including pixel response
 
     Returns
     -------
@@ -319,7 +363,11 @@ def PSFmap_DiffMag(PSF, pixel_scale, mag_inputs, mag_zero=30., sep_type='random'
         # draw PSF 
         star_like_PSF = PSF.withFlux(flux)
         ## draw stamp
-        stamp_PSF = star_like_PSF.drawImage(scale=pixel_scale)
+        if pixelPSF:
+            draw_method = 'no_pixel'
+        else:
+            draw_method = 'auto'
+        stamp_PSF = star_like_PSF.drawImage(scale=pixel_scale, method=draw_method)
 
         # position the stamp
         stamp_PSF.setCenter(x[i], y[i])
@@ -330,7 +378,7 @@ def PSFmap_DiffMag(PSF, pixel_scale, mag_inputs, mag_zero=30., sep_type='random'
 
     return psf_image
 
-def PSFmap_MultiPSF_DiffMag(PSF_list, pixel_scale, mag_list, mag_zero=30., sep_PSF=120, rng_seed=940120):
+def PSFmap_MultiPSF_DiffMag(PSF_list, pixel_scale, mag_list, mag_zero=30., sep_PSF=120, rng_seed=940120, pixelPSF=False):
     """ 
     Generate PSF stars from a list of PSF models,
         with variable magnitudes.
@@ -349,6 +397,8 @@ def PSFmap_MultiPSF_DiffMag(PSF_list, pixel_scale, mag_list, mag_zero=30., sep_P
         Seperation between PSFs.        
     rng_seed : int, optional (default: 940120) 
         Seed for random number generator.
+    pixelPSF : bool, optional (default: False)
+        if the PSF provided already including pixel response
 
     Returns
     -------
@@ -399,7 +449,11 @@ def PSFmap_MultiPSF_DiffMag(PSF_list, pixel_scale, mag_list, mag_zero=30., sep_P
         star_like_PSF = PSF.withFlux(flux)
         logger.debug(f'PSF flux {flux} added.')
         ## draw stamp
-        stamp_PSF = star_like_PSF.drawImage(scale=pixel_scale)
+        if pixelPSF:
+            draw_method = 'no_pixel'
+        else:
+            draw_method = 'auto'
+        stamp_PSF = star_like_PSF.drawImage(scale=pixel_scale, method=draw_method)
         logger.debug(f'PSF drawed (pixel {pixel_scale}).')
 
         # position the stamp

@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:34:12
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-22 17:31:46
+# @Last Modified time: 2021-11-24 17:20:29
 
 ### Everything about simple images
 __all__ = ['_PSFNoisySkyImages_simple']
@@ -55,6 +55,7 @@ def _PSFNoisySkyImages_simple(para_list):
 
         psf_paras = (seeing, beta, psf_e)
         psf_func = PSFModule.MoffatPSF
+        psf_pixel = False
 
     elif psf_info[0].lower() == 'airy':
 
@@ -65,6 +66,15 @@ def _PSFNoisySkyImages_simple(para_list):
 
         psf_paras = (lam, diam, obscuration, psf_e)
         psf_func = PSFModule.AiryPSF
+        psf_pixel = False
+
+    elif psf_info[0].lower() == 'pixelima':
+
+        psf_fits_file = psf_info[1]
+
+        psf_paras = (psf_fits_file, pixel_scale, (0.5, 0.5))
+        psf_func = PSFModule.loadPixelPSF
+        psf_pixel = True
 
     # warning
     if save_image_chips:
@@ -117,7 +127,8 @@ def _PSFNoisySkyImages_simple(para_list):
             logger.info('PSF images already exist.')
         else:
             PSF = psf_func(*psf_paras)
-            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size)
+            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size,
+                            pixelPSF=psf_pixel)
             psf_ima.write(psf_ima_file_tmp)
             logger.info(f'PSF image saved as {psf_ima_file_tmp}')
 
@@ -136,7 +147,9 @@ def _PSFNoisySkyImages_simple(para_list):
     if (not outpath_PSF_exist):
         mag_PSF_2 = 18. # for noise_flux = 2
         mag_PSF = mag_PSF_2 - 2.5*np.log10(rms/2.)
-        image_PSF = PSFModule.PSFmap(PSF, pixel_scale, mag_PSF, N_PSF=N_PSF, sep_PSF=sep_PSF, rng_seed=rng_seed_band)
+        image_PSF = PSFModule.PSFmap(PSF, pixel_scale, mag_PSF, 
+                        N_PSF=N_PSF, sep_PSF=sep_PSF, rng_seed=rng_seed_band,
+                        pixelPSF=psf_pixel)
 
         ## noise background
         image_PSF_rot.addNoise(noise)
@@ -165,14 +178,16 @@ def _PSFNoisySkyImages_simple(para_list):
 
         # star image
         if (stars_info_band is not None):
-            image_stars = ObjModule.StarsImage(canvas, band, pixel_scale, PSF, stars_info_band)
+            image_stars = ObjModule.StarsImage(canvas, band, pixel_scale, PSF, stars_info_band,
+                                pixelPSF=psf_pixel)
         else:
             image_stars = None
 
         # galaxy images
         image_galaxies = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
                                         gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type,
-                                        g_const=g_const)
+                                        g_const=g_const,
+                                        pixelPSF=psf_pixel)
 
         ## add stars
         if (image_stars is not None):
