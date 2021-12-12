@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-11-26 10:01:24
+# @Last Modified time: 2021-12-12 11:32:59
 
 ### running module for ImSim
 
@@ -151,7 +151,9 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
         ## output noise info
         outpath_tmp = os.path.join(outcata_dir, f'noise_info_tile{tile_label}.csv')
-        pd.DataFrame([noise_info_tile]).to_csv(outpath_tmp, index=False)
+        with open(outpath_tmp) as f:
+            f.write('# NOTE: psf e is defined as 1-a/b')
+            pd.DataFrame([noise_info_tile]).to_csv(f, index=False)
         logger.info(f'noise info saved to {outpath_tmp}')
 
         # sky area for a tile
