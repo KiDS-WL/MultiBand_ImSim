@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:34:12
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-11-24 17:20:29
+# @Last Modified time: 2021-12-14 16:11:05
 
 ### Everything about simple images
 __all__ = ['_PSFNoisySkyImages_simple']
@@ -168,13 +168,17 @@ def _PSFNoisySkyImages_simple(para_list):
     if (not outpath_image_exist):
 
         # bounds and wcs from galaxy sky positions
-        RA_gals = gals_info_band['RA'] # degree
-        DEC_gals = gals_info_band['DEC'] # degree
-        RA_min = np.min(RA_gals)
-        RA_max = np.max(RA_gals)
-        DEC_min = np.min(DEC_gals)
-        DEC_max = np.max(DEC_gals)
+        RA_gals = gals_info_band[0]['RA'].values
+        DEC_gals = gals_info_band[0]['DEC'].values
+        if gals_info_band[1] is not None:
+            RA_gals = np.hstack([RA_gals, gals_info_band[1]['RA'].values])
+            DEC_gals = np.hstack([DEC_gals, gals_info_band[1]['DEC'].values])
+        RA_min = np.amin(RA_gals)
+        RA_max = np.amax(RA_gals)
+        DEC_min = np.amin(DEC_gals)
+        DEC_max = np.amax(DEC_gals)
         canvas = ObjModule.SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale)
+        del RA_gals, DEC_gals
 
         # star image
         if (stars_info_band is not None):
@@ -185,13 +189,22 @@ def _PSFNoisySkyImages_simple(para_list):
 
         # galaxy images
         image_galaxies = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                        gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type,
+                                        gals_info_band[0], gal_rotation_angle=gal_rotation_angle, 
+                                        g_cosmic=g_cosmic, gal_position_type=gal_position_type,
                                         g_const=g_const,
                                         pixelPSF=psf_pixel)
+        if gals_info_band[1] is not None:
+            image_galaxies += ObjModule.GalaxiesImage_casual(canvas, band, pixel_scale, PSF,
+                                gals_info_band[1], gal_rotation_angle=gal_rotation_angle, 
+                                g_cosmic=g_cosmic, gal_position_type=gal_position_type,
+                                g_const=g_const, 
+                                pixelPSF=psf_pixel)
+
 
         ## add stars
         if (image_stars is not None):
             image_galaxies += image_stars
+            del image_stars
 
         ## add noise background
         image_galaxies.addNoise(noise)
@@ -199,6 +212,7 @@ def _PSFNoisySkyImages_simple(para_list):
         ## save the noisy image
         image_galaxies.write(outpath_image_name)
         logger.info(f"Simple noisy sky image saved as {outpath_image_name}")
+        del image_galaxies
 
         ## mark success to the header
         with fits.open(outpath_image_name, mode='update') as hdul:

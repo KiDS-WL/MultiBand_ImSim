@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-11-29 12:40:21
+# @Last Modified time: 2021-12-15 09:35:19
 
 ### main module to run the whole pipeline
 
@@ -13,6 +13,7 @@ import time
 import glob
 import shutil
 import logging
+import pathlib
 import datetime
 import argparse
 
@@ -33,7 +34,7 @@ import CrossMatch
 
 import RunConfigFile
 
-__version__ = "MultiBand_ImSim v0.6"
+__version__ = "MultiBand_ImSim v0.6.1"
 
 # ++++++++++++++ parser for command-line interfaces
 parser = argparse.ArgumentParser(
@@ -187,12 +188,10 @@ if ('1' in taskIDs) or ('all' in taskIDs):
     ## I/O
     ### for images
     out_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], 'original')
-    if not os.path.exists(out_dir_tmp):
-        os.mkdir(out_dir_tmp)
+    pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
     ### for catalogues
     outcata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'input')
-    if not os.path.exists(outcata_dir_tmp):
-        os.mkdir(outcata_dir_tmp)
+    pathlib.Path(outcata_dir_tmp).mkdir(parents=True, exist_ok=True)
 
     ## load noise info
     ### survey specified
@@ -244,8 +243,20 @@ if ('1' in taskIDs) or ('all' in taskIDs):
                         configs_dict['gal']['RaDec_names'],
                         configs_dict['gal']['shape_names'],
                         configs_dict['gal']['z_name'],
-                        rng_seed=rng_seed, mag_cut=configs_dict['gal']['mag_cut'], size_cut=configs_dict['gal']['size_cut'],
+                        mag_cut=configs_dict['gal']['mag_cut'], size_cut=configs_dict['gal']['size_cut'],
                         g_columns=g_columns)
+    ### for casual mode
+    if configs_dict['imsim']['casual_mag'] < configs_dict['gal']['mag_cut'][1]:
+        gals_info_careful, gals_info_casual = LoadCata.GalInfo_adjust4casual(gals_info, 
+                    qbin_band=configs_dict['imsim']['casual_band'], 
+                    qbin_mag=configs_dict['imsim']['casual_mag'], 
+                    Nqbins=configs_dict['imsim']['casual_Nbins'], 
+                    Frac_careful=configs_dict['imsim']['casual_FracSeedGal'], 
+                    rng_seed=rng_seed)
+        gals_info = [gals_info_careful, gals_info_casual]
+        del gals_info_careful, gals_info_casual
+    else:
+        gals_info = [gals_info, None]
 
     ## load star info
     if configs_dict['star']['file']:
@@ -285,19 +296,16 @@ if ('2' in taskIDs) or ('all' in taskIDs):
         in_dir_psf_tmp = os.path.join(in_dir_tmp, 'psf_map')
     if running_log:
         log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'SWarp')
-        if not os.path.exists(log_dir_tmp):
-            os.mkdir(log_dir_tmp)
+        pathlib.Path(log_dir_tmp).mkdir(parents=True, exist_ok=True)
     else:
         log_dir_tmp = None
     ### output directory
     for label_tmp in configs_dict['swarp']['image_label_list']:
         out_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], label_tmp)
-        if not os.path.exists(out_dir_tmp):
-            os.mkdir(out_dir_tmp)
+        pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
         if configs_dict['imsim']['PSF_map'][0]:
             out_dir_psf_tmp =  os.path.join(out_dir_tmp, 'psf_map')
-            if not os.path.exists(out_dir_psf_tmp):
-                os.mkdir(out_dir_psf_tmp)
+            pathlib.Path(out_dir_psf_tmp).mkdir(parents=True, exist_ok=True)
 
     ## running
     for i_group, swarp_config in enumerate(configs_dict['swarp']['config_files']):
@@ -414,23 +422,19 @@ if ('3' in taskIDs) or ('all' in taskIDs):
     ori_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'input')
     in_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], image_label)
     out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
-    if not os.path.exists(out_dir_tmp):
-        os.mkdir(out_dir_tmp)
+    pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
     if running_log:
         log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'SExtractor')
-        if not os.path.exists(log_dir_tmp):
-            os.mkdir(log_dir_tmp)
+        pathlib.Path(log_dir_tmp).mkdir(parents=True, exist_ok=True)
     else:
         log_dir_tmp = None
     if configs_dict['sex']['cross_match']:
         out_dir_cross = os.path.join(configs_dict['work_dirs']['cata'], 'CrossMatch')
-        if not os.path.exists(out_dir_cross):
-            os.mkdir(out_dir_cross)
+        pathlib.Path(out_dir_cross).mkdir(parents=True, exist_ok=True)
     # CHECKIMAGE
     if (configs_dict['sex']['checkimage_type'] is not None) and (configs_dict['sex']['checkimage_type'].upper() != 'NONE'):
         CHECKIMAGE_dir = os.path.join(in_dir_tmp, configs_dict['sex']['checkimage_type'])
-        if not os.path.exists(CHECKIMAGE_dir):
-            os.mkdir(CHECKIMAGE_dir)
+        pathlib.Path(CHECKIMAGE_dir).mkdir(parents=True, exist_ok=True)
 
     ## work pool
     N_sex = int(Nmax_proc/4.)
@@ -552,12 +556,10 @@ if ('4' in taskIDs) or ('all' in taskIDs):
         ori_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'input')
         in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
         out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photometry')
-        if not os.path.exists(out_dir_tmp):
-            os.mkdir(out_dir_tmp)
+        pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
         if running_log:
             log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'GAaP')
-            if not os.path.exists(log_dir_tmp):
-                os.mkdir(log_dir_tmp)
+            pathlib.Path(log_dir_tmp).mkdir(parents=True, exist_ok=True)
         else:
             log_dir_tmp = None
 
@@ -656,15 +658,12 @@ if ('5' in taskIDs) or ('all' in taskIDs):
         ## I/O
         in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photometry')
         out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photo_z')
-        if not os.path.exists(out_dir_tmp):
-            os.mkdir(out_dir_tmp)
+        pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
         tmp_dir_tmp = os.path.join(out_dir_tmp, 'tmp_bpz')
-        if not os.path.exists(tmp_dir_tmp):
-            os.mkdir(tmp_dir_tmp)
+        pathlib.Path(tmp_dir_tmp).mkdir(parents=True, exist_ok=True)
         if running_log:
             log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'BPZ')
-            if not os.path.exists(log_dir_tmp):
-                os.mkdir(log_dir_tmp)
+            pathlib.Path(log_dir_tmp).mkdir(parents=True, exist_ok=True)
         else:
             log_dir_tmp = None
 

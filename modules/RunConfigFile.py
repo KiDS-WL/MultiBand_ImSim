@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-11-25 16:43:13
+# @Last Modified time: 2021-12-15 09:52:03
 
 ### module to generate an example configuration file
 
@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import logging
+import pathlib
 import configparser
 import distutils.util
 
@@ -41,26 +42,22 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                         f"------> No directory named as {config_dir}")
     out_dir = config_paths.get('out_dir')
     out_dir = os.path.join(out_dir, run_tag)
-    if not os.path.exists(out_dir):
-        os.mkdir(out_dir)
-    logger.info(f'all outputs will be saved to {out_dir}')
 
     ### images
     ima_dir = os.path.join(out_dir, 'images')
-    if not os.path.exists(ima_dir):
-        os.mkdir(ima_dir)
+    pathlib.Path(ima_dir).mkdir(parents=True, exist_ok=True)
+    logger.info(f'images will be saved to {ima_dir}')
 
     ### catalogues
     cata_dir = os.path.join(out_dir, 'catalogues')
-    if not os.path.exists(cata_dir):
-        os.mkdir(cata_dir)
+    pathlib.Path(cata_dir).mkdir(parents=True, exist_ok=True)
+    logger.info(f'catalogues will be saved to {cata_dir}')
 
     ### running_log
     if running_log:
         log_dir = os.path.join(out_dir, 'running_log')
-        if not os.path.exists(log_dir):
-            os.mkdir(log_dir)
-        logger.debug(f'Running log from external codes will be saved to {log_dir}')
+        pathlib.Path(log_dir).mkdir(parents=True, exist_ok=True)
+        logger.info(f'Running log from external codes will be saved to {log_dir}')
     else:
         log_dir = None
 
@@ -101,6 +98,16 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
         imsim_configs['image_PSF_size'] = float(psf_size)
     else:
         imsim_configs['image_PSF_size'] = 48 #pixels
+
+    ### for casual mode
+    casual_mag = config_imsim.get('casual_mag')
+    if casual_mag:
+        imsim_configs['casual_mag'] = float(casual_mag)
+        imsim_configs['casual_band'] = config_imsim.get('casual_band')
+        imsim_configs['casual_Nbins'] = int(config_imsim.get('casual_Nbins'))
+        imsim_configs['casual_FracSeedGal'] = float(config_imsim.get('casual_FracSeedGal'))
+    else:
+        imsim_configs['casual_mag'] = 99.
 
     ## === d. noise info
     config_noise = config['NoiseInfo']
@@ -479,12 +486,15 @@ def GenerateExampleConfig(file_name, user_name, date_time, __version__):
 \n\n\
 ################################## Paths ################################################\n\
 [Paths]\n\n\
-config_dir =  ../config/                       # directory to all the configuration files\n\
-out_dir =                                      # main directory for all the outputs\n\
+config_dir =            your_dir_to_MultiBand_ImSim/config\n\
+                                               # directory to all the configuration files\n\
+out_dir =               find/somewhere/with/large/space\n\
+                                               # main directory for all the outputs\n\
 \n\n\
 ################################## GalInfo ##############################################\n\
 [GalInfo]\n\n\
-cata_file =                                    # input galaxy mock catalogue\n\
+cata_file =             your_dir_to_input_cata/skills_sth.feather\n\
+                                               # input galaxy mock catalogue\n\
                                                # supported file types: feather, csv, fits\n\
 position_type =         true                   # position to be used\n\
                                                #    true (use positions from the input catalogue)\n\
@@ -497,11 +507,11 @@ mag_cut =               16, 27                 # magnitude cut for galaxies to b
 Re_cut =                0, 99                  # size cut for galaxies to be simulated (arcsec)\n\
 # catalogue column names to the desired info\n\
 id_name =               index                  # unique galaxy id\n\
-detection_mag_name =    r                      # correspond to the `detection_band` in [ImSim] \n\
-mag_name_list =         u, g, r, i, Z, Y, J, H, Ks \n\
+detection_mag_name =    r_SDSS_apparent_corr   # correspond to the `detection_band` in [ImSim] \n\
+mag_name_list =         r_SDSS_apparent_corr, u_SDSS_apparent_corr, g_SDSS_apparent_corr, i_SDSS_apparent_corr, z_SDSS_apparent_corr, Y_VISTA_apparent_corr, J_VISTA_apparent_corr, H_VISTA_apparent_corr, K_VISTA_apparent_corr\n\
                                                # correspond to the the `band_list` in [ImSim]\n\
 RaDec_names =           ra, dec \n\
-shape_names =           none, none, none, none, none, none, none, none, none, none\n\
+shape_names =           Re_arcsec, shape/sersic_n, BA, PA_random, none, none, none, none, none, none\n\
                                                # order: \n\
                                                #    Re (in arcsec!), sersic_n, axis_ratio, PA, \n\
                                                #    bulge_fraction, bulge_Re (in arcsec!), bulge_axis_ratio, bulge_sersic_n, \n\
@@ -512,10 +522,11 @@ z_name =                zobs                   # column name for redshift\n\
 \n\n\
 ################################## StarInfo ##############################################\n\
 [StarInfo]\n\n\
-cata_file =                                    # input star mock catalogue\n\
+cata_file =             your_dir_to_input_cata/trilegal_sth.feather\n\
+                                               # input star mock catalogue\n\
                                                # supported file types: feather, csv, fits\n\
                                                # leave it as empty if stars are not needed\n\
-cata_area =             1                      # square degrees\n\
+cata_area =             10                     # square degrees\n\
                                                # sky area spanned by the input catalogue\n\
                                                # should be equal or larger than the tile area\n\
 position_type =         random                 # position to be used\n\
@@ -525,24 +536,26 @@ mag_cut =               14, 27                 # magnitude cut for stars to be s
 # column names to the desired info\n\
 id_name =               index                  # unique star id\n\
 detection_mag_name =    r                      # correspond to the `detection_band` in [ImSim] \n\
-mag_name_list =         u, g, r, i, Z, Y, J, H, Ks \n\
+mag_name_list =         r, u, g, i, Z, Y, J, H, Ks \n\
                                                # correspond to the the `band_list` in [ImSim]\n\
 RaDec_names =           ra, dec                # not required, if stars are randomly placed\n\
 \n\n\
 ################################## NoiseInfo ##############################################\n\
 [NoiseInfo]\n\n\
-cata_file =                                    # input noise background & psf catalogue\n\
+cata_file =             your_dir_to_MultiBand_ImSim/noise_info/skills_fiducial/noise_sth.csv\n\
+                                               # input noise background & psf catalogue\n\
                                                # supported file types: feather, csv, fits\n\
                                                # NOTE: tiles are orderly selected\n\
-file4varChips =                                # a separate psf info catalogue for varChips mode (see ImSim)\n\
+file4varChips =         your_dir_to_MultiBand_ImSim/noise_info/kids_dr4_psf_moffat_fromcoeffs.csv\n\
+                                               # a separate psf info catalogue for varChips mode (see ImSim)\n\
                                                # not required for other modes\n\
 psf_PixelIma_dir =                             # directory contains psf images\n\
                                                # only required for psf_type==PixelIma\n\
 label_basename =        label                  # column name for label\n\
-noise_basenames =       rms                    # base names for noise background\n\
+noise_basenames =       rmsExpo                # base names for noise background\n\
                                                # order: rms\n\
                                                # the real column name is associated with band labels as `rms_r` etc\n\
-psf_basenames_moffat =  seeing, beta, psf_e1, psf_e2\n\
+psf_basenames_moffat =  InputSeeing, InputBeta, seeing_e1, seeing_e2\n\
                                                # base names for psf profile\n\
                                                # used by psf_type == Moffat\n\
                                                # order:\n\
@@ -559,45 +572,54 @@ psf_basenames_airy =    lam, diam, obscuration, psf_e1, psf_e2\n\
 id_basenames =          chip_id, expo_id       # column names for IDs used by file4varChips\n\
                                                # not used otherwise\n\
                                                # order: chip_id, expo_id\n\
-psf_type_list =  Moffat, Moffat, PixelIma, Moffat, Moffat, Moffat, Moffat, Moffat, Moffat\n\
+psf_type_list =         Moffat, Moffat, Moffat, Moffat, Moffat, Moffat, Moffat, Moffat, Moffat\n\
                                                # PSF profile list, same order as band_list\n\
                                                # supported types:\n\
                                                #    Moffat, Airy, PixelIma\n\
 \n\n\
 ################################## ImSim ###################################################\n\
 [ImSim]\n\n\
-survey =              KiDS                     # survey being simulated\n\
+survey =                KiDS                   # survey being simulated\n\
                                                # current supported surveys:\n\
                                                #    one_tile: simple one image including all the galaxies\n\
                                                #    simple_Nsqdeg: N can be any float corresponding to the tile sky area\n\
                                                #    KiDS: KiDS-like images (5 exposures, 32 chips, dither patterns and chip gaps)\n\
-band_list =             u, g, r, i, Z, Y, J, H, Ks\n\
+band_list =             r, u, g, i, Z, Y, J, H, Ks\n\
                                                # bands being simulated\n\
 pixel_scale_list =      0.214, 0.214, 0.214, 0.214, 0.34, 0.34, 0.34, 0.34, 0.34\n\
                                                # pixel scale for each band image\n\
-image_type_list =      sameExpo, sameExpo, varChips, sameExpo, simple, simple, simple, simple, simple\n\
+image_type_list =       varChips, sameExpo, sameExpo, sameExpo, simple, simple, simple, simple, simple\n\
                                                # image type for each band\n\
                                                # current supported types:\n\
                                                #    simple: without any survey feature (a simple stacked image)\n\
                                                #    sameExpo: different exposures use the same noise&PSF info\n\
                                                #    diffExpo: different exposures use different noise&PSF info\n\
                                                #    varChips: different chips use different PSF (on the top of diffExpo)\n\
-image_chips =           False, False, True, False, False, False, False, False, False\n\
+image_chips =           True, False, False, False, False, False, False, False, False\n\
                                                # save individual chips or not\n\
                                                # required by lensfit\n\
-image_PSF =             False, False, True, False, False, False, False, False, False\n\
+image_PSF =             True, False, False, False, False, False, False, False, False\n\
                                                # save individual psf\n\
                                                # required by lensfit\n\
 image_PSF_size =        48                     # (pixels) the size of the saved PSF image\n\
                                                #    it is assumed to be a square\n\
                                                #    default: 48*48 \n\
+casual_mag =            25                     # up to which magnitude galaxies are casually simulated\n\
+                                               #    means: only drawImage for a few, \n\
+                                               #        the rest is randomly sampled from those simulated\n\
+                                               # should be lower than mag_cut[1] in [GalInfo]\n\
+                                               #    otherwise, ignored\n\
+casual_band =           r                      # band used by casual_mag\n\
+casual_Nbins =          20                     # how many quantile bins used by casual simulation\n\
+casual_FracSeedGal =    0.01                   # Fraction of seed galaxies\n\
+                                               # seed galaxies: those simulated carefully\n\
 N_tiles =               1                      # number of tiles to be simulated\n\
                                                # make sure the NoiseInfo cata covers more than this requirement\n\
                                                # GalInfo can cover less than this requirement,\n\
                                                #    in which case repeating patterns will be produced\n\
                                                # NOTE: the total output tiles = N_tiles * N_rotations (specified below)\n\
 gal_rotation_angles =   0, 90                      # degrees (put more values separated with ',' if needed)\n\
-PSF_map =               False, False, False, False, False, False, False, False, False\n\
+PSF_map =               False\n\
                                                # output the corresponding PSF map or not\n\
                                                # can be used by GAaP, but not mandatory if stars are simulated\n\
 mag_zero =              30                     # simulated magnitude zero point\n\
@@ -647,8 +669,8 @@ clean_up_level =        0                      # clean up level\n\
 mag_faint_cut =         26                     # faintest sources can be possible detected\n\
                                                # for the sake of speed-up\n\
 save_matched =          True                   # save the matched object info\n\
-save_false =            True                   # save false-detected object info\n\
-save_missed =           True                   # save the missed object info\n\
+save_false =            False                  # save false-detected object info\n\
+save_missed =           False                  # save the missed object info\n\
 mag_closest =           True                   # use magnitude to select for duplicated match\n\
 r_max =                 0.6                    # (arcsec) allowed maximum separation\n\
 \n\n\
@@ -670,7 +692,7 @@ image_label_list =      AW, AW, AW, AW, original, original, original, original, 
                                                #    any label specified in `swarp_labels`\n\
 \n\n\
 [GAaP]\n\n\
-gaap_dir =                                     # directory containing GAaP bins and libs\n\
+gaap_dir =              your_dir_to_gaap       # directory containing GAaP bins and libs\n\
 min_aper =              0.7                    # minimum aperture size\n\
 max_aper =              2.0                    # maximum aperture size\n\
 use_PSF_map =           False                  # use separate psf map for psf estimation\n\
@@ -689,8 +711,9 @@ method =                BPZ                    # method for photo-z measurement\
                                                #    BPZ\n\
 \n\n\
 [BPZ]\n\n\
-BPZ_dir =                                      # the directory containing BPZ-related codes\n\
-python2_cmd =                                  # the executable path to the python2\n\
+BPZ_dir =                your_dir_to_BPZ_code  # the directory containing BPZ-related codes\n\
+python2_cmd =            python2               # the executable path to the python2\n\
+                                               #    with necessary package for BPZ\n\
 band_list =              u, g, r, i, Z, Y, J, H, Ks\n\
 band_CataNameBase =      MAG_GAAP_0p7\n\
 banderr_CataNameBase =   MAGERR_GAAP_0p7\n\
@@ -708,7 +731,7 @@ lkl_min_rms =            0.0\n\
 \n\n\
 ################################## PSFmodelling #################################################\n\
 [PSFmodelling]\n\n\
-method =                makeglobalpsf          # method for PSF modelling\n\
+method =                ima2coeffs             # method for PSF modelling\n\
                                                # supported method:\n\
                                                #    makeglobalpsf\n\
                                                #    ima2coeffs\n\
@@ -720,18 +743,22 @@ image_label_list =      original\n\
                                                #    any label specified in `swarp_labels`\n\
 \n\n\
 [ima2coeffs]\n\n\
-ima2coeffs_dir =                            # directory containing psfimage2coeffs\n\
+ima2coeffs_dir =        your_dir_to_lensfit/utils\n\
+                                               # directory containing psfimage2coeffs\n\
 \n\n\
 [makeglobalpsf]\n\n\
-makeglobalpsf_dir =                            # directory containing makeglobalpsf and globalshifts\n\
-clean_intermediate =    true              # clean log files or not\n\
+makeglobalpsf_dir = your_dir_to_lensfit/bin\n\
+                                               # directory containing makeglobalpsf and globalshifts\n\
+clean_intermediate =    true                   # clean log files or not\n\
+# some makeglobalpsf-related values\n\
 global_order =          4\n\
 chip_order =            1\n\
 snratio =               20\n\
 start_mag =             18.0\n\
 end_mag =               24.0\n\
 CAMERA =                KIDS\n\
-SWARP_CONFIG =                            # config file for swarp, can be found in lensfit/input_files\n\
+SWARP_CONFIG =          your_dir_to_lensfit/input_files\n\
+                                               # config file for swarp used by lensfit\n\
 \n\n\
 ################################## MeasureShape #################################################\n\
 [MeasureShape]\n\n\
@@ -748,9 +775,11 @@ image_label_list =      original\n\
                                                # NOTE: lensfit uses individual exposures, so it is `original`\n\
 \n\n\
 [lensfit]\n\n\
-lensfit_dir =                                  # directory containing lensfit code\n\
-lensfit_cores =         12                     # number of cores used by each lensfit run\n\
+lensfit_dir =           your_dir_to_lensfit\n\
+                                               # directory containing lensfit code\n\
+lensfit_cores =         48                     # number of cores used by each lensfit run\n\
                                                # should be consistent with that compiled in lensfit (flensfit_NT[lensfit_cores])\n\
+# some lensfit-related values\n\
 postage_size =          48\n\
 start_exposure =        1\n\
 end_exposure =          5\n\
@@ -767,7 +796,7 @@ clean_up_level =        0                      # clean up level\n\
 \n\n\
 ################################## CombineCata ###################################################\n\
 [CombineCata]\n\n\
-file_format =              fits                # output file format\n\
+file_format =           fits                   # output file format\n\
                                                # supported formats:\n\
                                                #    fits, feather, csv\n\
 clean_up_level =        0                      # clean up level\n\

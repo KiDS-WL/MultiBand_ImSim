@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:25:05
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-11-29 12:24:18
+# @Last Modified time: 2021-12-15 08:57:56
 
 ### Everything about KiDS-like images
 __all__ = ['_PSFNoisySkyImages_KiDS_sameExpo', '_PSFNoisySkyImages_KiDS_singleExpo', '_PSFNoisySkyImages_KiDS_varChips']
@@ -108,7 +108,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
             flag_sim = head_tmp['flag_sim']
             if flag_sim >= 1:
                 outpath_image_exist_list[i_name] = True
-                logger.info(f"{outpath_image_name} already exist.")
+                logger.debug(f"{outpath_image_name} already exist.")
                 continue
         except FileNotFoundError:
             continue
@@ -126,7 +126,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                 flag_sim = head_tmp['flag_sim']
                 if flag_sim >= 1:
                     outpath_PSF_exist_list[i_name] = True
-                    logger.info(f"{outpath_PSF_name} already exist.")
+                    logger.debug(f"{outpath_PSF_name} already exist.")
                     continue
             except FileNotFoundError:
                 continue
@@ -154,7 +154,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
             for id_exposure in range(n_exposures):
                 outpath_tmp = os.path.join(psf_dir_tmp, f'expo{id_exposure}.fits')
                 psf_ima.write(outpath_tmp)
-            logger.info(f'PSF images saved to {psf_dir_tmp}')
+            logger.debug(f'PSF images saved to {psf_dir_tmp}')
 
     ## chips
     if save_image_chips:
@@ -166,7 +166,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                 chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
                 n_files = len(glob.glob(os.path.join(chip_dir_tmp, f'exp{id_exposure}chip_*.fits')))
                 if n_files == 32:
-                    logger.info(f'chips already exist for rot{gal_rotation_angle:.0f} expo{id_exposure}.')
+                    logger.debug(f'chips already exist for rot{gal_rotation_angle:.0f} expo{id_exposure}.')
                 else:
                     image_tile = galsim.fits.read(outpath_image_name)
                     image_chips = KiDSModule.cutKiDSchips(image_tile)
@@ -174,7 +174,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                     for i_chip, image_chip in enumerate(image_chips):
                         outpath_tmp = os.path.join(chip_dir_tmp, f'exp{id_exposure}chip_{i_chip+1}OFCS.fits')
                         image_chip.write(outpath_tmp)
-                    logger.info(f'Image chips saved to {chip_dir_tmp} for expo{id_exposure}.')
+                    logger.debug(f'Image chips saved to {chip_dir_tmp} for expo{id_exposure}.')
 
     ## if all exist, quit
     if (not False in outpath_image_exist_list) and (not False in outpath_PSF_exist_list):
@@ -207,7 +207,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                 ## save
                 outpath_PSF_name = outpath_PSF_name_list[i_ima]
                 image_PSF_tmp.write(outpath_PSF_name)
-                logger.info(f"PSF map saved as {outpath_PSF_name}.")
+                logger.debug(f"PSF map saved as {outpath_PSF_name}.")
 
                 ## mark success to the header
                 with fits.open(outpath_PSF_name, mode='update') as hdul:
@@ -219,12 +219,15 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
     if (False in outpath_image_exist_list):
 
         # simple canvas based on the galaxy sky positions
-        RA_gals = gals_info_band['RA'] # degree
-        DEC_gals = gals_info_band['DEC'] # degree
-        RA_min = np.min(RA_gals)
-        RA_max = np.max(RA_gals)
-        DEC_min = np.min(DEC_gals)
-        DEC_max = np.max(DEC_gals)
+        RA_gals = gals_info_band[0]['RA'].values
+        DEC_gals = gals_info_band[0]['DEC'].values
+        if gals_info_band[1] is not None:
+            RA_gals = np.hstack([RA_gals, gals_info_band[1]['RA'].values])
+            DEC_gals = np.hstack([DEC_gals, gals_info_band[1]['DEC'].values])
+        RA_min = np.amin(RA_gals)
+        RA_max = np.amax(RA_gals)
+        DEC_min = np.amin(DEC_gals)
+        DEC_max = np.amax(DEC_gals)
         canvas = ObjModule.SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale)
         del RA_gals, DEC_gals, RA_min, RA_max, DEC_min, DEC_max
 
@@ -238,8 +241,15 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
 
         # galaxy images
         image_galaxies0 = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type,
+                                gals_info_band[0], gal_rotation_angle=gal_rotation_angle, 
+                                g_cosmic=g_cosmic, gal_position_type=gal_position_type,
                                 g_const=g_const,
+                                pixelPSF=psf_pixel)
+        if gals_info_band[1] is not None:
+            image_galaxies0 += ObjModule.GalaxiesImage_casual(canvas, band, pixel_scale, PSF,
+                                gals_info_band[1], gal_rotation_angle=gal_rotation_angle, 
+                                g_cosmic=g_cosmic, gal_position_type=gal_position_type,
+                                g_const=g_const, 
                                 pixelPSF=psf_pixel)
 
         # cut to exposures
@@ -262,12 +272,12 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
 
                 ## save the noisy image
                 image_tile.write(outpath_image_name)
-                logger.info(f"KiDS-like exposure saved as {outpath_image_name}")
+                logger.debug(f"KiDS-like exposure saved as {outpath_image_name}")
 
                 ## save the weight image
                 outpath_wei_name = outpath_image_name.replace('.fits', '.weight.fits')
                 weights_tile.write(outpath_wei_name)
-                logger.info(f"weight image saved as {outpath_wei_name}")
+                logger.debug(f"weight image saved as {outpath_wei_name}")
 
                 ## mark success to the header
                 with fits.open(outpath_image_name, mode='update') as hdul:
@@ -282,7 +292,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
                     for i_chip, image_chip in enumerate(image_chips):
                         outpath_tmp = os.path.join(chip_dir_tmp, f'exp{id_exposure}chip_{i_chip+1}OFCS.fits')
                         image_chip.write(outpath_tmp)
-                    logger.info(f'Image chips saved to {chip_dir_tmp} for exposure {id_exposure}.')
+                    logger.debug(f'Image chips saved to {chip_dir_tmp} for exposure {id_exposure}.')
 
     logger.info(f'Finished for tile {tile_label} band {band} rot {gal_rotation_angle}...')
     return 0
@@ -356,7 +366,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
             flag_sim = head_tmp['flag_sim']
             if flag_sim >= 1:
                 outpath_image_exist_list[i_name] = True
-                logger.info(f"{outpath_image_name} already exist.")
+                logger.debug(f"{outpath_image_name} already exist.")
                 continue
         except FileNotFoundError:
             continue
@@ -373,7 +383,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
             flag_sim = head_tmp['flag_sim']
             if flag_sim >= 1:
                 outpath_PSF_exist = True
-                logger.info(f"{outpath_PSF_name} already exist.")
+                logger.debug(f"{outpath_PSF_name} already exist.")
         except FileNotFoundError:
             pass
         except (KeyError, OSError) as e:
@@ -392,7 +402,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
             PSF = psf_func(*psf_paras)
             psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size, pixelPSF=psf_pixel)
             psf_ima.write(psf_ima_file_tmp)
-            logger.info(f'PSF image saved as {psf_ima_file_tmp}')
+            logger.debug(f'PSF image saved as {psf_ima_file_tmp}')
 
     ## if all exist, quit
     if (not False in outpath_image_exist_list) and (outpath_PSF_exist):
@@ -418,7 +428,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
 
         ## save
         image_PSF.write(outpath_PSF_name)
-        logger.info(f"PSF map saved as {outpath_PSF_name}.")
+        logger.debug(f"PSF map saved as {outpath_PSF_name}.")
 
         ## mark success to the header
         with fits.open(outpath_PSF_name, mode='update') as hdul:
@@ -430,12 +440,15 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
     if (False in outpath_image_exist_list):
 
         # a list of canvas based on galaxy sky positions
-        RA_gals = gals_info_band['RA'] # degree
-        DEC_gals = gals_info_band['DEC'] # degree
-        RA0 = (np.max(RA_gals) + np.min(RA_gals))/2.
-        DEC0 = (np.max(DEC_gals) + np.min(DEC_gals))/2.
+        RA_gals = gals_info_band[0]['RA'].values
+        DEC_gals = gals_info_band[0]['DEC'].values
+        if gals_info_band[1] is not None:
+            RA_gals = np.hstack([RA_gals, gals_info_band[1]['RA'].values])
+            DEC_gals = np.hstack([DEC_gals, gals_info_band[1]['DEC'].values])
+        RA0 = (np.amax(RA_gals) + np.amin(RA_gals))/2.
+        DEC0 = (np.amax(DEC_gals) + np.amin(DEC_gals))/2.
         canvases_list = KiDSModule.getKiDScanvases(RA0, DEC0, id_exposure=id_exposure)
-        del RA0, DEC0
+        del RA_gals, DEC_gals, RA0, DEC0
 
         # all desired images
         for i_ima, outpath_image_exist in enumerate(outpath_image_exist_list):
@@ -450,9 +463,16 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
 
                 # galaxy image
                 image_galaxies = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type,
+                                                gals_info_band[0], gal_rotation_angle=gal_rotation_angle, 
+                                                g_cosmic=g_cosmic, gal_position_type=gal_position_type,
                                                 g_const=g_const,
                                                 pixelPSF=psf_pixel)
+                if gals_info_band[1] is not None:
+                    image_galaxies += ObjModule.GalaxiesImage_casual(canvas, band, pixel_scale, PSF,
+                                        gals_info_band[1], gal_rotation_angle=gal_rotation_angle, 
+                                        g_cosmic=g_cosmic, gal_position_type=gal_position_type,
+                                        g_const=g_const, 
+                                        pixelPSF=psf_pixel)
 
                 ## add stars
                 if (stars_info_band is not None):
@@ -466,7 +486,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
 
                 ## save the noisy image
                 image_galaxies.write(outpath_image_name)
-                logger.info(f"KiDS-like chip saved as {outpath_image_name}")
+                logger.debug(f"KiDS-like chip saved as {outpath_image_name}")
 
                 ## mark success to the header
                 with fits.open(outpath_image_name, mode='update') as hdul:
@@ -571,7 +591,7 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
             flag_sim = head_tmp['flag_sim']
             if flag_sim >= 1:
                 outpath_image_exist_list[i_name] = True
-                logger.info(f"{outpath_image_name} already exist.")
+                logger.debug(f"{outpath_image_name} already exist.")
                 continue
         except FileNotFoundError:
             continue
@@ -620,12 +640,15 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
     if (False in outpath_image_exist_list):
 
         # a list of canvas based on galaxy sky positions
-        RA_gals = gals_info_band['RA'] # degree
-        DEC_gals = gals_info_band['DEC'] # degree
-        RA0 = (np.max(RA_gals) + np.min(RA_gals))/2.
-        DEC0 = (np.max(DEC_gals) + np.min(DEC_gals))/2.
+        RA_gals = gals_info_band[0]['RA'].values
+        DEC_gals = gals_info_band[0]['DEC'].values
+        if gals_info_band[1] is not None:
+            RA_gals = np.hstack([RA_gals, gals_info_band[1]['RA'].values])
+            DEC_gals = np.hstack([DEC_gals, gals_info_band[1]['DEC'].values])
+        RA0 = (np.amax(RA_gals) + np.amin(RA_gals))/2.
+        DEC0 = (np.amax(DEC_gals) + np.amin(DEC_gals))/2.
         canvases_list = KiDSModule.getKiDScanvases(RA0, DEC0, id_exposure=id_exposure)
-        del RA0, DEC0
+        del RA_gals, DEC_gals, RA0, DEC0
 
         # all desired images
         for i_ima, outpath_image_exist in enumerate(outpath_image_exist_list):
@@ -645,9 +668,16 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
 
                 # galaxy image
                 image_galaxies = ObjModule.GalaxiesImage(canvas, band, pixel_scale, PSF,
-                                                gals_info_band, gal_rotation_angle=gal_rotation_angle, g_cosmic=g_cosmic, gal_position_type=gal_position_type,
+                                                gals_info_band[0], gal_rotation_angle=gal_rotation_angle, 
+                                                g_cosmic=g_cosmic, gal_position_type=gal_position_type,
                                                 g_const=g_const,
                                                 pixelPSF=psf_pixel)
+                if gals_info_band[1] is not None:
+                    image_galaxies += ObjModule.GalaxiesImage_casual(canvas, band, pixel_scale, PSF,
+                                        gals_info_band[1], gal_rotation_angle=gal_rotation_angle, 
+                                        g_cosmic=g_cosmic, gal_position_type=gal_position_type,
+                                        g_const=g_const, 
+                                        pixelPSF=psf_pixel)
 
                 ## add stars
                 if (stars_info_band is not None):
@@ -661,7 +691,7 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
 
                 ## save the noisy image
                 image_galaxies.write(outpath_image_name)
-                logger.info(f"KiDS-like chip saved as {outpath_image_name}")
+                logger.debug(f"KiDS-like chip saved as {outpath_image_name}")
 
                 ## mark success to the header
                 with fits.open(outpath_image_name, mode='update') as hdul:

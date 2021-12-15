@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-12-12 11:32:59
+# @Last Modified time: 2021-12-14 18:18:56
 
 ### running module for ImSim
 
@@ -50,13 +50,16 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
     contain_stars = 'yes' if (stars_info is not None) else 'no' 
     logger.info(f'Contain stars: {contain_stars}')
     del contain_stars
+    casual_mode = 'yes' if (gals_info[1] is not None) else 'no' 
+    logger.info(f'Casual mode for faint end: {casual_mode}')
+    del casual_mode
     logger.info(f'Bands: {bands}')
     logger.info(f'Pixel scales: {pixel_scale_list}')
     logger.info(f'Image types: {image_type_list}')
     logger.info(f'PSF profiles: {psf_type_list}')
 
     # constant shear or variable
-    if 'gamma1' in gals_info.columns:
+    if 'gamma1' in gals_info[0].columns:
         g_const = False
         logger.info('Using variable shears')
     else:
@@ -91,10 +94,16 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             raise Exception('KiDS survey does not observe grid world :( Please use other survey.')
     elif survey.lower() == 'one_tile':
         # area same as the input
-        ra_min0 = np.min(gals_info['RA'])
-        ra_max0 = np.max(gals_info['RA'])
-        dec_min0 = np.min(gals_info['DEC'])
-        dec_max0 = np.max(gals_info['DEC'])
+        RA_tmp = gals_info[0]['RA'].values
+        DEC_tmp = gals_info[0]['DEC'].values
+        if gals_info[1] is not None:
+            RA_tmp = np.hstack([RA_tmp, gals_info[1]['RA'].values])
+            DEC_tmp = np.hstack([DEC_tmp, gals_info[1]['DEC'].values])
+        ra_min0 = np.amin(RA_tmp)
+        ra_max0 = np.amax(RA_tmp)
+        dec_min0 = np.amin(DEC_tmp)
+        dec_max0 = np.amax(DEC_tmp)
+        del RA_tmp, DEC_tmp
         ## 0.999 is 1
         area_ra = (ra_max0 - ra_min0) + 0.0005
         area_dec = (dec_max0 - dec_min0) + 0.0005
@@ -103,10 +112,16 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
     # total area spanned by the input galaxies
     ## assuming the input catalogue spanning continuously in a rectangular area
-    ra_min0 = np.min(gals_info['RA'])
-    ra_max0 = np.max(gals_info['RA'])
-    dec_min0 = np.min(gals_info['DEC'])
-    dec_max0 = np.max(gals_info['DEC'])
+    RA_tmp = gals_info[0]['RA'].values
+    DEC_tmp = gals_info[0]['DEC'].values
+    if gals_info[1] is not None:
+        RA_tmp = np.hstack([RA_tmp, gals_info[1]['RA'].values])
+        DEC_tmp = np.hstack([DEC_tmp, gals_info[1]['DEC'].values])
+    ra_min0 = np.amin(RA_tmp)
+    ra_max0 = np.amax(RA_tmp)
+    dec_min0 = np.amin(DEC_tmp)
+    dec_max0 = np.amax(DEC_tmp)
+    del RA_tmp, DEC_tmp
     ## 0.999 is 1
     area_ra0 = (ra_max0 - ra_min0) + 0.001
     area_dec0 = (dec_max0 - dec_min0) + 0.001
@@ -146,12 +161,12 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             logger.warning(f'repeating patterns started from tile {tile_label}')
 
         # rng seed associated with tile labels
-        rng_seed_tile = rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=int).sum()*1000000
+        rng_seed_tile = rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=int).sum()*54
         rng_seed_list.append(rng_seed_tile)
 
         ## output noise info
         outpath_tmp = os.path.join(outcata_dir, f'noise_info_tile{tile_label}.csv')
-        with open(outpath_tmp) as f:
+        with open(outpath_tmp, 'w') as f:
             f.write('# NOTE: psf e is defined as 1-a/b')
             pd.DataFrame([noise_info_tile]).to_csv(f, index=False)
         logger.info(f'noise info saved to {outpath_tmp}')
@@ -163,15 +178,30 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         dec_max = dec_min + area_dec
 
         # select galaxies
-        mask_ra = (gals_info['RA'] >= ra_min) & (gals_info['RA'] < ra_max)
-        mask_dec = (gals_info['DEC'] >= dec_min) & (gals_info['DEC'] < dec_max)
-        gals_info_selec = gals_info[mask_ra & mask_dec].copy()
-        gals_info_selec.reset_index(drop=True, inplace=True)
+        ## careful one
+        mask_ra = (gals_info[0]['RA'] >= ra_min) & (gals_info[0]['RA'] < ra_max)
+        mask_dec = (gals_info[0]['DEC'] >= dec_min) & (gals_info[0]['DEC'] < dec_max)
+        gals_info_careful_selec = gals_info[0][mask_ra & mask_dec].copy()
+        gals_info_careful_selec.reset_index(drop=True, inplace=True)
+        ## casual one
+        if gals_info[1] is not None:
+            mask_ra = (gals_info[1]['RA'] >= ra_min) & (gals_info[1]['RA'] < ra_max)
+            mask_dec = (gals_info[1]['DEC'] >= dec_min) & (gals_info[1]['DEC'] < dec_max)
+            gals_info_casual_selec = gals_info[1][mask_ra & mask_dec].copy()
+            gals_info_casual_selec.reset_index(drop=True, inplace=True)
+        else:
+            gals_info_casual_selec = None
+        gals_info_selec = [gals_info_careful_selec, gals_info_casual_selec]
+        del mask_ra, mask_dec, gals_info_careful_selec, gals_info_casual_selec
 
         ## change position if desired
         if gal_position_type[0] == 'grid':
             logger.info('Galaxies are placed in a grid.')
-            Ngal = len(gals_info_selec)
+            Ngal0 = len(gals_info_selec[0])
+            if gals_info_selec[1] is not None:
+                Ngal = Ngal0 + len(gals_info_selec[1])
+            else:
+                Ngal = Ngal0
             apart = gal_position_type[1]/3600. # apart for each galaxy
             # how many row and column needed to place all galaxies
             N_rows = math.ceil(Ngal**0.5)
@@ -185,19 +215,36 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             random.seed(rng_seed_tile)
             index_selected = random.sample(range(len(X_gals)), Ngal)
             ### over-write
-            gals_info_selec.loc[:, 'RA'] = X_gals[index_selected]
-            gals_info_selec.loc[:, 'DEC'] = Y_gals[index_selected]
-            ### delete useless variables
-            del index_selected
-            del X_gals
-            del Y_gals
+            gals_info_selec[0].loc[:, 'RA'] = X_gals[index_selected][:Ngal0]
+            gals_info_selec[0].loc[:, 'DEC'] = Y_gals[index_selected][:Ngal0]
+            if gals_info_selec[1] is not None:
+                gals_info_selec[1].loc[:, 'RA'] = X_gals[index_selected][Ngal0:]
+                gals_info_selec[1].loc[:, 'DEC'] = Y_gals[index_selected][Ngal0:]
+
+            del index_selected, X_gals, Y_gals
+
         elif gal_position_type[0] == 'random':
             logger.info('Galaxies are placed randomly.')
-            np.random.seed(rng_seed_tile)
-            Ngal = len(gals_info_selec)
-            ### random sampling
-            gals_info_selec.loc[:, 'RA'] = np.random.uniform(low=ra_min, high=ra_max, size=Ngal)
-            gals_info_selec.loc[:, 'DEC'] = np.random.uniform(low=dec_min, high=dec_max, size=Ngal)
+
+            Ngal0 = len(gals_info_selec[0])
+            if gals_info_selec[1] is not None:
+                Ngal = Ngal0 + len(gals_info_selec[1])
+            else:
+                Ngal = Ngal0
+
+            ### random sample positions
+            np.random.seed(rng_seed_tile * 11)
+            RA_random = np.random.uniform(low=ra_min, high=ra_max, size=Ngal)
+            np.random.seed(rng_seed_tile * 62)
+            DEC_random = np.random.uniform(low=dec_min, high=dec_max, size=Ngal)
+            ###### assign
+            gals_info_selec[0].loc[:, 'RA'] = RA_random[:Ngal0]
+            gals_info_selec[0].loc[:, 'DEC'] = DEC_random[:Ngal0]
+            if gals_info_selec[1] is not None:
+                gals_info_selec[1].loc[:, 'RA'] = RA_random[Ngal0:]
+                gals_info_selec[1].loc[:, 'DEC'] = DEC_random[Ngal0:]
+            del RA_random, DEC_random
+
         else:
             if gal_position_type[0] != 'true':
                 raise Exception(f'Unsupported gal_position_type: {gal_position_type[0]} !')
@@ -206,7 +253,10 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         output_col_tmp = ['index', 'RA', 'DEC', 'redshift', 'Re', 'axis_ratio', 'position_angle', 'sersic_n'] + bands
         if not g_const:
             output_col_tmp += ['gamma1', 'gamma2']
-        output_tmp = gals_info_selec[output_col_tmp].copy()
+        output_tmp = gals_info_selec[0][output_col_tmp].copy()
+        if gals_info_selec[1] is not None:
+            output_tmp = pd.concat([output_tmp, gals_info_selec[1][output_col_tmp].copy()], 
+                            ignore_index=True)
         ### better naming
         output_tmp = output_tmp.add_suffix(f'_input')
         ### add ellipticity based on q and beta
@@ -215,8 +265,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             true_pa_tmp = output_tmp['position_angle_input'] + gal_rotation_angle
             output_tmp.loc[:, f'e1_input_rot{int(gal_rotation_angle)}'] = g_tmp * np.cos(2. * (true_pa_tmp/180.*np.pi))
             output_tmp.loc[:, f'e2_input_rot{int(gal_rotation_angle)}'] = g_tmp * np.sin(2. * (true_pa_tmp/180.*np.pi))
-        del g_tmp
-        del true_pa_tmp
+        del g_tmp, true_pa_tmp
+        ### save
         outpath_tmp = os.path.join(outcata_dir, f'gals_info_tile{tile_label}.feather')
         output_tmp.to_feather(outpath_tmp)
         del output_tmp
@@ -224,7 +274,9 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
         ## magnitude to flux
         for band in bands:
-            gals_info_selec.loc[:, band] = 10**(-0.4*(gals_info_selec[band]-mag_zero))
+            gals_info_selec[0].loc[:, band] = 10**(-0.4*(gals_info_selec[0][band]-mag_zero))
+            if gals_info_selec[1] is not None:
+                gals_info_selec[1].loc[:, band] = 10**(-0.4*(gals_info_selec[1][band]-mag_zero))
 
         ## save to list
         gals_info_list.append(gals_info_selec)
@@ -234,20 +286,25 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
             if star_position_type == 'random':
                 ## randomly select stars
-                np.random.seed(rng_seed_tile)
                 random.seed(rng_seed_tile)
                 mask_star = random.sample(range(len(stars_info)), Nstar_even)
                 stars_info_selec = stars_info.iloc[mask_star].copy()
                 stars_info_selec.reset_index(drop=True, inplace=True)
+                del mask_star
+
                 ## randomly place stars
+                np.random.seed(rng_seed_tile * 90)
                 stars_info_selec.loc[:, 'RA'] = np.random.uniform(low=ra_min, high=ra_max, size=Nstar_even)
+                np.random.seed(rng_seed_tile * 63)
                 stars_info_selec.loc[:, 'DEC'] = np.random.uniform(low=dec_min, high=dec_max, size=Nstar_even)
+
             elif star_position_type == 'true':
                 # use true star location
                 mask_ra = (stars_info['RA'] >= ra_min) & (stars_info['RA'] < ra_max)
                 mask_dec = (stars_info['DEC'] >= ra_min) & (stars_info['DEC'] < ra_max)
                 stars_info_selec = stars_info[mask_ra & mask_dec].copy()
                 stars_info_selec.reset_index(drop=True, inplace=True)
+
             else:
                 raise Exception(f'Unsupported star_position_type: {star_position_type} !')
 
@@ -256,6 +313,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             output_tmp = stars_info_selec[output_col_tmp].copy()
             ### better naming
             output_tmp = output_tmp.add_suffix(f'_input')
+            ### save
             outpath_tmp = os.path.join(outcata_dir, f'stars_info_tile{tile_label}.feather')
             output_tmp.to_feather(outpath_tmp)
             del output_tmp
@@ -332,13 +390,30 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                 outpath_PSF_basename = None
 
             # galaxies
+            ### careful cata
             name = ['RA','DEC',
                 'sersic_n','Re','axis_ratio','position_angle',
                 'bulge_fraction','bulge_Re','bulge_axis_ratio','bulge_n',
                 'disk_Re','disk_axis_ratio', band]
             if not g_const:
                 name += ['gamma1', 'gamma2']
-            gals_info_band = gals_info_tile[name]
+            gals_info_band0 = gals_info_tile[0][name]
+            ### casual cata
+            if gals_info_tile[1] is not None:
+                name = ['RA','DEC',
+                    'sersic_n','Re','axis_ratio','position_angle',
+                    'bulge_fraction','bulge_Re','bulge_axis_ratio','bulge_n',
+                    'disk_Re','disk_axis_ratio', 
+                    'index_seedGal', 'i_qbin',
+                    band]
+                if not g_const:
+                    name += ['gamma1', 'gamma2']
+                gals_info_band1 = gals_info_tile[1][name]
+            else:
+                gals_info_band1 = None
+            ### combine
+            gals_info_band = [gals_info_band0, gals_info_band1]
+            del gals_info_band0 , gals_info_band1
 
             # stars
             if (stars_info is not None):
@@ -535,7 +610,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         logger.debug(f'Number of running {N_running}')
         if i_worker == N_tasks:
             break
-        elif N_running >= (Nmax_proc-1):
+        elif N_running >= (Nmax_proc):
             time.sleep(5.)
         else:
             logger.debug(f'Start worker {i_worker}')

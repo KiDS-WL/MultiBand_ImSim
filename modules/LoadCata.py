@@ -30,7 +30,7 @@ def GalInfo(cata_pathfile, bands,
             RaDec_names,
             shape_names,
             z_name,
-            rng_seed=940120, mag_cut=[], size_cut=[],
+            mag_cut=[], size_cut=[],
             g_columns=None):
     """
     Get galaxy information from the input catalogue.
@@ -55,15 +55,19 @@ def GalInfo(cata_pathfile, bands,
         column name for redshift for saving.
     info_outfile (optional) : str (default: None)
         Path to the output of the simulated info.
-    rng_seed (optional) : int (default: 940120)
-        Seed for random number generator.
     mag_cut (optional) : a list of float (default: [])
         Min & Max value of the primary band (the brightest & faintest galaxies will be simulated).
     size_cut (optional) : a list of float (default: [])
         Min & Max value of the effective radius in arcsec (the smallest & largest galaxies will be simulated).
     g_columns (optional) : a list of str (default: None)
         column names to the input shear, only provided for variable shear setup
+
+    Returns
+    -------
+    gals_info : DataFrame
+        galaxies info
     """
+
     logger.info('Collect galaxy info from input catalogue...')
     logger.info(f'Query bands {mag_name_list}, the detection band {primary_mag_name}')
     if mag_cut:
@@ -92,9 +96,6 @@ def GalInfo(cata_pathfile, bands,
         del mask_tmp
         if isinstance(cata, pd.DataFrame):
             cata.reset_index(drop=True, inplace=True)
-
-    # random seed
-    np.random.seed(rng_seed)
 
     # galaxy id
     index = cata[id_name]
@@ -192,6 +193,84 @@ def GalInfo(cata_pathfile, bands,
 
     return gals_info
 
+def GalInfo_adjust4casual(gals_info, 
+                    qbin_band='r', qbin_mag=25., 
+                    Nqbins=20, Frac_careful=0.01, rng_seed=512):
+    """
+    Adjust gals_info for casual mode (sample galaxies in faint end)
+
+    Parameters
+    ----------
+    gals_info : DataFrame
+        original galaxies information.
+    qbin_band : str, optional (default: 'r')
+        band used for quantile binning
+    qbin_mag : float, optional (default: 25.)
+        up to which magnitude galaxies are sampled
+    Nqbins : int, optional (default: 20)
+        Number of quantile bins for packing galaxies
+    Frac_careful : float, optional (default: 0.01)
+        Fraction of carefully simulated galaxies in each quantile bin
+    rng_seed : int, optional (default: 512)
+        seed for random sampling
+
+    Returns
+    -------
+    gals_info_careful : DataFrame
+        galaxies need careful simulation
+    gals_info_casual : DataFrame
+        galaxies can be casually simulated
+    """
+
+    logger.info('Adjust galaxy info for casual mode...')
+    logger.info(f'bin band {qbin_band}, cut mag {qbin_mag}')
+    logger.info(f'number bin {Nqbins}, Fraction of seed galaxies {Frac_careful}')
+
+    # split the galaxies to careful and casual
+    mask_casual = gals_info[qbin_band].values > qbin_mag
+    gals_info_casual = gals_info[mask_casual].copy()
+    gals_info_casual.reset_index(drop=True, inplace=True)
+    gals_info_careful = gals_info[~mask_casual].copy()
+    gals_info_careful.reset_index(drop=True, inplace=True)
+    del mask_casual, gals_info
+
+    # bin the causual sample with Nqbins provided
+    gals_info_casual.loc[:, 'i_qbin'] = pd.qcut(gals_info_casual[qbin_band], Nqbins, labels=False)
+    info_grouped = gals_info_casual.groupby(by=['i_qbin'])
+    del gals_info_casual
+    
+    # loop over the bins and draw galaxies
+    sampled_groups = []
+    for name, group in info_grouped:
+
+        # randomly sample the seed galaxies
+        Ntot_tmp = len(group)
+        ## seed galaxies
+        gals0 = group.sample(frac=Frac_careful, random_state=rng_seed+name, ignore_index=True)
+        Ncareful = len(gals0)
+        if Ncareful < 10:
+            raise Exception(f'Number of seed galaxies {Ncareful} < 10, think twice about your Frac_careful!')
+        ### positions and tag are not used
+        gals0.drop(columns=['RA', 'DEC'], inplace=True)
+        ### index are renamed
+        gals0.rename(columns={'index': 'index_seedGal'}, inplace=True)
+        ## randomly sample from seed galaxies
+        gals1 = gals0.sample(n=Ntot_tmp - Ncareful, random_state=rng_seed*36+name, replace=True)
+
+        # assign to the group
+        group = group[['index', 'RA', 'DEC']]
+        group.reset_index(drop=True, inplace=True)
+        group = pd.concat([group, pd.concat([gals0, gals1], ignore_index=True)], axis=1)
+        sampled_groups.append(group)
+        del gals0, gals1, group
+
+    del info_grouped
+
+    # concat to get the casual cata
+    gals_info_casual = pd.concat(sampled_groups)
+
+    return gals_info_careful, gals_info_casual
+
 def StarInfo(cata_pathfile, bands,
             id_name, primary_mag_name, mag_name_list,
             RaDec_names=None, mag_cut=[]):
@@ -215,7 +294,13 @@ def StarInfo(cata_pathfile, bands,
         Not required, if stars will be randomly placed.
     mag_cut (optional) : a list of float (default: [])
         Min & Max value of the primary band (the brightest & faintest stars will be simulated).
+
+    Returns
+    -------
+    stars_info : DataFrame
+        stars info
     """
+
     logger.info('Collect star info from input catalogue...')
     logger.info(f'Query bands {mag_name_list}, the primary band {primary_mag_name}')
     if mag_cut:
@@ -322,8 +407,14 @@ def NoiseInfo(cata_pathfile, bands,
         Number of chips in each exposure, only used when varChips==True 
     psf_PixelIma_dir : str
         directory to psf images.
+
+    Returns
+    -------
+    noise_info : DataFrame
+        noise info
     """
-    logger.info('Collect observation info from input noise catalogue...')
+
+    logger.info('Collect observational info from input noise catalogue...')
 
     # due to compatibility
     if len(psf_type_list) != len(bands):
