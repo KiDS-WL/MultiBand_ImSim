@@ -103,17 +103,8 @@ print('Number of tiles with all bands noise', len(final_data))
 #### 1. inspect relation from representative tiles
 moffat_data = pd.read_csv(NIR_moffat_file, sep=' ', names=['file', 'number', 'seeing', 'beta'])
 moffat_data['seeing'] *= 0.34 # to arcsec
-# colours = ['r', 'b', 'g', 'c', 'm']
-# labels  =['H', 'J', 'Ks', 'Y', 'Z']
-# for i in range(5):
-#     CR = colours[i]
-#     label = labels[i]
-#     moffat_tmp = moffat_data[(7*i):(7*i+7)]
-    # plt.plot(moffat_tmp['seeing'].values, moffat_tmp['beta'].values, marker='o', color=CR, linestyle=' ', markersize=2, label=label)
-# plt.xlabel('seeing')
-# plt.ylabel('beta')
-# plt.legend()
-# plt.show()
+colours = ['r', 'b', 'g', 'c', 'm']
+labels  =['H', 'J', 'Ks', 'Y', 'Z']
 
 #### 2. fitting
 x = moffat_data['seeing'].values
@@ -121,12 +112,23 @@ y = np.log(moffat_data['beta'].values)
 def func2(x, a, b, c):
     return a * np.exp(-b * x) + c
 popt, pcov = curve_fit(func2, x, y)
-# xdata = np.linspace(np.min(x), np.max(x), 50)
-# plt.plot(xdata, np.exp(func2(xdata, *popt)), 'k-', label='exp2')
-# plt.xlabel('seeing')
-# plt.ylabel('beta')
-# plt.legend()
-# plt.show()
+print(popt)
+print(pcov[0,0]**0.5, pcov[1,1]**0.5, pcov[2,2]**0.5)
+# [66.56489717  6.35535572  0.90358465]
+# 98.74224174633866 2.322659234008706 0.11755183787028214
+
+#### plot
+xdata = np.linspace(np.min(x), np.max(x), 50)
+for i in range(5):
+    CR = colours[i]
+    label = labels[i]
+    moffat_tmp = moffat_data[(7*i):(7*i+7)]
+    plt.plot(moffat_tmp['seeing'].values, moffat_tmp['beta'].values, marker='o', color=CR, linestyle=' ', markersize=2, label=label)
+plt.plot(xdata, np.exp(func2(xdata, *popt)), 'k-', label='exp2')
+plt.xlabel('seeing')
+plt.ylabel('beta')
+plt.legend()
+plt.show()
 
 #### 3. apply
 for band in bands:
