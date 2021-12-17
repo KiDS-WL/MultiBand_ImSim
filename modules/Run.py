@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-12-15 09:35:19
+# @Last Modified time: 2021-12-16 15:29:34
 
 ### main module to run the whole pipeline
 
@@ -224,7 +224,10 @@ if ('1' in taskIDs) or ('all' in taskIDs):
         noise_basenames = configs_dict['noise']['noise_basenames']
         psf_basenames_moffat = configs_dict['noise']['psf_basenames_moffat']
         psf_basenames_airy = configs_dict['noise']['psf_basenames_airy']
-        id_basenames = configs_dict['noise']['id_basenames']
+        try:
+            id_basenames = configs_dict['noise']['id_basenames']
+        except KeyError:
+            id_basenames = None
     ### get info
     noise_info = LoadCata.NoiseInfo(configs_dict['noise']['file'], configs_dict['imsim']['bands'], 
                     only_labels=False,

@@ -467,7 +467,7 @@ def NoiseInfo(cata_pathfile, bands,
         name_rms = noise_basenames[0]
         try:
             name_chip_id, name_expo_id = id_basenames
-        except ValueError:
+        except TypeError:
             name_chip_id = 'none'
             name_expo_id = 'none'
         # PSF

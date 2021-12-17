@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-12-15 09:52:03
+# @Last Modified time: 2021-12-16 15:26:21
 
 ### module to generate an example configuration file
 
@@ -157,7 +157,8 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
     else:
         noise_configs['label_basename'] = config_noise.get('label_basename')
         noise_configs['noise_basenames'] = [x.strip() for x in config_noise.get('noise_basenames').split(',')]
-        noise_configs['id_basenames'] = [x.strip() for x in config_noise.get('id_basenames').split(',')]
+        if (noise_configs['file4varChips']):
+            noise_configs['id_basenames'] = [x.strip() for x in config_noise.get('id_basenames').split(',')]
 
         # >>> for old version
         psf_basenames = config_noise.get('psf_basenames')

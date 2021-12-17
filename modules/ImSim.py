@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-12-14 18:18:56
+# @Last Modified time: 2021-12-17 09:33:02
 
 ### running module for ImSim
 
@@ -167,7 +167,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         ## output noise info
         outpath_tmp = os.path.join(outcata_dir, f'noise_info_tile{tile_label}.csv')
         with open(outpath_tmp, 'w') as f:
-            f.write('# NOTE: psf e is defined as 1-a/b')
+            f.write('# NOTE: psf e is defined as 1-a/b\n')
             pd.DataFrame([noise_info_tile]).to_csv(f, index=False)
         logger.info(f'noise info saved to {outpath_tmp}')
 
