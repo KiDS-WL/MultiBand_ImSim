@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-01-07 17:07:42
+# @Last Modified time: 2022-01-09 13:53:11
 
 ### main module to run the whole pipeline
 
@@ -34,7 +34,7 @@ import CrossMatch
 
 import RunConfigFile
 
-__version__ = "MultiBand_ImSim v0.6.1"
+__version__ = "MultiBand_ImSim v0.6.2"
 
 # ++++++++++++++ parser for command-line interfaces
 parser = argparse.ArgumentParser(
