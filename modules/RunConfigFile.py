@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-12-16 15:26:21
+# @Last Modified time: 2022-01-07 17:47:34
 
 ### module to generate an example configuration file
 
@@ -311,6 +311,10 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
         tmp_val = [float(x.strip()) for x in config_MP.get('band_1sigma_limits').split(',')]
         MP_configs['band_1sigma_limits'] = dict(zip(MP_configs['bands'], tmp_val))
 
+        ### spatial variation dictionary
+        tmp_val = [(x.strip().lower() in ['true', 'yes', '1']) for x in config_MP.get('band_spatial_variation').split(',')]
+        MP_configs['band_spatial_variation'] = dict(zip(MP_configs['bands'], tmp_val))
+
         ### GAaP
         if MP_method.lower() == 'gaap':
             config_gaap = config['GAaP']
@@ -318,7 +322,7 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             MP_configs['min_aper'] = config_gaap.getfloat('min_aper')
             MP_configs['max_aper'] = config_gaap.getfloat('max_aper')
             MP_configs['use_PSF_map'] = config_gaap.getboolean('use_PSF_map')
-            MP_configs['star_mag_cut'] = [float(i_m.strip()) for i_m in config_gaap.get('star_mag_cut').split(',')]
+            MP_configs['star_SNR_cut'] = [float(i_m.strip()) for i_m in config_gaap.get('star_SNR_cut').split(',')]
             MP_configs['clean_up_level'] = config_gaap.getint('clean_up_level')
 
             ### legitimate check
@@ -681,12 +685,14 @@ method =                GAaP                   # method for photometry measureme
                                                # supported method:\n\
                                                #    GAaP\n\
 detection_band =        r                      # band with detection catalogue\n\
-band_list =             u, g, r, i, Z, Y, J, H, Ks\n\
+band_list =             r, u, g, i, Z, Y, J, H, Ks\n\
                                                # bands being measured\n\
-band_1sigma_limits =    25.5, 26.3, 26.2, 24.9, 24.85, 24.1, 24.2, 23.3, 23.2\n\
+band_1sigma_limits =    26.2, 25.5, 26.3, 24.9, 24.85, 24.1, 24.2, 23.3, 23.2\n\
                                                # 1 sigma limiting magnitude\n\
                                                # used for unmeasured objects' mag error\n\
                                                # default value from KV450 median\n\
+band_spatial_variation = True, False, False, False, False, False, False, False, False\n\
+                                               # does psf vary spatially\n\
 image_label_list =      AW, AW, AW, AW, original, original, original, original, original\n\
                                                # a list of labels for the image types, can be either:\n\
                                                #    original (for original simulated images)\n\
@@ -698,7 +704,7 @@ min_aper =              0.7                    # minimum aperture size\n\
 max_aper =              2.0                    # maximum aperture size\n\
 use_PSF_map =           False                  # use separate psf map for psf estimation\n\
                                                # only required if stars are not simulated\n\
-star_mag_cut =          16, 20                 # magnitude range for stars used for PSF estimation\n\
+star_SNR_cut =          100, 2000              # SNR range for stars used for PSF estimation\n\
                                                # not used if PSF map is provided\n\
 clean_up_level =        0                      # clean up level\n\
                                                #    0: none\n\

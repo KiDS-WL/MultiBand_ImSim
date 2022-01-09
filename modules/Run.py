@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-12-16 15:29:34
+# @Last Modified time: 2022-01-07 17:07:42
 
 ### main module to run the whole pipeline
 
@@ -440,10 +440,11 @@ if ('3' in taskIDs) or ('all' in taskIDs):
         pathlib.Path(CHECKIMAGE_dir).mkdir(parents=True, exist_ok=True)
 
     ## work pool
-    N_sex = int(Nmax_proc/4.)
-    if N_sex < 1:
-        N_sex = 1
-    logger.info(f'Number of processes for SExtractor: {N_sex}')
+    # N_sex = int(Nmax_proc/2.)
+    # if N_sex < 1:
+    #     N_sex = 1
+    N_sex = Nmax_proc
+    logger.info(f'Max number of processes for SExtractor: {N_sex}')
     work_pool = mp.Pool(processes=N_sex)
     proc_list = []
     for i_tile, tile_label in enumerate(tile_labels):
@@ -568,10 +569,11 @@ if ('4' in taskIDs) or ('all' in taskIDs):
 
         ## Initialise the GAaP wrapper
         gaap = GAaP.GAaPwrapper(configs_dict['MP']['gaap_dir'], out_dir_tmp,
-                star_mag_cut=configs_dict['MP']['star_mag_cut'],
+                star_SNR_cut=configs_dict['MP']['star_SNR_cut'],
                 mag_zero=configs_dict['imsim']['mag_zero'],
                 min_aper=configs_dict['MP']['min_aper'], max_aper=configs_dict['MP']['max_aper'],
-                mag_1sigma_limits=configs_dict['MP']['band_1sigma_limits'],
+                mag_1sigma_limits=configs_dict['MP']['band_1sigma_limits'], 
+                spatial_variation=configs_dict['MP']['band_spatial_variation'],
                 running_log=running_log, log_dir=log_dir_tmp,
                 clean_up_level=configs_dict['MP']['clean_up_level'])
 
@@ -580,15 +582,17 @@ if ('4' in taskIDs) or ('all' in taskIDs):
         tile_labels_tasks = np.repeat(tile_labels, len(configs_dict['imsim']['gal_rotation_angles']))
         N_tasks = len(rots_tasks)
         logger.info(f'Total number of tasks (tiles*rot): {N_tasks}')
-        N_gaap = int(Nmax_proc/N_tasks) # for each subprocess
-        if N_gaap < 1:
-            N_gaap = 1
+        ### number of cores for each GAaP
+        N_gaap = len(configs_dict['MP']['bands'])
+        if N_gaap > Nmax_proc:
+            N_gaap = Nmax_proc
         logger.info(f'number of processes in each GAaP run: {N_gaap}')
+        ### start loop
         proc_list = []
         i_worker = 0
         i_tile = 0
         while True:
-            N_running = len(mp.active_children())
+            N_running = len(mp.active_children()) * N_gaap
             logger.debug(f'Number of running {N_running}')
             if i_worker == N_tasks:
                 break

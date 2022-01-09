@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-09-17 21:28:17
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-10-07 16:09:32
+# @Last Modified time: 2022-01-07 17:47:21
 
 ### Wrapper for GAaP code
 
@@ -38,8 +38,8 @@ class GAaPwrapper(object):
         GAaP pipeline directory.
     out_dir : str
         Output directory.
-    star_mag_cut : list of float, optional (default: [16, 20])
-        Within which magnitude range stars are used.
+    star_SNR_cut : list of float, optional (default: [100, 1000])
+        Within which SNR range stars are used.
     mag_zero : float, optional (default: 30.)
         Zero point for the magnitude.
     min_aper : float, optional (default: 0.7)
@@ -48,6 +48,8 @@ class GAaPwrapper(object):
         Maximum aperture size.
     mag_1sigma_limits : dictionary
         1 sigma limiting magnitude, used for unmeasured objects' error
+    spatial_variation : dictionary
+        does psf vary spatially? 
     running_log : bool, optional (default: True)
         save running info from external code
     clean_up_level : int, optional (default: 0)
@@ -58,10 +60,10 @@ class GAaPwrapper(object):
     """
 
     def __init__(self, gaap_dir, out_dir,
-                star_mag_cut=[16., 20.],
+                star_SNR_cut=[100., 1000.],
                 mag_zero=30.,
                 min_aper=0.7, max_aper=2.0,
-                mag_1sigma_limits={},
+                mag_1sigma_limits={}, spatial_variation={},
                 running_log=True, log_dir=None,
                 clean_up_level=0):
 
@@ -74,8 +76,8 @@ class GAaPwrapper(object):
         if not os.path.exists(self._outDir):
             os.mkdir(self._outDir)
 
-        self._star_mag_cut = star_mag_cut
-        logger.info(f'star magnitude cut: ({star_mag_cut[0]}, {star_mag_cut[1]})')
+        self._star_SNR_cut = star_SNR_cut
+        logger.info(f'star SNR cut: ({star_SNR_cut[0]}, {star_SNR_cut[1]})')
 
         self._magzero = mag_zero
         logger.info("magnitude zero point: %f", self._magzero)
@@ -87,6 +89,9 @@ class GAaPwrapper(object):
 
         self._1sigma_limits = mag_1sigma_limits
         logger.info(f'1-sigma limiting magnitude: {mag_1sigma_limits}')
+
+        self._spatial_variation = spatial_variation
+        logger.info(f'model contains spatial variation: {spatial_variation}')
 
         self._running_log = running_log
         logger.info(f"Save running info: {self._running_log}")
@@ -115,11 +120,7 @@ class GAaPwrapper(object):
 
             # run sex
             cmd = ['sex', SKYimaFile, '-c', sex_config[0], '-PARAMETERS_NAME', sex_config[1], '-FILTER_NAME', sex_config[2], '-DETECT_THRESH', str(10), '-CATALOG_NAME', PSFcataFile]
-            print("########## sex info start ##########\n", file=outLog)
-            print("########## sex error start ##########\n", file=errLog)
             proc = subprocess.run(cmd, stdout=outLog, stderr=errLog)
-            print("########## sex info end ##########\n", file=outLog)
-            print("########## sex error end ##########\n", file=errLog)
 
         # using stars
         else:
@@ -138,41 +139,45 @@ class GAaPwrapper(object):
 
             # run sex
             cmd = ['sex', SKYimaFile, '-c', sex_config[0], '-PARAMETERS_NAME', sex_config[1], '-FILTER_NAME', sex_config[2], '-DETECT_THRESH', str(10), '-CATALOG_NAME', DetecFile]
-            print("########## sex info start ##########\n", file=outLog)
-            print("########## sex error start ##########\n", file=errLog)
             proc = subprocess.run(cmd, stdout=outLog, stderr=errLog)
-            print("########## sex info end ##########\n", file=outLog)
-            print("########## sex error end ##########\n", file=errLog)
 
             # +++++++++ cross match to find stars
 
-            ## star info
-            mask_good = (star_info[f'{band}_input'] > self._star_mag_cut[0]) & (star_info[f'{band}_input'] < self._star_mag_cut[1])
-            input_cata = star_info[mask_good].copy()
-            input_cata.reset_index(drop=True, inplace=True)
-
-            ## detected catalogue
+            ## load detected catalogue
             detec_cata_ori = np.loadtxt(DetecFile)
+
+            ## select high SNR objects
+            SNR_tmp = detec_cata_ori[:, 2]/detec_cata_ori[:, 3]
+            mask_good = (SNR_tmp > self._star_SNR_cut[0]) & (SNR_tmp < self._star_SNR_cut[1])
+            detec_cata_ori = detec_cata_ori[mask_good]
+            del SNR_tmp, mask_good
+
+            ## cross match
             detec_cata = pd.DataFrame({'NUMBER': detec_cata_ori[:, 8].astype(int),
                                         'X_WORLD': detec_cata_ori[:, 11],
                                         'Y_WORLD': detec_cata_ori[:, 12],
                                         'MAG_AUTO': self._magzero-2.5*np.log10(detec_cata_ori[:, 2])})
-
-            ## Match
             id_list = ['index_input', 'NUMBER']
             position_list = [['RA_input', 'DEC_input'], ['X_WORLD', 'Y_WORLD']]
             mag_list = [f'{band}_input', 'MAG_AUTO']
-            matched_cata, _, _ = run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
+            matched_cata, _, _ = run_position2id(star_info, detec_cata, id_list, position_list, mag_list,
                                 outDir=None, basename=None, save_matched=False, save_false=False, save_missed=False,
                                 r_max=0.6/3600., k=2, mag_closest=True, running_info=False)
+            del detec_cata
 
-            ## stars
+            ## get stars
             id_stars = matched_cata['id_detec'].values
             mask = np.isin(detec_cata_ori[:, 8], id_stars)
+            psf_cata = detec_cata_ori[mask, :11]
+            del mask
+            N_stars = len(psf_cata)
+            if (self._spatial_variation[band]) and (N_stars < 1000):
+                raise Exception(f"too few stars {N_stars}, please select a larger range of SNR!")
+            if (~self._spatial_variation[band]) and (N_stars < 100):
+                raise Exception(f"too few stars {N_stars}, please select a larger range of SNR!")
+            logger.info(f"Number of stars selected {N_stars}")
 
             # +++++++++ save desired info
-            psf_cata = detec_cata_ori[mask, :11]
-            logger.info(f"Number of stars selected {len(psf_cata)}")
             np.savetxt(PSFcataFile, psf_cata,
                         fmt='%.4f %.4f %.2f %.5f %.3f %.3f %.3f %.2f %i %i %.2f')
 
@@ -180,7 +185,7 @@ class GAaPwrapper(object):
 
         return PSFcataFile
 
-    def _GaussianizationFunc(self, SKYimaFile, PSFcataFile, tmp_dir, outLog=subprocess.PIPE, errLog=subprocess.STDOUT):
+    def _GaussianizationFunc(self, band, SKYimaFile, PSFcataFile, tmp_dir, outLog=subprocess.PIPE, errLog=subprocess.STDOUT):
         """
         calculate Gaussianization kernel and Gaussianised image
         allow Gaussianised PSF radius to be determined autimatically
@@ -192,44 +197,39 @@ class GAaPwrapper(object):
         SKYimaKerFile = os.path.join(tmp_dir, os.path.basename(SKYimaFile).replace('.fits', '.ker.map'))
         SKYimaGpsfFile = os.path.join(tmp_dir, os.path.basename(SKYimaFile).replace('.fits', '.gpsf.fits'))
 
-        ## orders
-        ### kernel has shapelet order 8, no spatial variation for the PSF
-        # np.savetxt(os.path.join(tmp_dir, 'orders.par'), [[8], [0]], fmt='%d')
-        ### kernel shapelet order 10, spatial order 4 as used by data
-        np.savetxt(os.path.join(tmp_dir, 'orders.par'), [[10], [4]], fmt='%d')
+        # orders
+        if self._spatial_variation[band]:
+            ### kernel shapelet order 10, spatial order 4 as used by data
+            np.savetxt(os.path.join(tmp_dir, 'orders.par'), [[10], [4]], fmt='%d')
+        else:
+            ### kernel has shapelet order 10, no spatial variation for the PSF
+            np.savetxt(os.path.join(tmp_dir, 'orders.par'), [[10], [0]], fmt='%d')
 
-        ## link to the image
+        # link to the image
         inimage = os.path.join(tmp_dir, 'inimage.fits')
         if os.path.isfile(inimage):
             os.remove(inimage)
         os.symlink(SKYimaFile, inimage)
 
         ## +++++++++++++++++++++ create Gaussian kernel map
-        print("########## psfcat2gauskerwithtweak_no_recentre info start ##########\n", file=outLog)
-        print("########## psfcat2gauskerwithtweak_no_recentre error start ##########\n", file=errLog)
+
+        # psfcat2gauskerwithtweak_no_recentre
         proc = subprocess.run(f'(echo -1; cat {PSFcataFile}) | {self._GAAP}/bin/psfcat2gauskerwithtweak_no_recentre > tmp_ker.sh2',
                 stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-        print("########## psfcat2gauskerwithtweak_no_recentre info end ##########\n", file=outLog)
-        print("########## psfcat2gauskerwithtweak_no_recentre error end ##########\n", file=errLog)
 
-        print("########## fitkermaptwk_noplots info start ##########\n", file=outLog)
-        print("########## fitkermaptwk_noplots error start ##########\n", file=errLog)
+        # fitkermaptwk_noplots
         proc = subprocess.run(f'{self._GAAP}/bin/fitkermaptwk_noplots < tmp_ker.sh2 > {SKYimaKerFile}',
                 stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-        print("########## fitkermaptwk_noplots info end ##########\n", file=outLog)
-        print("########## fitkermaptwk_noplots error end ##########\n", file=errLog)
 
         logger.info("Kernel map produced as {:}".format(SKYimaKerFile))
 
         ## +++++++++++++++++++++ convolve to image (Gaussianised image)
-        print("########## imxshmapwithtweak info start ##########\n", file=outLog)
-        print("########## imxshmapwithtweak error start ##########\n", file=errLog)
+
+        # imxshmapwithtweak
         proc = subprocess.run(f'{self._GAAP}/bin/imxshmapwithtweak < {SKYimaKerFile}',
                 stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-        print("########## imxshmapwithtweak info end ##########\n", file=outLog)
-        print("########## imxshmapwithtweak error end ##########\n", file=errLog)
 
-        ### rename as gpsfimage
+        # rename as gpsfimage
         os.rename(os.path.join(tmp_dir, 'convolved.fits'), SKYimaGpsfFile)
 
         logger.info("PSF-Gaussianised image produced as {:}".format(SKYimaGpsfFile))
@@ -249,22 +249,23 @@ class GAaPwrapper(object):
         SKYimaKerAcfFile = os.path.join(tmp_dir, os.path.basename(SKYimaFile).replace('.fits', '.keracf.map'))
         SKYimaTotAcfFile = os.path.join(tmp_dir, os.path.basename(SKYimaFile).replace('.fits', '.totacf.map'))
 
-        ## useful parameters: needs X,Y,A",B",PAworld,ID
+        # useful parameters: needs X,Y,A",B",PAworld,ID
         radec = SKYcata[['X_WORLD', 'Y_WORLD']].values
         a = SKYcata['A_WORLD'].values*3600. # arcsec
         b = SKYcata['B_WORLD'].values*3600. # arcsec
         PAworld = -1.*SKYcata['THETA_WORLD'].values
         id_obj = SKYcata['NUMBER'].values
 
-        ## position
+        # position
         np.savetxt(os.path.join(tmp_dir, 'radec.cat'), radec)
         proc = subprocess.run('sky2xy {:} @radec.cat | awk \' {:} \' > xy.cat'.format(SKYimaGpsfFile, '{print($5,$6)}'),
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, cwd=tmp_dir)
         tmp = np.loadtxt(os.path.join(tmp_dir, 'xy.cat'))
         x = tmp[:, 0]
         y = tmp[:, 1]
+        del tmp
 
-        ## aperture
+        # aperture
         aper = self._minaper
         maxaper = self._maxaper
         ### A"
@@ -274,59 +275,44 @@ class GAaPwrapper(object):
         b = np.sqrt(aper**2+b**2)
         b[b>maxaper] = maxaper
 
-        ## inputs for gaap
+        # inputs for gaap
         gaapin = np.transpose(np.vstack((x, y, a, b, PAworld, id_obj)))
         np.savetxt(os.path.join(tmp_dir, 'gaap.in'), gaapin, fmt='%.3f %.3f %.2f %.2f %.2f %i')
+        del radec, x, y, a, b, PAworld, id_obj
 
-        ## Make kernel ACF map of GPSF image if needed
-        print("########## keracfmap & fitkermap info start ##########\n", file=outLog)
-        print("########## keracfmap & fitkermap error start ##########\n", file=errLog)
+        # Make kernel ACF map of GPSF image if needed
         proc = subprocess.run(f'{self._GAAP}/bin/keracfmap < {SKYimaKerFile} | {self._GAAP}/bin/fitkermap > {SKYimaKerAcfFile}',
                 stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-        print("########## keracfmap & fitkermap info end ##########\n", file=outLog)
-        print("########## keracfmap & fitkermap error end ##########\n", file=errLog)
 
         logger.info("Kernel acf map produced as {:}".format(SKYimaKerAcfFile))
 
-        ## Estimate pre-GPSF pixel correlation and convolve with kernel ACF
-        if os.path.isfile(SKYimaTotAcfFile) and (os.path.getsize(SKYimaTotAcfFile)>0):
-            logger.info("Total noise acf map already exists.")
-        else:
-            inimage = os.path.join(tmp_dir, 'inimage.fits')
-            if os.path.isfile(inimage):
-                os.remove(inimage)
-            os.symlink(SKYimaFile, inimage)
-            if (SKYweiFile is not None):
-                wei_image = os.path.join(tmp_dir, 'weights.fits')
-                if os.path.isfile(wei_image):
-                    os.remove(wei_image)
-                os.symlink(SKYweiFile, wei_image)
+        # Estimate pre-GPSF pixel correlation and convolve with kernel ACF
+        inimage = os.path.join(tmp_dir, 'inimage.fits')
+        if os.path.isfile(inimage):
+            os.remove(inimage)
+        os.symlink(SKYimaFile, inimage)
+        if (SKYweiFile is not None):
+            wei_image = os.path.join(tmp_dir, 'weights.fits')
+            if os.path.isfile(wei_image):
+                os.remove(wei_image)
+            os.symlink(SKYweiFile, wei_image)
+        proc = subprocess.run('echo NOMAP|{GAAP}/bin/gapphot > /dev/null;\
+                                mv -f cov.fits {image_name}.cov.fits;\
+                                mv -f covsh.fits {image_name}.covsh.fits;\
+                                (echo `head -1 keracffitted.map |awk \' {print2} \'` `head -1 {keracfmap} |awk \' {print2} \'`; cat {keracfmap}) |{GAAP}/bin/kermapxgauss > {totacfmap};\
+                                '.format(GAAP=self._GAAP,
+                                        print2='{print($2)}',
+                                        keracfmap=SKYimaKerAcfFile,
+                                        image_name=os.path.basename(SKYimaFile),
+                                        totacfmap=SKYimaTotAcfFile),
+                                stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
+        logger.info("Total noise acf map produced as {:}".format(SKYimaTotAcfFile))
 
-            print("########## kermapxgauss info start ##########\n", file=outLog)
-            print("########## kermapxgauss error start ##########\n", file=errLog)
-            proc = subprocess.run('echo NOMAP|{GAAP}/bin/gapphot > /dev/null;\
-                                    mv -f cov.fits {image_name}.cov.fits;\
-                                    mv -f covsh.fits {image_name}.covsh.fits;\
-                                    (echo `head -1 keracffitted.map |awk \' {print2} \'` `head -1 {keracfmap} |awk \' {print2} \'`; cat {keracfmap}) |{GAAP}/bin/kermapxgauss > {totacfmap};\
-                                    '.format(GAAP=self._GAAP,
-                                            print2='{print($2)}',
-                                            keracfmap=SKYimaKerAcfFile,
-                                            image_name=os.path.basename(SKYimaFile),
-                                            totacfmap=SKYimaTotAcfFile),
-                                    stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-            print("########## kermapxgauss info end ##########\n", file=outLog)
-            print("########## kermapxgauss error end ##########\n", file=errLog)
-
-            logger.info("Total noise acf map produced as {:}".format(SKYimaTotAcfFile))
-
-        ## do gapphot
+        # do gapphot
         inimage = os.path.join(tmp_dir, 'inimage.fits')
         if os.path.isfile(inimage):
             os.remove(inimage)
         os.symlink(SKYimaGpsfFile, inimage)
-
-        print("########## gapphot info start ##########\n", file=outLog)
-        print("########## gapphot error start ##########\n", file=errLog)
         proc = subprocess.run('{GAAP}/bin/dfits {gpsfimage} | grep GPSFSIG | sed \'s/.*GPSFSIG =//\' | awk \' {print1} \' > gpsfsig.dat;\
                             (echo {totacfmap} ; cat gaap.in) | {GAAP}/bin/gapphot > {gaapout};\
                             mv -f keracf.fits {totacfmap}.fits;\
@@ -336,9 +322,6 @@ class GAaPwrapper(object):
                                     totacfmap=SKYimaTotAcfFile,
                                     gaapout=GaapFile),
                             stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-        print("########## gapphot info start ##########\n", file=outLog)
-        print("########## gapphot error start ##########\n", file=errLog)
-
         logger.info("GAaP catalogue produced as {:}".format(GaapFile))
 
         return GaapFile
@@ -447,7 +430,7 @@ class GAaPwrapper(object):
             PSFcataFile = self._PSFcataFunc(band, SKYimaFile, tmp_dir, star_info=star_info, outLog=outLog, errLog=errLog)
 
         # 2. calculate Gaussianization kernel and Gaussianised image
-        SKYimaKerFile, SKYimaGpsfFile = self._GaussianizationFunc(SKYimaFile, PSFcataFile, tmp_dir, outLog=outLog, errLog=errLog)
+        SKYimaKerFile, SKYimaGpsfFile = self._GaussianizationFunc(band, SKYimaFile, PSFcataFile, tmp_dir, outLog=outLog, errLog=errLog)
 
         # 3. run gaap
         self._GAaPphotFunc(GaapFile, SKYimaFile, SKYcata, SKYimaKerFile, SKYimaGpsfFile, tmp_dir, SKYweiFile=SKYweiFile, outLog=outLog, errLog=errLog)
