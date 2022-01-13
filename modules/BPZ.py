@@ -175,6 +175,9 @@ class BPZwrapper(object):
         data_out.loc[:, 'T_ML'] = data[:, 7]
         data_out.loc[:, 'CHI-SQUARED'] = data[:, 8]
         data_out.loc[:, 'M_0'] = data[:, 9]
-        data_out.to_feather(output_feather)
 
+        # save
+        tmp_output_feather = output_feather + '_tmp'
+        data_out.to_feather(tmp_output_feather)
+        os.rename(tmp_output_feather, output_feather)
         logger.info(f'BPZ outputs saved as {output_feather}.')

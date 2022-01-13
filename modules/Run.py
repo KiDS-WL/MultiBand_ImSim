@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-01-09 13:53:11
+# @Last Modified time: 2022-01-09 16:37:29
 
 ### main module to run the whole pipeline
 
@@ -34,7 +34,7 @@ import CrossMatch
 
 import RunConfigFile
 
-__version__ = "MultiBand_ImSim v0.6.2"
+__version__ = "MultiBand_ImSim v0.6.3"
 
 # ++++++++++++++ parser for command-line interfaces
 parser = argparse.ArgumentParser(
@@ -561,6 +561,8 @@ if ('4' in taskIDs) or ('all' in taskIDs):
         in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
         out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photometry')
         pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
+        tmp_dir_tmp = os.path.join(configs_dict['work_dirs']['tmp'], 'GAaP')
+        pathlib.Path(tmp_dir_tmp).mkdir(parents=True, exist_ok=True)
         if running_log:
             log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'GAaP')
             pathlib.Path(log_dir_tmp).mkdir(parents=True, exist_ok=True)
@@ -568,7 +570,8 @@ if ('4' in taskIDs) or ('all' in taskIDs):
             log_dir_tmp = None
 
         ## Initialise the GAaP wrapper
-        gaap = GAaP.GAaPwrapper(configs_dict['MP']['gaap_dir'], out_dir_tmp,
+        gaap = GAaP.GAaPwrapper(configs_dict['MP']['gaap_dir'], out_dir_tmp, 
+                tmp_dir=tmp_dir_tmp,
                 star_SNR_cut=configs_dict['MP']['star_SNR_cut'],
                 mag_zero=configs_dict['imsim']['mag_zero'],
                 min_aper=configs_dict['MP']['min_aper'], max_aper=configs_dict['MP']['max_aper'],
@@ -652,6 +655,11 @@ if ('4' in taskIDs) or ('all' in taskIDs):
         for proc in proc_list:
             proc.join()
 
+        ## clean tmp
+        if configs_dict['MP']['clean_up_level'] >= 1:
+            shutil.rmtree(tmp_dir_tmp)
+            logger.info(f'{tmp_dir_tmp} removed.')
+
     logger.info(f'====== Task 4: measure photometry === finished in {(time.time()-start_time)/3600.} h ======')
 
 # 5: measure photo-z
@@ -666,7 +674,7 @@ if ('5' in taskIDs) or ('all' in taskIDs):
         in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photometry')
         out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photo_z')
         pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
-        tmp_dir_tmp = os.path.join(out_dir_tmp, 'tmp_bpz')
+        tmp_dir_tmp = os.path.join(configs_dict['work_dirs']['tmp'], 'photo_z')
         pathlib.Path(tmp_dir_tmp).mkdir(parents=True, exist_ok=True)
         if running_log:
             log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'BPZ')
@@ -708,6 +716,11 @@ if ('5' in taskIDs) or ('all' in taskIDs):
         ## check for any errors during run
         for proc in proc_list:
             proc.get()
+
+        ## clean tmp
+        if configs_dict['MZ']['clean_up_level'] >= 1:
+            shutil.rmtree(tmp_dir_tmp)
+            logger.info(f'{tmp_dir_tmp} removed.')
 
     logger.info(f'====== Task 5: measure photo-z === finished in {(time.time()-start_time)/3600.} h ======')
 
@@ -844,11 +857,9 @@ if ('6_2' in taskIDs) or ('all' in taskIDs):
         ## I/O
         in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
         out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'shapes')
-        if not os.path.exists(out_dir_tmp):
-            os.mkdir(out_dir_tmp)
-        tmp_dir_tmp = os.path.join(out_dir_tmp, 'tmp_lensfit')
-        if not os.path.exists(tmp_dir_tmp):
-            os.mkdir(tmp_dir_tmp)
+        pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
+        tmp_dir_tmp = os.path.join(configs_dict['work_dirs']['tmp'], 'lensfit')
+        pathlib.Path(tmp_dir_tmp).mkdir(parents=True, exist_ok=True)
         if running_log:
             log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'lensfit')
             if not os.path.exists(log_dir_tmp):
@@ -917,6 +928,11 @@ if ('6_2' in taskIDs) or ('all' in taskIDs):
         ### check for any errors during run
         for proc in proc_list:
             proc.get()
+
+    ## clean tmp
+    if configs_dict['MS']['clean_up_level'] >= 1:
+        shutil.rmtree(tmp_dir_tmp)
+        logger.info(f'{tmp_dir_tmp} removed.')
 
     logger.info(f'====== Task 6_2: measure galaxy shapes === finished in {(time.time()-start_time)/3600.} h ======')
 

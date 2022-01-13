@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-11-11 18:08:25
+# @Last Modified time: 2022-01-10 09:26:27
 
 ### Wrapper for lensfit code
 
@@ -222,8 +222,11 @@ class LensFITwrapper(object):
             'SG_prob_LF': data[:, 18].astype(float), # star-galaxy f-probability
             'N_expo_used_LF': data[:, 27].astype(int) # number of exposures used by lensfit
             })
-        data_out.to_feather(output_feather)
 
+        # save
+        tmp_output_feather = output_feather + '_tmp'
+        data_out.to_feather(tmp_output_feather)
+        os.rename(tmp_output_feather, output_feather)
         logger.info(f'Final catalogue saved as {output_feather}')
 
         return 0

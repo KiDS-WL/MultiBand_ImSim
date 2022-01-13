@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-01-07 17:47:34
+# @Last Modified time: 2022-01-09 16:18:22
 
 ### module to generate an example configuration file
 
@@ -33,13 +33,15 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
     # ++++++++++++++ 2. some general info (required by all tasks)
 
     ## === a. work dir
+
     config_paths = config['Paths']
     config_dir = config_paths.get('config_dir')
-
     ### check existence
     if not os.path.isdir(config_dir):
         raise Exception("configuration directory not found! \n"
                         f"------> No directory named as {config_dir}")
+
+    ### main 
     out_dir = config_paths.get('out_dir')
     out_dir = os.path.join(out_dir, run_tag)
 
@@ -61,11 +63,21 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
     else:
         log_dir = None
 
+    ### tmp dir
+    tmp_dir = config_paths.get('tmp_dir')
+    if tmp_dir is not None:
+        tmp_dir = os.path.join(tmp_dir, run_tag, 'tmp')
+    else:
+        tmp_dir = os.path.join(out_dir, 'tmp')
+    pathlib.Path(tmp_dir).mkdir(parents=True, exist_ok=True)
+    logger.info(f'tmp files will be saved to {tmp_dir}')
+
     ### combine to a dictionary
     work_dirs = {'main': out_dir,
                     'ima': ima_dir,
                     'cata': cata_dir,
-                    'log': log_dir}
+                    'log': log_dir, 
+                    'tmp': tmp_dir}
 
     ## === e. ImSim
     config_imsim = config['ImSim']
@@ -364,6 +376,13 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             MZ_configs['lkl_odds'] = config_bpz.get('lkl_odds')
             MZ_configs['lkl_min_rms'] = config_bpz.get('lkl_min_rms')
 
+            ### clean up
+            clean_tmp = config_bpz.get('clean_up_level')
+            if clean_tmp is not None:
+                MZ_configs['clean_up_level'] = int(clean_tmp)
+            else:
+                MZ_configs['clean_up_level'] = 0
+
             ### legitimate check
             if not os.path.isdir(MZ_configs['BPZ_dir']):
                 tmp = MZ_configs['BPZ_dir']
@@ -494,7 +513,9 @@ def GenerateExampleConfig(file_name, user_name, date_time, __version__):
 config_dir =            your_dir_to_MultiBand_ImSim/config\n\
                                                # directory to all the configuration files\n\
 out_dir =               find/somewhere/with/large/space\n\
-                                               # main directory for all the outputs\n\
+                                               # main directory for all the final outputs\n\
+tmp_dir =               find/somewhere/local/to/speedup\n\
+                                               # tmp directory for tmp outputs\n\
 \n\n\
 ################################## GalInfo ##############################################\n\
 [GalInfo]\n\n\
@@ -666,8 +687,7 @@ checkimage_type =       NONE                   # can be one of \n\
                                                # NONE, BACKGROUND, MINIBACKGROUND, OBJECTS, SEGMENTATION, APERTURES, FILTERED\n\
 clean_up_level =        0                      # clean up level\n\
                                                #    0: none\n\
-                                               #    1: original images\n\
-                                               #    2: and .sex files\n\
+                                               #    1: .sex files\n\
 \n\n\
 ################################## CrossMatch #################################################\n\
 [CrossMatch]\n\n\
@@ -709,7 +729,6 @@ star_SNR_cut =          100, 2000              # SNR range for stars used for PS
 clean_up_level =        0                      # clean up level\n\
                                                #    0: none\n\
                                                #    1: tmp directory\n\
-                                               #    2: and *.gaap files\n\
 \n\n\
 ################################## MeasurePhotoz ########################################################\n\
 [MeasurePhotoz]\n\n\
@@ -735,6 +754,9 @@ lkl_zmax =               2.2984\n\
 lkl_dz =                 0.01\n\
 lkl_odds =               0.68\n\
 lkl_min_rms =            0.0\n\
+clean_up_level =        0                      # clean up level\n\
+                                               #    0: none\n\
+                                               #    1: tmp directory\n\
 \n\n\
 ################################## PSFmodelling #################################################\n\
 [PSFmodelling]\n\n\

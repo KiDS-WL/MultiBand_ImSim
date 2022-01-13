@@ -148,8 +148,7 @@ def SExtractorCatalogue(CatalogueFile, pixel_scale, SeeingFWHM,
 
         Clean up level:
             0: none
-            1: rm original images
-            2: and .sex files
+            1: .sex files
     '''
 
     # check existence
@@ -226,16 +225,12 @@ def SExtractorCatalogue(CatalogueFile, pixel_scale, SeeingFWHM,
         values = np.loadtxt(CatalogueFile)
         df = pd.DataFrame(data=values, columns=col_name)
         df = df.astype({'NUMBER': 'int', 'FLAGS': 'int'})
-        df.to_feather(file_feather)
+        tmp_file_feather = file_feather + '_tmp'
+        df.to_feather(tmp_file_feather)
+        os.rename(tmp_file_feather, file_feather)
         logger.info(f'Easy-use feather file built as {file_feather}')
 
     if (clean_up_level >= 1):
-        os.remove(ImageFile1)
-        if ImageFile2 is not None:
-            os.remove(ImageFile2)
-        logger.info('Images are removed.')
-
-    if (clean_up_level >= 2):
         os.remove(CatalogueFile)
         logger.info('Original .sex file is removed.')
 

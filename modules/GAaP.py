@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-09-17 21:28:17
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-01-07 17:47:21
+# @Last Modified time: 2022-01-11 08:46:33
 
 ### Wrapper for GAaP code
 
@@ -38,6 +38,8 @@ class GAaPwrapper(object):
         GAaP pipeline directory.
     out_dir : str
         Output directory.
+    tmp_dir : str, optional (default: ==out_dir)
+        Directory for tmp files.
     star_SNR_cut : list of float, optional (default: [100, 1000])
         Within which SNR range stars are used.
     mag_zero : float, optional (default: 30.)
@@ -56,25 +58,34 @@ class GAaPwrapper(object):
         Clean up level
         0: none
         1: tmp directory
-        2: and *.gaap files
-    """
+        """
 
-    def __init__(self, gaap_dir, out_dir,
+    def __init__(self, gaap_dir, out_dir, 
+                tmp_dir=None,
                 star_SNR_cut=[100., 1000.],
                 mag_zero=30.,
                 min_aper=0.7, max_aper=2.0,
                 mag_1sigma_limits={}, spatial_variation={},
-                running_log=True, log_dir=None,
+                running_log=True, log_dir=None, 
                 clean_up_level=0):
 
         logger.info("Initialising the GAaP wrapper...")
 
         self._GAAP = gaap_dir
         logger.info("GAaP directory: %s", self._GAAP)
+
         self._outDir = out_dir
         logger.info("Output directory: %s", self._outDir)
         if not os.path.exists(self._outDir):
             os.mkdir(self._outDir)
+
+        if tmp_dir is not None:
+            self._tmpDir = tmp_dir
+        else:
+            self._tmpDir = out_dir
+        logger.info("tmp directory: %s", self._tmpDir)
+        if not os.path.exists(self._tmpDir):
+            os.mkdir(self._tmpDir)
 
         self._star_SNR_cut = star_SNR_cut
         logger.info(f'star SNR cut: ({star_SNR_cut[0]}, {star_SNR_cut[1]})')
@@ -95,10 +106,10 @@ class GAaPwrapper(object):
 
         self._running_log = running_log
         logger.info(f"Save running info: {self._running_log}")
+
         self._logDir = log_dir
 
         self._clean_up_level = clean_up_level
-        logger.info("Clean up level: {:}".format(self._clean_up_level))
 
     def _PSFcataFunc(self, band, SKYimaFile, tmp_dir, star_info=None, outLog=subprocess.PIPE, errLog=subprocess.STDOUT):
         """
@@ -181,7 +192,7 @@ class GAaPwrapper(object):
             np.savetxt(PSFcataFile, psf_cata,
                         fmt='%.4f %.4f %.2f %.5f %.3f %.3f %.3f %.2f %i %i %.2f')
 
-        logger.info(f"PSF catalogue Extracted as {PSFcataFile}")
+        logger.debug(f"PSF catalogue Extracted as {PSFcataFile}")
 
         return PSFcataFile
 
@@ -221,7 +232,7 @@ class GAaPwrapper(object):
         proc = subprocess.run(f'{self._GAAP}/bin/fitkermaptwk_noplots < tmp_ker.sh2 > {SKYimaKerFile}',
                 stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
 
-        logger.info("Kernel map produced as {:}".format(SKYimaKerFile))
+        logger.debug("Kernel map produced as {:}".format(SKYimaKerFile))
 
         ## +++++++++++++++++++++ convolve to image (Gaussianised image)
 
@@ -232,7 +243,7 @@ class GAaPwrapper(object):
         # rename as gpsfimage
         os.rename(os.path.join(tmp_dir, 'convolved.fits'), SKYimaGpsfFile)
 
-        logger.info("PSF-Gaussianised image produced as {:}".format(SKYimaGpsfFile))
+        logger.debug("PSF-Gaussianised image produced as {:}".format(SKYimaGpsfFile))
 
         return SKYimaKerFile, SKYimaGpsfFile
 
@@ -284,7 +295,7 @@ class GAaPwrapper(object):
         proc = subprocess.run(f'{self._GAAP}/bin/keracfmap < {SKYimaKerFile} | {self._GAAP}/bin/fitkermap > {SKYimaKerAcfFile}',
                 stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
 
-        logger.info("Kernel acf map produced as {:}".format(SKYimaKerAcfFile))
+        logger.debug("Kernel acf map produced as {:}".format(SKYimaKerAcfFile))
 
         # Estimate pre-GPSF pixel correlation and convolve with kernel ACF
         inimage = os.path.join(tmp_dir, 'inimage.fits')
@@ -306,7 +317,7 @@ class GAaPwrapper(object):
                                         image_name=os.path.basename(SKYimaFile),
                                         totacfmap=SKYimaTotAcfFile),
                                 stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-        logger.info("Total noise acf map produced as {:}".format(SKYimaTotAcfFile))
+        logger.debug("Total noise acf map produced as {:}".format(SKYimaTotAcfFile))
 
         # do gapphot
         inimage = os.path.join(tmp_dir, 'inimage.fits')
@@ -322,25 +333,7 @@ class GAaPwrapper(object):
                                     totacfmap=SKYimaTotAcfFile,
                                     gaapout=GaapFile),
                             stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
-        logger.info("GAaP catalogue produced as {:}".format(GaapFile))
-
-        return GaapFile
-
-    def _CleanUpFunc(self, tmp_dir=None, GaapFile_dic=None):
-        """
-        Clean up intermediate files
-        """
-
-        if self._clean_up_level >= 1:
-            if (tmp_dir is not None) and os.path.exists(tmp_dir):
-                logger.info('Clean up tmp directory')
-                shutil.rmtree(tmp_dir)
-
-        if self._clean_up_level >= 2:
-            logger.info('Clean up .gaap directory')
-            if GaapFile_dic is not None:
-                for band, f in GaapFile_dic.items():
-                    os.remove(f)
+        logger.debug("GAaP catalogue produced as {:}".format(GaapFile))
 
     def _CombineCataFunc(self, SKYcata, GaapFile_dic, FinalFile):
         """
@@ -386,27 +379,19 @@ class GAaPwrapper(object):
             # mask undesired flux
             data_out.loc[mask_false, f'mask_meas_{len(GaapFile_dic)}bands'] += 1
 
-        data_out.to_feather(FinalFile)
-
-        logger.info('Combined catalogues saved to {:}'.format(FinalFile))
+        # save
+        tmp_FinalFile = FinalFile + '_tmp'
+        data_out.to_feather(tmp_FinalFile)
+        os.rename(tmp_FinalFile, FinalFile)
+        logger.debug('Combined catalogues saved to {:}'.format(FinalFile))
 
     def _RunSingleBand(self, queue, SKYcata, band, SKYimaFile, SKYweiFile=None, PSFimaFile=None, star_info=None):
         '''
         Running GAaP with single process for single band.
         '''
-
-        SKYimaFile_name = os.path.basename(SKYimaFile)
-
         logger.info(f'Running for band {band}...')
 
-        # save info
-        GaapFile = os.path.join(self._outDir, SKYimaFile_name.replace('.fits', '.gaap'))
-        queue.put([band, GaapFile])
-
-        # check if already exist
-        if os.path.isfile(GaapFile):
-            os.remove(GaapFile)
-            logger.info(f"Removed existing GaapFile.")
+        SKYimaFile_name = os.path.basename(SKYimaFile)
 
         # prepare log info
         if self._running_log:
@@ -417,11 +402,14 @@ class GAaPwrapper(object):
             errLog = subprocess.STDOUT
 
         # 0. make tmp dir
-        tmp_dir = os.path.join(self._outDir, re.findall(f'(.*).fits', SKYimaFile_name)[0])
+        tmp_dir = os.path.join(self._tmpDir, re.findall(f'(.*).fits', SKYimaFile_name)[0])
         ## to avoid semi-finished product
         if os.path.exists(tmp_dir):
             shutil.rmtree(tmp_dir)
         os.mkdir(tmp_dir)
+        ## for gaap outputs
+        GaapFile = os.path.join(tmp_dir, SKYimaFile_name.replace('.fits', '.gaap'))
+        queue.put([band, GaapFile])
 
         # 1. make star catalogue in right SExtractor ascii format
         if (PSFimaFile is not None):
@@ -439,11 +427,7 @@ class GAaPwrapper(object):
             outLog.close()
             errLog.close()
 
-        if self._clean_up_level:
-            self._CleanUpFunc(tmp_dir, None)
-
         logger.info(f'Finished for band {band}.')
-
 
     def RunSingleTile(self, Nmax_proc, FinalFile, SKYcataFile, bands, SKYimaFile_list, SKYweiFile_list=None, PSFimaFile_list=None, star_info=None):
         '''
@@ -508,6 +492,15 @@ class GAaPwrapper(object):
         self._CombineCataFunc(SKYcata, GaapFile_dic, FinalFile)
 
         if self._clean_up_level:
-            self._CleanUpFunc(GaapFile_dic, None)
+
+            # loop over all bands
+            for band, GaapFile in GaapFile_dic.items():
+
+                # get tmp dir
+                tmp = os.path.dirname(GaapFile)
+
+                # clean
+                shutil.rmtree(tmp)
+                logger.info(f'{tmp} removed.')
 
         logger.info(f'Finished for tile {name_base}.')
