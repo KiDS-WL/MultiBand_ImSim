@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-01-10 09:26:27
+# @Last Modified time: 2022-01-27 17:56:03
 
 ### Wrapper for lensfit code
 
@@ -33,12 +33,15 @@ class LensFITwrapper(object):
     def __init__(self, lensfit_dir, out_dir, tmp_dir,
                     PSF_OVERSAMPLING='1', PECUT='0.02', PRCUT='0.02', LCUT='0.05', CAMERA='KIDS',
                     postage_size='48', start_exposure='1', end_exposure='5', start_mag='20.0', end_mag='25.0',
-                    lensfit_cores=12,
+                    lensfit_cores=12, 
+                    lensfit_type='flensfit', lensfit_version='309', 
+                    MEMORY_LIMIT='30000',
                     running_log=False, log_dir=None):
 
         logger.info("Initialising the lensfit wrapper...")
 
         # global parameters
+        self._lensfitVersion = lensfit_version
         self._lensfitDir = lensfit_dir
         self._postage_size = postage_size
         self._start_exposure = start_exposure
@@ -67,6 +70,7 @@ class LensFITwrapper(object):
         self._envVars['PRCUT'] = PRCUT
         self._envVars['LCUT'] = LCUT
         self._envVars['CAMERA'] = CAMERA
+        self._envVars['MEMORY_LIMIT'] = MEMORY_LIMIT
 
         # prepare input file
         self._input_file = os.path.join(tmp_dir, f'lensfit_input.asc')
@@ -83,11 +87,10 @@ class LensFITwrapper(object):
         logger.debug(f'input info saved to {self._input_file}')
 
         # lensfit exe
-        self._lensfit = lensfit_dir + f'/bin/flensfit_NT{lensfit_cores}'
+        self._lensfit = os.path.join(lensfit_dir, 'bin', f'{lensfit_type}_NT{lensfit_cores}')
         if not os.path.isfile(self._lensfit):
-            logger.warning(f'the required {self._lensfit} does not exist!')
-            self._lensfit = lensfit_dir + f'/bin/flensfit_NT12'
-            logger.warning(f'Use {self._lensfit} instead!')
+            raise Exception(f'the required {self._lensfit} does not exist!')
+        logger.info(f'Lensfit code used: {self._lensfit}')
 
     def _LensfitShape_head(self, chip_dir, head_dir=None):
         """
@@ -197,31 +200,61 @@ class LensFITwrapper(object):
         data = np.loadtxt(f'{output_path}.asc')
         if data.size == 0:
             raise Exception(f'Empty {output_path}.asc, something is wrong about lensfit!')
-        data_out = pd.DataFrame({
-            'id_detec': data[:, 28].astype(int),
-            'e1_LF': data[:, 2].astype(float),
-            'e2_LF': data[:, 3].astype(float),
-            'SNR_LF': data[:, 10].astype(float),
-            'scalelength_LF': data[:, 6].astype(float), # bias-corrected scalelength /pixels
-            'oldweight_LF': data[:, 4].astype(float),
-            'psf_e1_LF': data[:, 12].astype(float),
-            'psf_e2_LF': data[:, 13].astype(float),
-            'psf_strehl_LF': data[:, 14].astype(float), # <PSF>-Strehl-ratio
-            'psf_Q11_LF': data[:, 15].astype(float),
-            'psf_Q22_LF': data[:, 16].astype(float),
-            'psf_Q12_LF': data[:, 17].astype(float),
-            'class_LF': data[:, 5].astype(float), # fitclass
-            'e1_corr_LF': data[:, 22].astype(float), # e1 correction
-            'e2_corr_LF': data[:, 23].astype(float), # e2 correction
-            'scalelength_corr_LF': data[:, 19].astype(float), # size correction
-            'contamination_radius_LF': data[:, 11].astype(float),
-            'nm_LF': data[:, 24].astype(float), # neighbour mag
-            'nd_LF': data[:, 25].astype(float), # neighbour distance
-            'LS_variance_LF': data[:, 20].astype(float), # 2D measurement variance
-            'bulge_fraction_LF': data[:, 7].astype(float),
-            'SG_prob_LF': data[:, 18].astype(float), # star-galaxy f-probability
-            'N_expo_used_LF': data[:, 27].astype(int) # number of exposures used by lensfit
-            })
+
+        if self._lensfitVersion = '309':
+            data_out = pd.DataFrame({
+                'id_detec': data[:, 28].astype(int),
+                'e1_LF': data[:, 2].astype(float),
+                'e2_LF': data[:, 3].astype(float),
+                'SNR_LF': data[:, 10].astype(float),
+                'scalelength_LF': data[:, 6].astype(float), # bias-corrected scalelength /pixels
+                'oldweight_LF': data[:, 4].astype(float),
+                'psf_e1_LF': data[:, 12].astype(float),
+                'psf_e2_LF': data[:, 13].astype(float),
+                'psf_strehl_LF': data[:, 14].astype(float), # <PSF>-Strehl-ratio
+                'psf_Q11_LF': data[:, 15].astype(float),
+                'psf_Q22_LF': data[:, 16].astype(float),
+                'psf_Q12_LF': data[:, 17].astype(float),
+                'class_LF': data[:, 5].astype(float), # fitclass
+                'e1_corr_LF': data[:, 22].astype(float), # e1 correction
+                'e2_corr_LF': data[:, 23].astype(float), # e2 correction
+                'scalelength_corr_LF': data[:, 19].astype(float), # size correction
+                'contamination_radius_LF': data[:, 11].astype(float),
+                'nm_LF': data[:, 24].astype(float), # neighbour mag
+                'nd_LF': data[:, 25].astype(float), # neighbour distance
+                'LS_variance_LF': data[:, 20].astype(float), # 2D measurement variance
+                'bulge_fraction_LF': data[:, 7].astype(float),
+                'SG_prob_LF': data[:, 18].astype(float), # star-galaxy f-probability
+                'N_expo_used_LF': data[:, 27].astype(int) # number of exposures used by lensfit
+                })
+        elif self._lensfitVersion = '321':
+            data_out = pd.DataFrame({
+                'id_detec': data[:, 28].astype(int),
+                'e1_LF': data[:, 22].astype(float),
+                'e2_LF': data[:, 23].astype(float),
+                'SNR_LF': data[:, 10].astype(float),
+                'scalelength_LF': data[:, 19].astype(float), # bias-corrected scalelength /pixels
+                'oldweight_LF': data[:, 4].astype(float),
+                'psf_e1_LF': data[:, 12].astype(float),
+                'psf_e2_LF': data[:, 13].astype(float),
+                'psf_strehl_LF': data[:, 14].astype(float), # <PSF>-Strehl-ratio
+                'psf_Q11_LF': data[:, 15].astype(float),
+                'psf_Q22_LF': data[:, 16].astype(float),
+                'psf_Q12_LF': data[:, 17].astype(float),
+                'class_LF': data[:, 5].astype(float), # fitclass
+                'e1_corr_LF': data[:, 22].astype(float)-data[:, 2].astype(float), # e1 correction
+                'e2_corr_LF': data[:, 23].astype(float)-data[:, 3].astype(float), # e2 correction
+                'scalelength_corr_LF': data[:, 19].astype(float)-data[:, 6].astype(float), # size correction
+                'contamination_radius_LF': data[:, 11].astype(float),
+                'nm_LF': data[:, 24].astype(float), # neighbour mag
+                'nd_LF': data[:, 25].astype(float), # neighbour distance
+                'LS_variance_LF': data[:, 20].astype(float), # 2D measurement variance
+                'bulge_fraction_LF': data[:, 7].astype(float),
+                'SG_prob_LF': data[:, 18].astype(float), # star-galaxy f-probability
+                'N_expo_used_LF': data[:, 27].astype(int) # number of exposures used by lensfit
+                })
+        else:
+            raise Exception(f'Unsupported lensfit version: {self._lensfitVersion}!')
 
         # save
         tmp_output_feather = output_feather + '_tmp'

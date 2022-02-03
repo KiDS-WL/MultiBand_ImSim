@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-01-09 16:37:29
+# @Last Modified time: 2022-01-27 17:58:26
 
 ### main module to run the whole pipeline
 
@@ -877,6 +877,8 @@ if ('6_2' in taskIDs) or ('all' in taskIDs):
                     PSF_OVERSAMPLING=configs_dict['MS']['PSF_OVERSAMPLING'], PECUT=configs_dict['MS']['PECUT'], PRCUT=configs_dict['MS']['PRCUT'], LCUT=configs_dict['MS']['LCUT'], CAMERA=configs_dict['MS']['CAMERA'],
                     postage_size=configs_dict['MS']['postage_size'], start_exposure=configs_dict['MS']['start_exposure'], end_exposure=configs_dict['MS']['end_exposure'], start_mag=configs_dict['MS']['start_mag'], end_mag=configs_dict['MS']['end_mag'],
                     lensfit_cores=lensfit_cores,
+                    lensfit_type=configs_dict['MS']['lensfit_type'], lensfit_version=configs_dict['MS']['lensfit_version'],
+                    MEMORY_LIMIT=configs_dict['MS']['MEMORY_LIMIT'],
                     running_log=running_log, log_dir=log_dir_tmp)
 
         ## work pool
@@ -893,7 +895,6 @@ if ('6_2' in taskIDs) or ('all' in taskIDs):
             WAVEBAND = band.upper()
             MS_label = configs_dict['MS']['image_label_list'][i_band]
             in_ima_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], MS_label)
-            varChips = varChips_dic[band]
 
             for tile_label in tile_labels:
 

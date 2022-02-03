@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-01-09 16:18:22
+# @Last Modified time: 2022-01-27 17:59:53
 
 ### module to generate an example configuration file
 
@@ -79,7 +79,10 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                     'log': log_dir, 
                     'tmp': tmp_dir}
 
-    ## === e. ImSim
+    ## === dictionary for collecting all config info
+    configs_dict = {'work_dirs': work_dirs}
+
+    ## === b. ImSim
     config_imsim = config['ImSim']
     imsim_configs = {'survey': config_imsim.get('survey'),
                     'N_tiles': config_imsim.getint('N_tiles'),
@@ -121,7 +124,10 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
     else:
         imsim_configs['casual_mag'] = 99.
 
-    ## === d. noise info
+    ### collect
+    configs_dict['imsim'] = imsim_configs
+
+    ## === c. noise info
     config_noise = config['NoiseInfo']
     noise_configs = {'file': config_noise.get('cata_file'),
                     'file4varChips': config_noise.get('file4varChips'),
@@ -189,12 +195,12 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             except AttributeError:    
                 noise_configs['psf_basenames_airy'] = None
 
-    ## === dictionary for collecting all config info
-    configs_dict = {'work_dirs': work_dirs, 'noise': noise_configs, 'imsim': imsim_configs}
+    ### collect
+    configs_dict['noise'] = noise_configs
 
     # ++++++++++++++ 2. some specific info (required only by certain tasks)
 
-    ## === b. galaxy & star info
+    ## === galaxy & star info
     if ('1' in taskIDs) or ('all' in taskIDs):
         ## == galaxy
         config_gal = config['GalInfo']
@@ -469,10 +475,32 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             else:
                 MS_configs['lensfit_cores'] = 12
 
+            ### lensfit type
+            lensfit_type = config_lensfit.get('lensfit_type')
+            if lensfit_type is not None:
+                MS_configs['lensfit_type'] = lensfit_type
+            else:
+                MS_configs['lensfit_type'] = 'flensfit'
+
+            ### lensfit version
+            lensfit_type = config_lensfit.get('lensfit_version')
+            if lensfit_type is not None:
+                MS_configs['lensfit_version'] = lensfit_version
+            else:
+                MS_configs['lensfit_version'] = '309'
+
+            ### lensfit memory
+            MEMORY_LIMIT = config_lensfit.get('MEMORY_LIMIT')
+            if MEMORY_LIMIT is not None:
+                MS_configs['MEMORY_LIMIT'] = MEMORY_LIMIT
+            else:
+                MS_configs['MEMORY_LIMIT'] = '30000'
+
             ### legitimate check
-            if not os.path.isdir(MS_configs['lensfit_dir']):
-                tmp = MS_configs['lensfit_dir']
-                raise Exception(f"lensfit dir {tmp} not found!")
+            lensfit_run = os.path.join(MS_configs['lensfit_dir'], 'bin', \
+                            MS_configs['lensfit_type']+'_NT'+str(MS_configs['lensfit_cores']))
+            if not os.path.isfile(lensfit_run):
+                raise Exception(f"lensfit code {lensfit_run} not found!")
 
         else:
             raise Exception(f'Unsupported shape measurement method {MS_method}!')
@@ -819,6 +847,9 @@ PECUT =                 0.02\n\
 PRCUT =                 0.02\n\
 LCUT =                  0.05\n\
 CAMERA =                KIDS\n\
+lensfit_type =          flensfit               # 309 using flensfit, 321 using lensfit\n\
+lensfit_version =       309                    # current supported version: 309, 321\n\
+MEMORY_LIMIT =          30000                  # only relevant for 321\n\
 clean_up_level =        0                      # clean up level\n\
                                                #    0: none\n\
                                                #    1: tmp directory\n\
