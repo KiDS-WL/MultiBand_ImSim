@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-01-27 17:56:03
+# @Last Modified time: 2022-02-04 16:16:04
 
 ### Wrapper for lensfit code
 
@@ -91,6 +91,7 @@ class LensFITwrapper(object):
         if not os.path.isfile(self._lensfit):
             raise Exception(f'the required {self._lensfit} does not exist!')
         logger.info(f'Lensfit code used: {self._lensfit}')
+        logger.info(f'Lensfit version: {self._lensfitVersion}')
 
     def _LensfitShape_head(self, chip_dir, head_dir=None):
         """
@@ -201,7 +202,7 @@ class LensFITwrapper(object):
         if data.size == 0:
             raise Exception(f'Empty {output_path}.asc, something is wrong about lensfit!')
 
-        if self._lensfitVersion = '309':
+        if self._lensfitVersion == '309':
             data_out = pd.DataFrame({
                 'id_detec': data[:, 28].astype(int),
                 'e1_LF': data[:, 2].astype(float),
@@ -227,7 +228,7 @@ class LensFITwrapper(object):
                 'SG_prob_LF': data[:, 18].astype(float), # star-galaxy f-probability
                 'N_expo_used_LF': data[:, 27].astype(int) # number of exposures used by lensfit
                 })
-        elif self._lensfitVersion = '321':
+        elif self._lensfitVersion == '321':
             data_out = pd.DataFrame({
                 'id_detec': data[:, 28].astype(int),
                 'e1_LF': data[:, 22].astype(float),
