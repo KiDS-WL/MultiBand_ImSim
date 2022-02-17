@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-02-04 16:04:57
+# @Last Modified time: 2022-02-17 13:25:30
 
 ### module to generate an example configuration file
 
@@ -484,7 +484,7 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
 
             ### lensfit version
             lensfit_version = config_lensfit.get('lensfit_version')
-            if lensfit_type is not None:
+            if lensfit_version is not None:
                 MS_configs['lensfit_version'] = lensfit_version
             else:
                 MS_configs['lensfit_version'] = '309'
