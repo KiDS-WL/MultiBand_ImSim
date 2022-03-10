@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-11-11 13:29:22
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-11-14 15:04:19
+# @Last Modified time: 2022-03-08 11:13:12
 
 ### Everything about PSF modelling
 __all__ = ['ima2coeffsFunc', 'makeglobalpsfFunc']
@@ -46,7 +46,10 @@ def ima2coeffsFunc(ima2coeffs_dir, in_dir, out_dir, varChips=False):
     # apply to all the PSF images
     for psf_ima in psf_imas:
 
-        psf_coeff = os.path.join(out_dir, os.path.basename(psf_ima).replace('.fits', '.psfcoeffs.fits'))
+        # get the id
+        id_exposure = re.findall(r"\d+", os.path.basename(psf_ima))[0]
+        # get coeff name for lensfit
+        psf_coeff = os.path.join(out_dir, 'exp'+id_exposure+'chip.psfcoeffs.fits')
 
         # run
         cmd = [psfimage2coeffs_path, psf_ima, psf_coeff]
