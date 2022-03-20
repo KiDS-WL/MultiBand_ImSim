@@ -9,7 +9,9 @@
 import os
 import sys
 import glob
+import shutil
 import logging
+import pathlib
 import subprocess
 
 import numpy as np
@@ -20,7 +22,7 @@ from astropy.io import fits
 logger = logging.getLogger(__name__)
 
 def SwarpImage(image_in, swarp_config_file,
-                    image_out,
+                    image_out, RESAMPLE_DIR,
                     only_resample=False, contain_wei_ima=True,
                     running_log=True, log_dir=None,
                     swarp_path='swarp', NTHREADS=0,
@@ -64,8 +66,11 @@ def SwarpImage(image_in, swarp_config_file,
         outLog = subprocess.PIPE
         errLog = subprocess.STDOUT
 
-    # resampling out directory
-    RESAMPLE_DIR = os.path.dirname(image_out)
+    # resampling out directory needs to be unique for each run
+    ### to avoid cross-talking between different swarp runs
+    if (os.path.exists(RESAMPLE_DIR)) and (any(os.scandir(RESAMPLE_DIR))):
+        raise Exception(f'{RESAMPLE_DIR} is not empty, cannot use as RESAMPLE_DIR')
+    pathlib.Path(RESAMPLE_DIR).mkdir(parents=True, exist_ok=True)
 
     # build command
     cmd = [swarp_path]
@@ -102,7 +107,7 @@ def SwarpImage(image_in, swarp_config_file,
         outLog.close()
         errLog.close()
 
-    # rename for only resampling
+    # mv or rename for only resampling
     if only_resample:
         basename = os.path.basename(image_in)
         os.rename(os.path.join(RESAMPLE_DIR, basename.replace('.fits', '.resamp.fits')), image_out)
