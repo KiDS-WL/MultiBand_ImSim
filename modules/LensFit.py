@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-02-04 16:16:04
+# @Last Modified time: 2022-04-21 18:36:12
 
 ### Wrapper for lensfit code
 
@@ -53,9 +53,6 @@ class LensFITwrapper(object):
         self._outDir = out_dir
         ## a temp directory for intermediate files
         self._tmp_dir = tmp_dir
-        if os.path.exists(tmp_dir):
-            shutil.rmtree(tmp_dir)
-        os.mkdir(tmp_dir)
         ## log info
         self._running_log = running_log
         if running_log:
