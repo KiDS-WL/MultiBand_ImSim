@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-12-17 09:33:02
+# @Last Modified time: 2022-04-25 20:07:54
 
 ### running module for ImSim
 
@@ -443,7 +443,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                         ## psf profiles
                         if psf_type.lower() == 'pixelima':
                             fits_chips = [os.path.join(noise_info_tile[f'PixelIma_dir_{band}'], 
-                                                    f'psfIma_exp{i_expo}_chip{i_chip+1}.fits') 
+                                                    f'psfIma_exp{i_expo}_chip{i_chip}.fits') 
                                             for i_chip in range(32)]
                             psf_info_chips = [psf_type, fits_chips]
                             del fits_chips
