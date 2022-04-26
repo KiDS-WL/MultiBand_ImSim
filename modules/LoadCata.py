@@ -496,7 +496,7 @@ def NoiseInfo(cata_pathfile, bands,
         if psf_type == 'pixelima':
             logger.info(f'band {band} uses PSF images.')
             noise_info.loc[:, f'PixelIma_dir_{band}'] = \
-                [os.path.join(psf_PixelIma_dir, band, f'tile{tile}') for tile in cata[name_label].to_list()]
+                [os.path.join(psf_PixelIma_dir, f'tile{tile}_band{band}') for tile in cata[name_label].to_list()]
             need_psf_para = False
         ## in case different profile has different psf_e name
         elif psf_type == 'moffat':
@@ -519,7 +519,7 @@ def NoiseInfo(cata_pathfile, bands,
 
         if varChips:
             logger.info(f'band {band} uses varChips.')
-            if not file4varChips:
+            if need_psf_para and (not file4varChips):
                 raise Exception('noise catalogue for varChips is not provided!')
 
             # number of exposures
