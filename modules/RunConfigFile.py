@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-02-17 13:25:30
+# @Last Modified time: 2022-06-06 17:36:52
 
 ### module to generate an example configuration file
 
@@ -325,10 +325,6 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                         'bands': [x.strip() for x in config_MP.get('band_list').split(',')],
                         'image_label_list': [x.strip() for x in config_MP.get('image_label_list').split(',')]}
 
-        ### limiting magnitude dictionary
-        tmp_val = [float(x.strip()) for x in config_MP.get('band_1sigma_limits').split(',')]
-        MP_configs['band_1sigma_limits'] = dict(zip(MP_configs['bands'], tmp_val))
-
         ### spatial variation dictionary
         tmp_val = [(x.strip().lower() in ['true', 'yes', '1']) for x in config_MP.get('band_spatial_variation').split(',')]
         MP_configs['band_spatial_variation'] = dict(zip(MP_configs['bands'], tmp_val))
@@ -337,7 +333,7 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
         if MP_method.lower() == 'gaap':
             config_gaap = config['GAaP']
             MP_configs['gaap_dir'] = config_gaap.get('gaap_dir')
-            MP_configs['min_aper'] = config_gaap.getfloat('min_aper')
+            MP_configs['min_aper_list'] = [float(tmp.strip()) for tmp in config_gaap.get('min_aper_list').split(',')]
             MP_configs['max_aper'] = config_gaap.getfloat('max_aper')
             MP_configs['use_PSF_map'] = config_gaap.getboolean('use_PSF_map')
             MP_configs['star_SNR_cut'] = [float(i_m.strip()) for i_m in config_gaap.get('star_SNR_cut').split(',')]
@@ -365,12 +361,15 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             config_bpz = config['BPZ']
             MZ_configs['BPZ_dir'] = config_bpz.get('BPZ_dir')
             MZ_configs['python2_cmd'] = config_bpz.get('python2_cmd')
+            MZ_configs['detection_band'] = config_bpz.get('detection_band')
             MZ_configs['bands'] = [x.strip() for x in config_bpz.get('band_list').split(',')]
-            basename_tmp = config_bpz.get('band_CataNameBase')
-            MZ_configs['bands_CataName'] = [f'{basename_tmp}_{band}' for band in MZ_configs['bands']]
-            basename_tmp = config_bpz.get('banderr_CataNameBase')
-            MZ_configs['banderrs_CataName'] = [f'{basename_tmp}_{band}' for band in MZ_configs['bands']]
             MZ_configs['bands_FilterName'] = [x.strip() for x in config_bpz.get('band_FilterName_list').split(',')]
+            ### some basename for columns
+            MZ_configs['band_CataNameBase'] = config_bpz.get('band_CataNameBase')
+            MZ_configs['banderr_CataNameBase'] = config_bpz.get('banderr_CataNameBase')
+            MZ_configs['bandflag_CataNameBase'] = config_bpz.get('bandflag_CataNameBase')
+            MZ_configs['bandlim_CataNameBase'] = config_bpz.get('bandlim_CataNameBase')
+            ### some setup for BPZ
             MZ_configs['photo_sys'] = config_bpz.get('photo_sys')
             MZ_configs['prior_band'] = config_bpz.get('prior_band')
             MZ_configs['prior_name'] = config_bpz.get('prior_name')
@@ -735,10 +734,6 @@ method =                GAaP                   # method for photometry measureme
 detection_band =        r                      # band with detection catalogue\n\
 band_list =             r, u, g, i, Z, Y, J, H, Ks\n\
                                                # bands being measured\n\
-band_1sigma_limits =    26.2, 25.5, 26.3, 24.9, 24.85, 24.1, 24.2, 23.3, 23.2\n\
-                                               # 1 sigma limiting magnitude\n\
-                                               # used for unmeasured objects' mag error\n\
-                                               # default value from KV450 median\n\
 band_spatial_variation = True, False, False, False, False, False, False, False, False\n\
                                                # does psf vary spatially\n\
 image_label_list =      AW, AW, AW, AW, original, original, original, original, original\n\
@@ -748,7 +743,9 @@ image_label_list =      AW, AW, AW, AW, original, original, original, original, 
 \n\n\
 [GAaP]\n\n\
 gaap_dir =              your_dir_to_gaap       # directory containing GAaP bins and libs\n\
-min_aper =              0.7                    # minimum aperture size\n\
+min_aper_list =         0.7, 1.0               # minimum aperture size\n\
+                                               # a list of sizes can be provided\n\
+                                               # the final decision follows KiDS\n\
 max_aper =              2.0                    # maximum aperture size\n\
 use_PSF_map =           False                  # use separate psf map for psf estimation\n\
                                                # only required if stars are not simulated\n\
@@ -768,21 +765,24 @@ method =                BPZ                    # method for photo-z measurement\
 BPZ_dir =                your_dir_to_BPZ_code  # the directory containing BPZ-related codes\n\
 python2_cmd =            python2               # the executable path to the python2\n\
                                                #    with necessary package for BPZ\n\
+detection_band =         r                      # band with detection catalogue\n\
 band_list =              u, g, r, i, Z, Y, J, H, Ks\n\
-band_CataNameBase =      MAG_GAAP_0p7\n\
-banderr_CataNameBase =   MAGERR_GAAP_0p7\n\
-band_FilterName_list =   Paranal_OmegaCAM.u_SDSS, Paranal_OmegaCAM.g_SDSS, Paranal_OmegaCAM.r_SDSS, Paranal_OmegaCAM.i_SDSS, LSST_LSST.z, LSST_LSST.y, 2MASS_2MASS.J, 2MASS_2MASS.H, 2MASS_2MASS.Ks\n\
+band_FilterName_list =   KiDSVIKING_u, KiDSVIKING_g, KiDSVIKING_r, KiDSVIKING_i, KiDSVIKING_Z2, KiDSVIKING_Y, KiDSVIKING_J, KiDSVIKING_H, KiDSVIKING_Ks\n\
+band_CataNameBase =      MAG_GAAP\n\
+banderr_CataNameBase =   MAGERR_GAAP\n\
+bandflag_CataNameBase =  FLAG_GAAP\n\
+bandlim_CataNameBase =   MAG_LIM\n\
 photo_sys =              AB\n\
 prior_band =             i\n\
 prior_name =             NGVS\n\
 templates_name =         CWWSB_capak\n\
 interpolation =          10\n\
-lkl_zmin =               0.0002\n\
-lkl_zmax =               2.2984\n\
+lkl_zmin =               0.01\n\
+lkl_zmax =               2.5\n\
 lkl_dz =                 0.01\n\
 lkl_odds =               0.68\n\
-lkl_min_rms =            0.0\n\
-clean_up_level =        0                      # clean up level\n\
+lkl_min_rms =            0.067\n\
+clean_up_level =         0                     # clean up level\n\
                                                #    0: none\n\
                                                #    1: tmp directory\n\
 \n\n\

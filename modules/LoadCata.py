@@ -109,15 +109,15 @@ def GalInfo(cata_pathfile, bands,
     try:
         Re = cata[name_Re]
     except KeyError:
-        Re = np.zeros(Ngal)
+        Re = np.full(Ngal, -999)
     try:
         sersic_n = cata[name_n]
     except KeyError:
-        sersic_n = np.zeros(Ngal)
+        sersic_n = np.full(Ngal, -999)
     try:
         axis_ratios = cata[name_ar] # b/a
     except KeyError:
-        axis_ratios = np.zeros(Ngal)
+        axis_ratios = np.full(Ngal, -999)
 
     ## commom
     position_angles = cata[name_PA]
@@ -126,29 +126,29 @@ def GalInfo(cata_pathfile, bands,
     try:
         bulge_fractions = cata[name_bf] # bulge to total
     except KeyError:
-        bulge_fractions = np.zeros(Ngal)
+        bulge_fractions = np.full(Ngal, -999)
     try:
         bulge_Re = cata[name_bs] # arcsec
     except KeyError:
-        bulge_Re = np.zeros(Ngal)
+        bulge_Re = np.full(Ngal, -999)
     try:
         bulge_axis_ratios = cata[name_bar] # arcsec
     except KeyError:
-        bulge_axis_ratios = np.zeros(Ngal)
+        bulge_axis_ratios = np.full(Ngal, -999)
     try:
         bulge_n = cata[name_bn] # sersic n
     except KeyError:
-        bulge_n = np.full(Ngal, 4.)
+        bulge_n = np.full(Ngal, -999)
 
     ## disk
     try:
         disk_Re = cata[name_ds] # arcsec
     except KeyError:
-        disk_Re = np.zeros(Ngal)
+        disk_Re = np.full(Ngal, -999)
     try:
         disk_axis_ratios = cata[name_dar] # arcsec
     except KeyError:
-        disk_axis_ratios = np.zeros(Ngal)
+        disk_axis_ratios = np.full(Ngal, -999)
 
     # magnitudes
     mag_list = [np.array(cata[mag_name]).astype(float) for mag_name in mag_name_list]
@@ -182,9 +182,13 @@ def GalInfo(cata_pathfile, bands,
     # select based on size
     ### only size within size_cut is simulated
     if size_cut:
-        mask_tmp = (gals_info['Re'] >= size_cut[0]) & (gals_info['Re'] <= size_cut[1]) &\
-                    (gals_info['bulge_Re'] >= size_cut[0]) & (gals_info['bulge_Re'] <= size_cut[1]) &\
-                    (gals_info['disk_Re'] >= size_cut[0]) & (gals_info['disk_Re'] <= size_cut[1])
+        if gals_info['Re'].values[0] != -999:        
+            ## used sersic 
+            mask_tmp = (gals_info['Re'] >= size_cut[0]) & (gals_info['Re'] <= size_cut[1])
+        else:
+            ## used bulge + disc
+            mask_tmp = (gals_info['bulge_Re'] >= size_cut[0]) & (gals_info['bulge_Re'] <= size_cut[1]) &\
+                        (gals_info['disk_Re'] >= size_cut[0]) & (gals_info['disk_Re'] <= size_cut[1])
         gals_info = gals_info[mask_tmp]
         del mask_tmp
         gals_info.reset_index(drop=True, inplace=True)

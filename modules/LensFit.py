@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-03 16:16:21
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-04-21 18:36:12
+# @Last Modified time: 2022-05-07 14:58:04
 
 ### Wrapper for lensfit code
 
@@ -196,7 +196,7 @@ class LensFITwrapper(object):
 
         # >>>>>>>>>>>>> 4. build convenient feather file
         data = np.loadtxt(f'{output_path}.asc')
-        if data.size == 0:
+        if data.size < 100:
             raise Exception(f'Empty {output_path}.asc, something is wrong about lensfit!')
 
         if self._lensfitVersion == '309':

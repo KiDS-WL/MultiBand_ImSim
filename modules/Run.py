@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-03-19 12:06:45
+# @Last Modified time: 2022-05-08 12:50:45
 
 ### main module to run the whole pipeline
 
@@ -34,7 +34,7 @@ import CrossMatch
 
 import RunConfigFile
 
-__version__ = "MultiBand_ImSim v0.6.3"
+__version__ = "MultiBand_ImSim v0.6.4"
 
 # ++++++++++++++ parser for command-line interfaces
 parser = argparse.ArgumentParser(
@@ -606,16 +606,16 @@ if ('4' in taskIDs) or ('all' in taskIDs):
         else:
             log_dir_tmp = None
 
+        ## general
+        MP_detec_band = configs_dict['MP']['detection_band']
+
         ## Initialise the GAaP wrapper
-        gaap = GAaP.GAaPwrapper(configs_dict['MP']['gaap_dir'], out_dir_tmp, 
-                tmp_dir=tmp_dir_tmp,
+        gaap = GAaP.GAaPwrapper(configs_dict['MP']['gaap_dir'], tmp_dir_tmp,
                 star_SNR_cut=configs_dict['MP']['star_SNR_cut'],
-                mag_zero=configs_dict['imsim']['mag_zero'],
-                min_aper=configs_dict['MP']['min_aper'], max_aper=configs_dict['MP']['max_aper'],
-                mag_1sigma_limits=configs_dict['MP']['band_1sigma_limits'], 
+                mag_zero=configs_dict['imsim']['mag_zero'], detection_band=MP_detec_band,
+                min_aper_list=configs_dict['MP']['min_aper_list'], max_aper=configs_dict['MP']['max_aper'],
                 spatial_variation=configs_dict['MP']['band_spatial_variation'],
-                running_log=running_log, log_dir=log_dir_tmp,
-                clean_up_level=configs_dict['MP']['clean_up_level'])
+                running_log=running_log, log_dir=log_dir_tmp)
 
         ## work pool
         rots_tasks = configs_dict['imsim']['gal_rotation_angles'] * len(tile_labels)
@@ -650,7 +650,6 @@ if ('4' in taskIDs) or ('all' in taskIDs):
                     star_info = None
 
                 ### detection file
-                MP_detec_band = configs_dict['MP']['detection_band']
                 SKYcataFile = os.path.join(in_cata_dir_tmp, f'tile{tile_label}_band{MP_detec_band}_rot{gal_rotation_angle:.0f}.feather')
 
                 ### image files
@@ -682,7 +681,12 @@ if ('4' in taskIDs) or ('all' in taskIDs):
                 FinalFile = os.path.join(out_dir_tmp, f'tile{tile_label}_rot{gal_rotation_angle:.0f}.feather')
 
                 proc = mp.Process(target=gaap.RunSingleTile, 
-                    args=(N_gaap, FinalFile, SKYcataFile, configs_dict['MP']['bands'], SKYimaFile_list, SKYweiFile_list, PSFimaFile_list, star_info))
+                    args=(N_gaap, 
+                                FinalFile, 
+                                SKYcataFile, 
+                                configs_dict['MP']['bands'], 
+                                SKYimaFile_list, SKYweiFile_list, 
+                                PSFimaFile_list, star_info))
                 i_worker += 1
                 proc.start()
                 proc_list.append(proc)
@@ -708,7 +712,8 @@ if ('5' in taskIDs) or ('all' in taskIDs):
         logger.info('Use BPZ for photo-z measurement.')
 
         ## I/O
-        in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photometry')
+        DetecFile_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
+        PhotoFile_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photometry')
         out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photo_z')
         pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
         tmp_dir_tmp = os.path.join(configs_dict['work_dirs']['tmp'], 'photo_z')
@@ -719,22 +724,31 @@ if ('5' in taskIDs) or ('all' in taskIDs):
         else:
             log_dir_tmp = None
 
+        ## general
+        MZ_detec_band = configs_dict['MZ']['detection_band']
+
         ## Initialise the BPZ wrapper
         bpz = BPZ.BPZwrapper(configs_dict['MZ']['python2_cmd'], configs_dict['MZ']['BPZ_dir'],
                 out_dir_tmp, tmp_dir_tmp,
-                configs_dict['MZ']['bands'],
-                configs_dict['MZ']['bands_CataName'], configs_dict['MZ']['banderrs_CataName'], configs_dict['MZ']['bands_FilterName'],
-                photo_sys=configs_dict['MZ']['photo_sys'], prior_band=configs_dict['MZ']['prior_band'], prior_name=configs_dict['MZ']['prior_name'],
+                configs_dict['MZ']['bands'], configs_dict['MZ']['bands_FilterName'],
+                configs_dict['MZ']['band_CataNameBase'], configs_dict['MZ']['banderr_CataNameBase'], 
+                configs_dict['MZ']['bandflag_CataNameBase'], configs_dict['MZ']['bandlim_CataNameBase'], 
+                detec_band=MZ_detec_band,
+                photo_sys=configs_dict['MZ']['photo_sys'], 
+                prior_band=configs_dict['MZ']['prior_band'], prior_name=configs_dict['MZ']['prior_name'],
                 templates_name=configs_dict['MZ']['templates_name'], interpolation=configs_dict['MZ']['interpolation'],
                 lkl_zmin=configs_dict['MZ']['lkl_zmin'], lkl_zmax=configs_dict['MZ']['lkl_zmax'], lkl_dz=configs_dict['MZ']['lkl_dz'], lkl_odds=configs_dict['MZ']['lkl_odds'], lkl_min_rms=configs_dict['MZ']['lkl_min_rms'],
                 running_log=running_log, log_dir=log_dir_tmp)
 
         ## work pool
-        N_BPZ = int(Nmax_proc/20)
+        #### each BPZ use half of the cores
+        N_BPZeach = mp.cpu_count()/2.
+
+        N_BPZ = int(Nmax_proc/N_BPZeach)
         if N_BPZ < 1:
             N_BPZ = 1
         logger.info(f'Number of processes for BPZ: {N_BPZ}')
-        logger.info(f'  NOTE: each processes of BPZ takes multiple cores')
+        logger.info(f'  NOTE: each processes of BPZ takes {N_BPZeach} cores')
         work_pool = mp.Pool(processes=N_BPZ)
         proc_list = []
         for tile_label in tile_labels:
@@ -742,10 +756,13 @@ if ('5' in taskIDs) or ('all' in taskIDs):
             for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
 
                 # input
-                in_cata_file = os.path.join(in_cata_dir_tmp, f'tile{tile_label}_rot{gal_rotation_angle:.0f}.feather')
+                ## photometry
+                PhotoFile = os.path.join(PhotoFile_dir_tmp, f'tile{tile_label}_rot{gal_rotation_angle:.0f}.feather')
+                ## Detection
+                DetecFile = os.path.join(DetecFile_dir_tmp, f'tile{tile_label}_band{MZ_detec_band}_rot{gal_rotation_angle:.0f}.feather')
 
                 proc = work_pool.apply_async(func=bpz.RunSingleTile,
-                                args=(in_cata_file,))
+                                args=(PhotoFile, DetecFile))
                 proc_list.append(proc)
 
         work_pool.close()

@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-09-17 21:28:17
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-01-11 08:46:33
+# @Last Modified time: 2022-06-03 09:50:30
 
 ### Wrapper for GAaP code
 
@@ -44,45 +44,29 @@ class GAaPwrapper(object):
         Within which SNR range stars are used.
     mag_zero : float, optional (default: 30.)
         Zero point for the magnitude.
-    min_aper : float, optional (default: 0.7)
-        Minimum aperture size.
+    min_aper_list : a list of float, optional (default: [0.7, 1.0])
+        Minimum aperture sizes.
     max_aper : float, optional (default: 2.0)
         Maximum aperture size.
-    mag_1sigma_limits : dictionary
-        1 sigma limiting magnitude, used for unmeasured objects' error
     spatial_variation : dictionary
         does psf vary spatially? 
     running_log : bool, optional (default: True)
         save running info from external code
-    clean_up_level : int, optional (default: 0)
-        Clean up level
-        0: none
-        1: tmp directory
         """
 
-    def __init__(self, gaap_dir, out_dir, 
-                tmp_dir=None,
+    def __init__(self, gaap_dir, tmp_dir, 
                 star_SNR_cut=[100., 1000.],
-                mag_zero=30.,
-                min_aper=0.7, max_aper=2.0,
-                mag_1sigma_limits={}, spatial_variation={},
-                running_log=True, log_dir=None, 
-                clean_up_level=0):
+                mag_zero=30., detection_band='r',
+                min_aper_list=[0.7, 1.0], max_aper=2.0,
+                spatial_variation={},
+                running_log=True, log_dir=None):
 
         logger.info("Initialising the GAaP wrapper...")
 
         self._GAAP = gaap_dir
         logger.info("GAaP directory: %s", self._GAAP)
 
-        self._outDir = out_dir
-        logger.info("Output directory: %s", self._outDir)
-        if not os.path.exists(self._outDir):
-            os.mkdir(self._outDir)
-
-        if tmp_dir is not None:
-            self._tmpDir = tmp_dir
-        else:
-            self._tmpDir = out_dir
+        self._tmpDir = tmp_dir
         logger.info("tmp directory: %s", self._tmpDir)
         if not os.path.exists(self._tmpDir):
             os.mkdir(self._tmpDir)
@@ -93,13 +77,15 @@ class GAaPwrapper(object):
         self._magzero = mag_zero
         logger.info("magnitude zero point: %f", self._magzero)
 
-        self._minaper = min_aper
-        logger.info("Minimum aperture: %f", self._minaper)
+        self._detection_band = detection_band
+        logger.info("detection band: %s", self._detection_band)
+
+        self._minaper_list = min_aper_list
+        if len(self._minaper_list) > 2:
+            raise Exception('Number of minaper sizes should be either 1 or 2!')
+        logger.info(f"Minimum apertures: {self._minaper_list}")
         self._maxaper = max_aper
         logger.info("Maximum aperture: %f", self._maxaper)
-
-        self._1sigma_limits = mag_1sigma_limits
-        logger.info(f'1-sigma limiting magnitude: {mag_1sigma_limits}')
 
         self._spatial_variation = spatial_variation
         logger.info(f'model contains spatial variation: {spatial_variation}')
@@ -108,8 +94,6 @@ class GAaPwrapper(object):
         logger.info(f"Save running info: {self._running_log}")
 
         self._logDir = log_dir
-
-        self._clean_up_level = clean_up_level
 
     def _PSFcataFunc(self, band, SKYimaFile, tmp_dir, star_info=None, outLog=subprocess.PIPE, errLog=subprocess.STDOUT):
         """
@@ -180,7 +164,7 @@ class GAaPwrapper(object):
             id_stars = matched_cata['id_detec'].values
             mask = np.isin(detec_cata_ori[:, 8], id_stars)
             psf_cata = detec_cata_ori[mask, :11]
-            del mask
+            del mask, detec_cata_ori
             N_stars = len(psf_cata)
             if (self._spatial_variation[band]) and (N_stars < 1000):
                 raise Exception(f"too few stars {N_stars}, please select a larger range of SNR!")
@@ -191,6 +175,7 @@ class GAaPwrapper(object):
             # +++++++++ save desired info
             np.savetxt(PSFcataFile, psf_cata,
                         fmt='%.4f %.4f %.2f %.5f %.3f %.3f %.3f %.2f %i %i %.2f')
+            del psf_cata
 
         logger.debug(f"PSF catalogue Extracted as {PSFcataFile}")
 
@@ -227,6 +212,7 @@ class GAaPwrapper(object):
         # psfcat2gauskerwithtweak_no_recentre
         proc = subprocess.run(f'(echo -1; cat {PSFcataFile}) | {self._GAAP}/bin/psfcat2gauskerwithtweak_no_recentre > tmp_ker.sh2',
                 stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
+        del PSFcataFile
 
         # fitkermaptwk_noplots
         proc = subprocess.run(f'{self._GAAP}/bin/fitkermaptwk_noplots < tmp_ker.sh2 > {SKYimaKerFile}',
@@ -247,7 +233,9 @@ class GAaPwrapper(object):
 
         return SKYimaKerFile, SKYimaGpsfFile
 
-    def _GAaPphotFunc(self, GaapFile, SKYimaFile, SKYcata, SKYimaKerFile, SKYimaGpsfFile, tmp_dir, SKYweiFile=None, outLog=subprocess.PIPE, errLog=subprocess.STDOUT):
+    def _GAaPphotFunc(self, band, GaapFile, SKYimaFile, SKYcata, SKYimaKerFile, SKYimaGpsfFile, 
+                            tmp_dir, minaper,
+                            SKYweiFile=None, outLog=subprocess.PIPE, errLog=subprocess.STDOUT):
         """
         calculate GAaP photometry
         Make input catalogue for Gaap photometry from the galaxy catalogue:
@@ -266,6 +254,15 @@ class GAaPwrapper(object):
         b = SKYcata['B_WORLD'].values*3600. # arcsec
         PAworld = -1.*SKYcata['THETA_WORLD'].values
         id_obj = SKYcata['NUMBER'].values
+        del SKYcata
+
+        # orders
+        if self._spatial_variation[band]:
+            ### kernel shapelet order 10, spatial order 4 as used by data
+            np.savetxt(os.path.join(tmp_dir, 'orders.par'), [[10], [4]], fmt='%d')
+        else:
+            ### kernel has shapelet order 10, no spatial variation for the PSF
+            np.savetxt(os.path.join(tmp_dir, 'orders.par'), [[10], [0]], fmt='%d')
 
         # position
         np.savetxt(os.path.join(tmp_dir, 'radec.cat'), radec)
@@ -277,13 +274,12 @@ class GAaPwrapper(object):
         del tmp
 
         # aperture
-        aper = self._minaper
         maxaper = self._maxaper
         ### A"
-        a = np.sqrt(aper**2+a**2)
+        a = np.sqrt(minaper**2+a**2)
         a[a>maxaper] = maxaper
         ### B"
-        b = np.sqrt(aper**2+b**2)
+        b = np.sqrt(minaper**2+b**2)
         b[b>maxaper] = maxaper
 
         # inputs for gaap
@@ -291,13 +287,13 @@ class GAaPwrapper(object):
         np.savetxt(os.path.join(tmp_dir, 'gaap.in'), gaapin, fmt='%.3f %.3f %.2f %.2f %.2f %i')
         del radec, x, y, a, b, PAworld, id_obj
 
-        # Make kernel ACF map of GPSF image if needed
+        # >>> 1. Make kernel ACF map of GPSF image if needed
         proc = subprocess.run(f'{self._GAAP}/bin/keracfmap < {SKYimaKerFile} | {self._GAAP}/bin/fitkermap > {SKYimaKerAcfFile}',
                 stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
 
         logger.debug("Kernel acf map produced as {:}".format(SKYimaKerAcfFile))
 
-        # Estimate pre-GPSF pixel correlation and convolve with kernel ACF
+        # >>> 2. Estimate pre-GPSF pixel correlation and convolve with kernel ACF
         inimage = os.path.join(tmp_dir, 'inimage.fits')
         if os.path.isfile(inimage):
             os.remove(inimage)
@@ -319,7 +315,7 @@ class GAaPwrapper(object):
                                 stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
         logger.debug("Total noise acf map produced as {:}".format(SKYimaTotAcfFile))
 
-        # do gapphot
+        # >>> 3. do gapphot
         inimage = os.path.join(tmp_dir, 'inimage.fits')
         if os.path.isfile(inimage):
             os.remove(inimage)
@@ -335,7 +331,7 @@ class GAaPwrapper(object):
                             stdout=outLog, stderr=errLog, shell=True, cwd=tmp_dir)
         logger.debug("GAaP catalogue produced as {:}".format(GaapFile))
 
-    def _CombineCataFunc(self, SKYcata, GaapFile_dic, FinalFile):
+    def _CombineCataFunc(self, SKYcata, GaapFile_list_dic, FinalFile):
         """
         combine all GAaP results with detection id to one feather catalogue
         """
@@ -343,45 +339,133 @@ class GAaPwrapper(object):
         logger.info('Combine original GAaP outputs...')
 
         # the final catalogue
-        data_out = pd.DataFrame({'id_detec': np.array(SKYcata['NUMBER']).astype(int),
-                                f'mask_meas_{len(GaapFile_dic)}bands': np.zeros(len(SKYcata)).astype(int)})
+        data_out = pd.DataFrame({'id_detec': np.array(SKYcata['NUMBER']).astype(int)})
+        del SKYcata
 
         # loop over all bands
-        for band, GaapFile in GaapFile_dic.items():
+        for band, GaapFile_list in GaapFile_list_dic.items():
 
-            # GAaP catalogue
-            tmp = np.loadtxt(GaapFile)
-            data_out.loc[:, 'Agaper'] = tmp[:, 2]
-            data_out.loc[:, 'Bgaper'] = tmp[:, 3]
-            data_out.loc[:, 'PAgaap'] = tmp[:, 4]
-            data_out.loc[:, 'FLUX_GAAP_0p7_{:}'.format(band)] = tmp[:, 5]
-            data_out.loc[:, 'FLUXERR_GAAP_0p7_{:}'.format(band)] = tmp[:, 6]
-            data_out.loc[:, 'FLAG_GAAP_0p7_{:}'.format(band)] = tmp[:, 8]
+            # loop over apertures
+            for i_aper, minaper in enumerate(self._minaper_list):
 
-            ## magnitude
-            if band in ['u', 'g', 'r', 'i']:
-                ## criterion: SNR >= 1 and flux>0 and flux_err>0
-                mask_ture = (tmp[:, 5]>=tmp[:, 6]) & (tmp[:, 5]>0) & (tmp[:, 6]>0)
+                # the GaapFile
+                GaapFile = GaapFile_list[i_aper]
+                str_minaper = str(minaper).replace('.', 'p')
+
+                # GAaP catalogue
+                tmp = np.loadtxt(GaapFile)
+                if band == self._detection_band:
+                    data_out.loc[:, f'Agaper_{str_minaper}'] = tmp[:, 2]
+                    data_out.loc[:, f'Bgaper_{str_minaper}'] = tmp[:, 3]
+                    data_out.loc[:, f'PAgaap_{str_minaper}'] = tmp[:, 4]
+                ## the flux and flag
+                flux = np.float64(tmp[:, 5])
+                fluxerr = np.float64(tmp[:, 6])
+                flag = np.int32(tmp[:, 8])
+                del tmp
+                ## save
+                data_out.loc[:, f'FLUX_GAAP_{str_minaper}_{band}'] = flux
+                data_out.loc[:, f'FLUXERR_GAAP_{str_minaper}_{band}'] = fluxerr
+                data_out.loc[:, f'FLAG_GAAP_{str_minaper}_{band}'] = flag
+
+                # >>> 1. convert to magnitude
+                ### the VISTA
+                if band in ['Z', 'Y', 'J', 'H', 'Ks']:
+                    ##### good measurement
+                    mask_tmp = (flux>0) & (flag==0)
+                    data_out.loc[mask_tmp, f'MAG_GAAP_{str_minaper}_{band}'] \
+                                    = self._magzero - 2.5*np.log10(flux[mask_tmp])
+                    data_out.loc[mask_tmp, f'MAGERR_GAAP_{str_minaper}_{band}'] \
+                                    = 1.0857362047581294 * (fluxerr[mask_tmp]/flux[mask_tmp])
+                    del mask_tmp
+                    ##### non detections
+                    mask_tmp = (flux<0) & (flag==0)
+                    data_out.loc[mask_tmp, f'MAG_GAAP_{str_minaper}_{band}'] \
+                                    = 99.
+                    data_out.loc[mask_tmp, f'MAGERR_GAAP_{str_minaper}_{band}'] \
+                                    = np.abs(1.0857362047581294 * (fluxerr[mask_tmp]/flux[mask_tmp]))
+                    del mask_tmp
+                    ###### failures
+                    mask_tmp = (flag!=0) | (flux==0.)
+                    data_out.loc[mask_tmp, f'MAG_GAAP_{str_minaper}_{band}'] \
+                                    = -99.
+                    data_out.loc[mask_tmp, f'MAGERR_GAAP_{str_minaper}_{band}'] \
+                                    = -99.
+                    del mask_tmp
+                elif band in ['u', 'g', 'r', 'i']:
+                    ##### good measurement
+                    mask_tmp = (flux>0.) & (fluxerr>=0) & (flux>=fluxerr)
+                    data_out.loc[mask_tmp, f'MAG_GAAP_{str_minaper}_{band}'] \
+                                    = self._magzero - 2.5*np.log10(flux[mask_tmp])
+                    data_out.loc[mask_tmp, f'MAGERR_GAAP_{str_minaper}_{band}'] \
+                                    = 1.0857362047581294 * (fluxerr[mask_tmp]/flux[mask_tmp])
+                    del mask_tmp
+                    ##### non detections
+                    mask_tmp = (flux<fluxerr) & (fluxerr>0) & (flux!=0.)
+                    data_out.loc[mask_tmp, f'MAG_GAAP_{str_minaper}_{band}'] \
+                                    = 99.
+                    data_out.loc[mask_tmp, f'MAGERR_GAAP_{str_minaper}_{band}'] \
+                                    = np.abs(1.0857362047581294 * (fluxerr[mask_tmp]/flux[mask_tmp]))
+                    del mask_tmp
+                    ###### failures
+                    mask_tmp = (flux==0.) | (fluxerr<0.)
+                    data_out.loc[mask_tmp, f'FLAG_GAAP_{str_minaper}_{band}'] \
+                                    = 1
+                    data_out.loc[mask_tmp, f'MAG_GAAP_{str_minaper}_{band}'] \
+                                    = -99.
+                    data_out.loc[mask_tmp, f'MAGERR_GAAP_{str_minaper}_{band}'] \
+                                    = -99.
+                    del mask_tmp
+                else:
+                    raise Exception(f'Unrecognised band {band}')
+
+                # >>> 2. the limiting magnitudes
+                mask_ture = (flux!=0) & (fluxerr>0)
                 mask_false = np.invert(mask_ture)
-            else:
-                ## criterion: flux>0 and flux_err>0
-                mask_ture = (tmp[:, 5]>0) & (tmp[:, 6]>0)
-                mask_false = np.invert(mask_ture)
+                data_out.loc[mask_ture, f'MAG_LIM_{str_minaper}_{band}'] = self._magzero - 2.5*np.log10(fluxerr[mask_ture])
+                data_out.loc[mask_false, f'MAG_LIM_{str_minaper}_{band}'] = -99.
+                del mask_ture, mask_false, flux, fluxerr, flag
 
-            ## preserved results
-            data_out.loc[mask_ture, 'MAG_GAAP_0p7_{:}'.format(band)] = self._magzero-2.5*np.log10(tmp[mask_ture, 5])
-            data_out.loc[mask_ture, 'MAGERR_GAAP_0p7_{:}'.format(band)] = 1.0857362047581294 * tmp[mask_ture, 6]/tmp[mask_ture, 5]
+        # take decision, which aperture to use
+        ## get min and max aper
+        str_minaper_min = str(min(self._minaper_list)).replace('.', 'p')
+        str_minaper_max = str(max(self._minaper_list)).replace('.', 'p')
+        ## initialize the decision matrix
+        R = np.zeros((len(data_out), len(GaapFile_list_dic.keys())))
+        for i_band, band in enumerate(GaapFile_list_dic.keys()):
 
-            ## assigning dummy values to undesired flux
-            data_out.loc[mask_false, 'MAG_GAAP_0p7_{:}'.format(band)] = 99.
-            data_out.loc[mask_false, 'MAGERR_GAAP_0p7_{:}'.format(band)] = self._1sigma_limits[band]
+            # calculate R
+            fluxerr1 = data_out[f'FLUXERR_GAAP_{str_minaper_max}_{band}'].values
+            fluxerr2 = data_out[f'FLUXERR_GAAP_{str_minaper_min}_{band}'].values
+            R[:, i_band] = fluxerr1/fluxerr2
+            R[(fluxerr1==-1), i_band] = 1.
+            del fluxerr1, fluxerr2
 
-            # mask undesired flux
-            data_out.loc[mask_false, f'mask_meas_{len(GaapFile_dic)}bands'] += 1
+        # decide whether the larger aperture should be used
+        large_aper = ( np.min(R, axis=1) < 1./np.max(R, axis=1) ) | ( np.max(R, axis=1) < 0 )
+        del R
+        for band in GaapFile_list_dic.keys():
+
+            for col_main in ['FLUX_GAAP', 'FLUXERR_GAAP', 'FLAG_GAAP', 'MAG_GAAP', 'MAGERR_GAAP', 'MAG_LIM']:
+
+                data_out.loc[:, f'{col_main}_{band}'] \
+                    = np.where(large_aper, 
+                            data_out[f'{col_main}_{str_minaper_max}_{band}'].values, 
+                            data_out[f'{col_main}_{str_minaper_min}_{band}'].values) 
+
+        # the same for aperture para
+        for col_main in ['Agaper', 'Bgaper', 'PAgaap']:
+                data_out.loc[:, f'{col_main}'] \
+                    = np.where(large_aper, 
+                            data_out[f'{col_main}_{str_minaper_max}'].values, 
+                            data_out[f'{col_main}_{str_minaper_min}'].values) 
+
+        del large_aper
 
         # save
         tmp_FinalFile = FinalFile + '_tmp'
         data_out.to_feather(tmp_FinalFile)
+        del data_out
         os.rename(tmp_FinalFile, FinalFile)
         logger.debug('Combined catalogues saved to {:}'.format(FinalFile))
 
@@ -402,14 +486,11 @@ class GAaPwrapper(object):
             errLog = subprocess.STDOUT
 
         # 0. make tmp dir
-        tmp_dir = os.path.join(self._tmpDir, re.findall(f'(.*).fits', SKYimaFile_name)[0])
+        tmp_dir = os.path.join(self._tmpDir, 'tmp_gaap_' + re.findall(f'(.*).fits', SKYimaFile_name)[0])
         ## to avoid semi-finished product
         if os.path.exists(tmp_dir):
             shutil.rmtree(tmp_dir)
         os.mkdir(tmp_dir)
-        ## for gaap outputs
-        GaapFile = os.path.join(tmp_dir, SKYimaFile_name.replace('.fits', '.gaap'))
-        queue.put([band, GaapFile])
 
         # 1. make star catalogue in right SExtractor ascii format
         if (PSFimaFile is not None):
@@ -421,7 +502,30 @@ class GAaPwrapper(object):
         SKYimaKerFile, SKYimaGpsfFile = self._GaussianizationFunc(band, SKYimaFile, PSFcataFile, tmp_dir, outLog=outLog, errLog=errLog)
 
         # 3. run gaap
-        self._GAaPphotFunc(GaapFile, SKYimaFile, SKYcata, SKYimaKerFile, SKYimaGpsfFile, tmp_dir, SKYweiFile=SKYweiFile, outLog=outLog, errLog=errLog)
+        ## loop over different apertures
+        GaapFile_list = []
+        for minaper in self._minaper_list:
+            logger.info(f'     for aperture {minaper}...')
+
+            # where to save tmp files
+            tmp_minaper_dir = os.path.join(tmp_dir, 'minaper_' + str(minaper).replace('.', 'p'))
+            ## to avoid semi-finished product
+            if os.path.exists(tmp_minaper_dir):
+                shutil.rmtree(tmp_minaper_dir)
+            os.mkdir(tmp_minaper_dir)
+
+            # final output
+            GaapFile = os.path.join(tmp_minaper_dir, SKYimaFile_name.replace('.fits', '.gaap'))
+            GaapFile_list.append(GaapFile)
+
+            # running
+            self._GAaPphotFunc(band, GaapFile, SKYimaFile, SKYcata, SKYimaKerFile, SKYimaGpsfFile, 
+                                    tmp_minaper_dir, minaper,
+                                    SKYweiFile=SKYweiFile, outLog=outLog, errLog=errLog)
+
+        ## return info
+        queue.put([band, GaapFile_list])
+        del SKYcata
 
         if self._running_log:
             outLog.close()
@@ -484,23 +588,12 @@ class GAaPwrapper(object):
         for p in p_list:
             p.join()
 
-        GaapFile_dic = {}
+        GaapFile_list_dic = {}
         while not queue.empty():
             ret = queue.get()
-            GaapFile_dic[ret[0]] = ret[1]
+            GaapFile_list_dic[ret[0]] = ret[1]
 
-        self._CombineCataFunc(SKYcata, GaapFile_dic, FinalFile)
-
-        if self._clean_up_level:
-
-            # loop over all bands
-            for band, GaapFile in GaapFile_dic.items():
-
-                # get tmp dir
-                tmp = os.path.dirname(GaapFile)
-
-                # clean
-                shutil.rmtree(tmp)
-                logger.info(f'{tmp} removed.')
+        self._CombineCataFunc(SKYcata, GaapFile_list_dic, FinalFile)
+        del SKYcata
 
         logger.info(f'Finished for tile {name_base}.')
