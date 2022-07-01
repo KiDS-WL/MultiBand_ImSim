@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-05-08 12:50:45
+# @Last Modified time: 2022-06-30 12:03:58
 
 ### main module to run the whole pipeline
 
@@ -133,6 +133,11 @@ configs_dict = RunConfigFile.ParseConfig(config_file, taskIDs, run_tag, running_
 # # ++++++++++++++ Running tasks
 start_time0 = time.time()
 
+# folder names
+input_folder, detect_foler, CrossMatch_folder, \
+            photometry_folder, photo_z_folder, \
+            shapes_folder, combined_suffix = configs_dict['work_dirs']['cata_folder_names']
+
 # varChips dictionary 
 varChips_dic = {}
 for i_band, band in enumerate(configs_dict['imsim']['bands']):
@@ -190,7 +195,7 @@ if ('1' in taskIDs) or ('all' in taskIDs):
     out_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], 'original')
     pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
     ### for catalogues
-    outcata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'input')
+    outcata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], input_folder)
     pathlib.Path(outcata_dir_tmp).mkdir(parents=True, exist_ok=True)
 
     ## load noise info
@@ -459,17 +464,17 @@ if ('3' in taskIDs) or ('all' in taskIDs):
     SeeingFWHM_list = SeeingFWHM_list[:N_tiles]
 
     ## I/O
-    ori_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'input')
+    ori_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], input_folder)
     in_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], image_label)
-    out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
+    out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], detect_foler)
     pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
     if running_log:
-        log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'SExtractor')
+        log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], detect_foler)
         pathlib.Path(log_dir_tmp).mkdir(parents=True, exist_ok=True)
     else:
         log_dir_tmp = None
     if configs_dict['sex']['cross_match']:
-        out_dir_cross = os.path.join(configs_dict['work_dirs']['cata'], 'CrossMatch')
+        out_dir_cross = os.path.join(configs_dict['work_dirs']['cata'], CrossMatch_folder)
         pathlib.Path(out_dir_cross).mkdir(parents=True, exist_ok=True)
     # CHECKIMAGE
     if (configs_dict['sex']['checkimage_type'] is not None) and (configs_dict['sex']['checkimage_type'].upper() != 'NONE'):
@@ -594,9 +599,9 @@ if ('4' in taskIDs) or ('all' in taskIDs):
         logger.info('Use GAaP for photometry measurement.')
 
         ## I/O
-        ori_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'input')
-        in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
-        out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photometry')
+        ori_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], input_folder)
+        in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], detect_foler)
+        out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], photometry_folder)
         pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
         tmp_dir_tmp = os.path.join(configs_dict['work_dirs']['tmp'], 'GAaP')
         pathlib.Path(tmp_dir_tmp).mkdir(parents=True, exist_ok=True)
@@ -712,11 +717,11 @@ if ('5' in taskIDs) or ('all' in taskIDs):
         logger.info('Use BPZ for photo-z measurement.')
 
         ## I/O
-        DetecFile_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
-        PhotoFile_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photometry')
-        out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'photo_z')
+        DetecFile_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], detect_foler)
+        PhotoFile_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], photometry_folder)
+        out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], photo_z_folder)
         pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
-        tmp_dir_tmp = os.path.join(configs_dict['work_dirs']['tmp'], 'photo_z')
+        tmp_dir_tmp = os.path.join(configs_dict['work_dirs']['tmp'], photo_z_folder)
         pathlib.Path(tmp_dir_tmp).mkdir(parents=True, exist_ok=True)
         if running_log:
             log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'BPZ')
@@ -827,7 +832,7 @@ if ('6_1' in taskIDs) or ('all' in taskIDs):
         logger.info('Model PSF from stars with makeglobalpsf.')
 
         ## I/O
-        in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
+        in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], detect_foler)
 
         ## some general parameters
         makeglobalpsf_dir = configs_dict['PSFmodelling']['makeglobalpsf_dir']
@@ -909,13 +914,13 @@ if ('6_2' in taskIDs) or ('all' in taskIDs):
         logger.info('   NOTE: the original lensfit weights need to be globally recalibrated.')
 
         ## I/O
-        in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
-        out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], 'shapes')
+        in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], detect_foler)
+        out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], shapes_folder)
         pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
-        tmp_dir_tmp = os.path.join(configs_dict['work_dirs']['tmp'], 'lensfit')
+        tmp_dir_tmp = os.path.join(configs_dict['work_dirs']['tmp'], 'lensfit'+configs_dict['MS']['lensfit_version'])
         pathlib.Path(tmp_dir_tmp).mkdir(parents=True, exist_ok=True)
         if running_log:
-            log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'lensfit')
+            log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'lensfit'+configs_dict['MS']['lensfit_version'])
             if not os.path.exists(log_dir_tmp):
                 os.mkdir(log_dir_tmp)
         else:
@@ -998,25 +1003,25 @@ if ('7' in taskIDs) or ('all' in taskIDs):
     start_time = time.time()
 
     # detection info
-    out_dir_detec = os.path.join(configs_dict['work_dirs']['cata'], 'SExtractor')
+    out_dir_detec = os.path.join(configs_dict['work_dirs']['cata'], detect_foler)
     if not os.path.exists(out_dir_detec):
         raise Exception('Detection files are not generated!\n\
         Task 3 is required for create a combined catalogue.')
 
     # input info
-    out_dir_input = os.path.join(configs_dict['work_dirs']['cata'], 'input')
+    out_dir_input = os.path.join(configs_dict['work_dirs']['cata'], input_folder)
     if not os.path.exists(out_dir_input):
         raise Exception('There is no input info, something very bad happened!')
 
     # directories for other info
     ## CrossMatch info
-    out_dir_cross = os.path.join(configs_dict['work_dirs']['cata'], 'CrossMatch')
+    out_dir_cross = os.path.join(configs_dict['work_dirs']['cata'], CrossMatch_folder)
     ## photometry info
-    out_dir_photometry = os.path.join(configs_dict['work_dirs']['cata'], 'photometry')
+    out_dir_photometry = os.path.join(configs_dict['work_dirs']['cata'], photometry_folder)
     ## photo-z info
-    out_dir_photoz = os.path.join(configs_dict['work_dirs']['cata'], 'photo_z')
+    out_dir_photoz = os.path.join(configs_dict['work_dirs']['cata'], photo_z_folder)
     ## shape info
-    out_dir_shape = os.path.join(configs_dict['work_dirs']['cata'], 'shapes')
+    out_dir_shape = os.path.join(configs_dict['work_dirs']['cata'], shapes_folder)
 
     # combine catalogues for each run
     for tile_label in tile_labels:
@@ -1083,13 +1088,13 @@ if ('7' in taskIDs) or ('all' in taskIDs):
 
             # save
             if configs_dict['CC']['format'] == 'feather':
-                outfile = os.path.join(configs_dict['work_dirs']['cata'], f'tile{tile_label}_rot{gal_rotation_angle:.0f}_combined.feather')
+                outfile = os.path.join(configs_dict['work_dirs']['cata'], f'tile{tile_label}_rot{gal_rotation_angle:.0f}_{combined_suffix}.feather')
                 data_final.to_feather(outfile)
             elif configs_dict['CC']['format'] == 'csv':
-                outfile = os.path.join(configs_dict['work_dirs']['cata'], f'tile{tile_label}_rot{gal_rotation_angle:.0f}_combined.csv')
+                outfile = os.path.join(configs_dict['work_dirs']['cata'], f'tile{tile_label}_rot{gal_rotation_angle:.0f}_{combined_suffix}.csv')
                 data_final.to_csv(outfile, index=False)
             elif configs_dict['CC']['format'] == 'fits':
-                outfile = os.path.join(configs_dict['work_dirs']['cata'], f'tile{tile_label}_rot{gal_rotation_angle:.0f}_combined.fits')
+                outfile = os.path.join(configs_dict['work_dirs']['cata'], f'tile{tile_label}_rot{gal_rotation_angle:.0f}_{combined_suffix}.fits')
                 if os.path.isfile(outfile):
                     os.remove(outfile)
                 Table.from_pandas(data_final).write(outfile, format='fits')

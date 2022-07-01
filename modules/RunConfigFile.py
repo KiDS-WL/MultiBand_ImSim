@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-06-06 17:36:52
+# @Last Modified time: 2022-06-30 11:53:51
 
 ### module to generate an example configuration file
 
@@ -72,12 +72,21 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
     pathlib.Path(tmp_dir).mkdir(parents=True, exist_ok=True)
     logger.info(f'tmp files will be saved to {tmp_dir}')
 
+    ### folder names
+    cata_folder_names = config_paths.get('cata_folder_names')
+    if cata_folder_names is not None:
+        cata_folder_names = [x.strip() for x in cata_folder_names.split(',')]
+    else:
+        cata_folder_names = ['input', 'SExtractor', 'CrossMatch', 'photometry', 'photo_z', 'shapes', 'combined']
+
     ### combine to a dictionary
     work_dirs = {'main': out_dir,
                     'ima': ima_dir,
                     'cata': cata_dir,
                     'log': log_dir, 
-                    'tmp': tmp_dir}
+                    'tmp': tmp_dir,
+                    'cata_folder_names': cata_folder_names}
+    del out_dir, ima_dir, cata_dir, log_dir, tmp_dir, cata_folder_names
 
     ## === dictionary for collecting all config info
     configs_dict = {'work_dirs': work_dirs}
@@ -543,6 +552,10 @@ out_dir =               find/somewhere/with/large/space\n\
                                                # main directory for all the final outputs\n\
 tmp_dir =               find/somewhere/local/to/speedup\n\
                                                # tmp directory for tmp outputs\n\
+cata_folder_names =     input, SExtractor, CrossMatch, photometry, photo_z, shapes, combined\n\
+                                               # folder names for saving different catalogues\n\
+                                               # order: \n\
+                                               #    input, detection, CrossMatch, photometry, photo_z, shapes, combined_suffix\n\
 \n\n\
 ################################## GalInfo ##############################################\n\
 [GalInfo]\n\n\
