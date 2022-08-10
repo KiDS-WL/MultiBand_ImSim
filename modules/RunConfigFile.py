@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-06-30 11:53:51
+# @Last Modified time: 2022-07-22 13:13:49
 
 ### module to generate an example configuration file
 
@@ -420,6 +420,13 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                         'bands': [x.strip() for x in config_PSF.get('band_list').split(',')],
                         'image_label_list': [x.strip() for x in config_PSF.get('image_label_list').split(',')]}
 
+        ### folder prefix
+        folder_prefix = config_PSF.get('folder_prefix')
+        if folder_prefix is not None:
+            PSF_configs['folder_prefix'] = folder_prefix
+        else:
+            PSF_configs['folder_prefix'] = 'psf_coeff'
+
         if PSF_method.lower() == 'ima2coeffs':
             config_tmp = config['ima2coeffs']
             PSF_configs['ima2coeffs_dir'] = config_tmp.get('ima2coeffs_dir')
@@ -475,6 +482,13 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             MS_configs['PRCUT'] = config_lensfit.get('PRCUT')
             MS_configs['LCUT'] = config_lensfit.get('LCUT')
             MS_configs['CAMERA'] = config_lensfit.get('CAMERA').upper()
+
+            ### PSF folder
+            psf_prefix = config_lensfit.get('psf_folder_prefix')
+            if psf_prefix is not None:
+                MS_configs['psf_folder_prefix'] = psf_prefix
+            else:
+                MS_configs['psf_folder_prefix'] = 'psf_coeff'
 
             ### cores
             lensfit_cores = config_lensfit.get('lensfit_cores')
@@ -805,6 +819,7 @@ method =                ima2coeffs             # method for PSF modelling\n\
                                                # supported method:\n\
                                                #    makeglobalpsf\n\
                                                #    ima2coeffs\n\
+folder_prefix =         psf_coeff              # prefix of folders saving PSF models\n\
 detection_band =        r                      # band with detection catalogue\n\
 band_list =             r                      # bands being measured\n\
 image_label_list =      original\n\
@@ -849,6 +864,7 @@ lensfit_dir =           your_dir_to_lensfit\n\
                                                # directory containing lensfit code\n\
 lensfit_cores =         48                     # number of cores used by each lensfit run\n\
                                                # should be consistent with that compiled in lensfit (flensfit_NT[lensfit_cores])\n\
+psf_folder_prefix =     psf_coeff              # prefix of prefix of folders saving PSF models\n\
 # some lensfit-related values\n\
 postage_size =          48\n\
 start_exposure =        1\n\

@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-06-30 12:03:58
+# @Last Modified time: 2022-07-21 10:37:04
 
 ### main module to run the whole pipeline
 
@@ -790,6 +790,7 @@ if ('6_1' in taskIDs) or ('all' in taskIDs):
 
     # basic info
     detection_band = configs_dict['PSFmodelling']['detection_band']
+    folder_prefix = configs_dict['PSFmodelling']['folder_prefix']
 
     if configs_dict['PSFmodelling']['method'].lower() == 'ima2coeffs':
         logger.info('Model PSF from PSF image.')
@@ -812,7 +813,7 @@ if ('6_1' in taskIDs) or ('all' in taskIDs):
 
                 psf_ima_dir = os.path.join(in_ima_dir_tmp, f'psf_tile{tile_label}_band{band}')
 
-                psf_coeff_dir = os.path.join(in_ima_dir_tmp, f'psf_coeff_tile{tile_label}_band{band}')
+                psf_coeff_dir = os.path.join(in_ima_dir_tmp, f'{folder_prefix}_tile{tile_label}_band{band}')
                 if os.path.exists(psf_coeff_dir):
                     shutil.rmtree(psf_coeff_dir)
                 os.mkdir(psf_coeff_dir)
@@ -877,7 +878,7 @@ if ('6_1' in taskIDs) or ('all' in taskIDs):
                 weight_dir = None
 
                 # outputs
-                psf_coeff_dir = os.path.join(in_ima_dir_tmp, f'psf_coeff_tile{tile_label}_band{band}')
+                psf_coeff_dir = os.path.join(in_ima_dir_tmp, f'{folder_prefix}_tile{tile_label}_band{band}')
                 if os.path.exists(psf_coeff_dir):
                     shutil.rmtree(psf_coeff_dir)
                 os.mkdir(psf_coeff_dir)
@@ -926,6 +927,8 @@ if ('6_2' in taskIDs) or ('all' in taskIDs):
         else:
             log_dir_tmp = None
 
+        psf_folder_prefix = configs_dict['MS']['psf_folder_prefix']
+
         ## Initialise the lensfit wrapper
         lensfit_cores = configs_dict['MS']['lensfit_cores']
         if lensfit_cores > Nmax_proc:
@@ -961,7 +964,7 @@ if ('6_2' in taskIDs) or ('all' in taskIDs):
                 weight_dir = None
 
                 ### psf coefficients for lensfit
-                psf_coeff_dir = os.path.join(in_ima_dir_tmp, f'psf_coeff_tile{tile_label}_band{band}')
+                psf_coeff_dir = os.path.join(in_ima_dir_tmp, f'{psf_folder_prefix}_tile{tile_label}_band{band}')
                 if not os.path.exists(psf_coeff_dir):
                     raise Exception('no PSF coeff found, please run 6_1 for PSF modelling first!')
 
