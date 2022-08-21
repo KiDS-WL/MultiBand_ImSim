@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-11-26 16:03:10
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-12-14 18:05:23
+# @Last Modified time: 2022-08-18 13:19:50
 
 ### Everything about celestial objects
 
@@ -517,8 +517,8 @@ def StarsImage(canvas, band, pixel_scale, PSF,
         flux_star = star_info[band]
 
         # generate star
-        # star = PSF.withFlux(flux_star)
-        star = galsim.Convolve(galsim.DeltaFunction(flux=flux_star), PSF)
+        star = PSF.withFlux(flux_star)
+        # star = galsim.Convolve(galsim.DeltaFunction(flux=flux_star), PSF)
 
         ## draw stamp
         if pixelPSF:
