@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-11-11 13:29:22
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-03-08 11:13:12
+# @Last Modified time: 2022-08-21 11:42:45
 
 ### Everything about PSF modelling
 __all__ = ['ima2coeffsFunc', 'makeglobalpsfFunc']
@@ -72,11 +72,15 @@ def makeglobalpsfFunc(makeglobalpsf_dir, path_input_cata,
 
     # running info
     if running_log:
-        outLog = open(os.path.join(logDir, os.path.basename(path_input_cata).replace('.feather', '.log')), "w")
-        errLog = open(os.path.join(logDir, os.path.basename(path_input_cata).replace('.feather', '.err.log')), "w")
+        outLog = open(os.path.join(logDir, os.path.basename(path_input_cata).replace('.feather', f'_order{global_order}{chip_order}.log')), "w")
+        errLog = open(os.path.join(logDir, os.path.basename(path_input_cata).replace('.feather', f'_order{global_order}{chip_order}.err.log')), "w")
+        outLog_shifts = open(os.path.join(logDir, os.path.basename(path_input_cata).replace('.feather', f'_order{global_order}{chip_order}_shifts.log')), "w")
+        errLog_shifts = open(os.path.join(logDir, os.path.basename(path_input_cata).replace('.feather', f'_order{global_order}{chip_order}_shifts.err.log')), "w")
     else:
         outLog = subprocess.PIPE
         errLog = subprocess.STDOUT
+        outLog_shifts = subprocess.PIPE
+        errLog_shifts = subprocess.STDOUT
 
     # >>>>>>>>>>>> 1. prepare input files for makeglobalpsf
     if CAMERA == 'KIDS':
@@ -151,7 +155,14 @@ def makeglobalpsfFunc(makeglobalpsf_dir, path_input_cata,
         ## build command
         cmd = [globalshifts, input_file, snratio, start_mag, end_mag]
         ## run
-        proc = subprocess.run(cmd, stdout=outLog, stderr=errLog, env=envVars, cwd=out_dir)
+        proc = subprocess.run(cmd, stdout=outLog_shifts, stderr=errLog_shifts, env=envVars, cwd=out_dir)
+
+    ## check outputs
+    for tmp in glob.glob(os.path.join(out_dir, 'exp*.psfcoeffs.fits')):
+        with fits.open(tmp) as hdul:
+            head_tmp = hdul[0].header
+        if not 'SORDER' in head_tmp:
+            raise Exception('globalshifts did not success, pleace check running_log!')
     logger.debug(f'globalshifts finished')
 
     # >>>>>>>>>>>>> 7. clean intermediate files
@@ -171,6 +182,8 @@ def makeglobalpsfFunc(makeglobalpsf_dir, path_input_cata,
     if running_log:
         outLog.close()
         errLog.close()
+        outLog_shifts.close()
+        errLog_shifts.close()
 
     logger.info(f'PSF polynomial coefficients saved to {out_dir}')
 
