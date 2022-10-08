@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-07-21 10:37:04
+# @Last Modified time: 2022-08-26 15:31:33
 
 ### main module to run the whole pipeline
 
@@ -879,9 +879,6 @@ if ('6_1' in taskIDs) or ('all' in taskIDs):
 
                 # outputs
                 psf_coeff_dir = os.path.join(in_ima_dir_tmp, f'{folder_prefix}_tile{tile_label}_band{band}')
-                if os.path.exists(psf_coeff_dir):
-                    shutil.rmtree(psf_coeff_dir)
-                os.mkdir(psf_coeff_dir)
 
                 # run
                 proc = work_pool.apply_async(func=PSFmodelling.makeglobalpsfFunc,

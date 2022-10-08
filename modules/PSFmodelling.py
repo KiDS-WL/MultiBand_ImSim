@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-11-11 13:29:22
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-08-21 11:42:45
+# @Last Modified time: 2022-08-26 15:33:43
 
 ### Everything about PSF modelling
 __all__ = ['ima2coeffsFunc', 'makeglobalpsfFunc']
@@ -70,6 +70,37 @@ def makeglobalpsfFunc(makeglobalpsf_dir, path_input_cata,
 
     logger.info(f'Running makeglobalpsf for {in_dir}...')
 
+    # general info
+    if CAMERA == 'KIDS':
+        N_expo = 5
+        N_chips = 32
+    else:
+        raise Exception(f'Unsupported CAMERA {CAMERA} for makeglobalpsf!')
+
+    # check existence
+    tmp_list = glob.glob(os.path.join(out_dir, 'exp*.psfcoeffs.fits'))
+    if len(tmp_list) == N_expo:
+        Nsuccess = 0
+        # check globalshifts
+        for tmp in tmp_list:
+            with fits.open(tmp) as hdul:
+                head_tmp = hdul[0].header
+            if 'SORDER' in head_tmp:
+                Nsuccess += 1
+            del head_tmp, hdul
+        if Nsuccess == N_expo:
+            logger.info(f'PSF coeff for {in_dir} already exists.')
+            logger.info(f'End the process.')
+            return 1
+    del tmp_list
+
+    # clean potential intermediate outcomes
+    if os.path.exists(out_dir):
+        shutil.rmtree(out_dir)
+    os.mkdir(out_dir)
+    if os.path.exists(out_dir+'_tmp'):
+        shutil.rmtree(out_dir+'_tmp')
+
     # running info
     if running_log:
         outLog = open(os.path.join(logDir, os.path.basename(path_input_cata).replace('.feather', f'_order{global_order}{chip_order}.log')), "w")
@@ -82,13 +113,7 @@ def makeglobalpsfFunc(makeglobalpsf_dir, path_input_cata,
         outLog_shifts = subprocess.PIPE
         errLog_shifts = subprocess.STDOUT
 
-    # >>>>>>>>>>>> 1. prepare input files for makeglobalpsf
-    if CAMERA == 'KIDS':
-        N_expo = 5
-        N_chips = 32
-    else:
-        raise Exception(f'Unsupported CAMERA {CAMERA} for makeglobalpsf!')
-    
+    # >>>>>>>>>>>> 1. prepare input files for makeglobalpsf    
     for i_expo in range(N_expo):
         input_file = os.path.join(out_dir, f'exp{i_expo}chip.asc')
         f = open(input_file, 'w')
