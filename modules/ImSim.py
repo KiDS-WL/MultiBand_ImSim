@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-04-25 20:07:54
+# @Last Modified time: 2022-10-08 13:57:39
 
 ### running module for ImSim
 
@@ -33,7 +33,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                             stars_area=None, stars_info=None, star_position_type='random',
                                             PSF_map=[], N_PSF=100, sep_PSF=120,
                                             image_chips=None, image_PSF=None,
-                                            psf_type_list=['moffat']):
+                                            psf_type_list=['moffat'],
+                                            CalSimpleArea=True):
     '''
     Run ImSim for multi-tile of mutli-band with parallel process.
         Support extending input catalogues
@@ -79,6 +80,39 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         if not os.path.exists(outpath_PSF_map_dir):
             os.mkdir(outpath_PSF_map_dir)
 
+    # the sky positions
+    ## the RA
+    RA_tmp = gals_info[0]['RA'].values
+    if gals_info[1] is not None:
+        RA_tmp = np.hstack([RA_tmp, gals_info[1]['RA'].values])
+    ra_min0 = np.amin(RA_tmp)
+    ra_max0 = np.amax(RA_tmp)
+    del RA_tmp
+    ## the DEC
+    if CalSimpleArea:
+        logger.info('Using Euclidean geometry to calculate the sky area')
+        if np.max(np.abs(gals_info[0]['DEC'].values)) > 5:
+            raise Exception('set CalSimpleArea to False for large dec to avoid inaccuracy')
+        # DEC is assumed to be the same as sin(DEC)
+        DECsin_tmp = gals_info[0]['DEC'].values
+        if gals_info[1] is not None:
+            DECsin_tmp = np.hstack([DECsin_tmp, gals_info[1]['DEC'].values])
+    else:
+        logger.info('Using Spherical geometry to calculate the sky area')
+        # build sin(DEC) for area calculation
+        DECsin_tmp = np.sin(gals_info[0]['DEC'].values*np.pi/180.) * 180 / np.pi 
+        if gals_info[1] is not None:
+            DECsin_tmp = np.hstack([DECsin_tmp, np.sin(gals_info[1]['DEC'].values*np.pi/180.) * 180 / np.pi])
+    DECsin_min = np.amin(DECsin_tmp)
+    DECsin_max = np.amax(DECsin_tmp) 
+    del DECsin_tmp
+
+    # total area spanned by the input galaxies
+    ## assuming the input catalogue spanning continuously in a rectangular area
+    ## 0.999 is 1
+    area_ra0 = (ra_max0 - ra_min0) + 0.001
+    area_dec0 = (DECsin_max - DECsin_min) + 0.001
+
     # survey type
     if 'simple' in survey:
         numeric_const_pattern = r"[-+]?(?:(?:\d*\.\d+)|(?:\d+\.?))(?:[Ee][+-]?\d+)?"
@@ -94,37 +128,11 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             raise Exception('KiDS survey does not observe grid world :( Please use other survey.')
     elif survey.lower() == 'one_tile':
         # area same as the input
-        RA_tmp = gals_info[0]['RA'].values
-        DEC_tmp = gals_info[0]['DEC'].values
-        if gals_info[1] is not None:
-            RA_tmp = np.hstack([RA_tmp, gals_info[1]['RA'].values])
-            DEC_tmp = np.hstack([DEC_tmp, gals_info[1]['DEC'].values])
-        ra_min0 = np.amin(RA_tmp)
-        ra_max0 = np.amax(RA_tmp)
-        dec_min0 = np.amin(DEC_tmp)
-        dec_max0 = np.amax(DEC_tmp)
-        del RA_tmp, DEC_tmp
         ## 0.999 is 1
         area_ra = (ra_max0 - ra_min0) + 0.0005
-        area_dec = (dec_max0 - dec_min0) + 0.0005
+        area_dec = (DECsin_max - DECsin_min) + 0.0005
     else:
         raise Exception(f'Unsupported survey type: {survey}!')
-
-    # total area spanned by the input galaxies
-    ## assuming the input catalogue spanning continuously in a rectangular area
-    RA_tmp = gals_info[0]['RA'].values
-    DEC_tmp = gals_info[0]['DEC'].values
-    if gals_info[1] is not None:
-        RA_tmp = np.hstack([RA_tmp, gals_info[1]['RA'].values])
-        DEC_tmp = np.hstack([DEC_tmp, gals_info[1]['DEC'].values])
-    ra_min0 = np.amin(RA_tmp)
-    ra_max0 = np.amax(RA_tmp)
-    dec_min0 = np.amin(DEC_tmp)
-    dec_max0 = np.amax(DEC_tmp)
-    del RA_tmp, DEC_tmp
-    ## 0.999 is 1
-    area_ra0 = (ra_max0 - ra_min0) + 0.001
-    area_dec0 = (dec_max0 - dec_min0) + 0.001
 
     # check if the total area is enough for one tile
     if (area_ra0 < area_ra) or (area_dec0 < area_dec):
@@ -174,8 +182,14 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         # sky area for a tile
         ra_min = ra_min0 + area_ra * i_ra
         ra_max = ra_min + area_ra
-        dec_min = dec_min0 + area_dec * i_dec
-        dec_max = dec_min + area_dec
+        dec_sin_min = DECsin_min + area_dec * i_dec
+        dec_sin_max = dec_sin_min + area_dec
+        if CalSimpleArea:
+            dec_min = dec_sin_min
+            dec_max = dec_sin_max
+        else:
+            dec_min = np.arcsin(dec_sin_min * np.pi / 180.) * 180. / np.pi
+            dec_max = np.arcsin(dec_sin_max * np.pi / 180.) * 180. / np.pi
 
         # select galaxies
         ## careful one
@@ -206,6 +220,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             # how many row and column needed to place all galaxies
             N_rows = math.ceil(Ngal**0.5)
             N_cols = math.ceil(Ngal/N_rows)
+            if N_cols * apart > 5:
+                raise Exception(f'too many galaxies for one grid tile, try to reduce to < {(5/apart)**2}')
             X_gals = np.arange(0, apart+(N_cols-1)*apart, apart)
             Y_gals = np.arange(0, apart+(N_rows-1)*apart, apart)
             X_gals, Y_gals = np.meshgrid(X_gals, Y_gals)
@@ -301,7 +317,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             elif star_position_type == 'true':
                 # use true star location
                 mask_ra = (stars_info['RA'] >= ra_min) & (stars_info['RA'] < ra_max)
-                mask_dec = (stars_info['DEC'] >= ra_min) & (stars_info['DEC'] < ra_max)
+                mask_dec = (stars_info['DEC'] >= dec_min) & (stars_info['DEC'] < dec_max)
                 stars_info_selec = stars_info[mask_ra & mask_dec].copy()
                 stars_info_selec.reset_index(drop=True, inplace=True)
 

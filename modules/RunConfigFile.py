@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-07-22 13:13:49
+# @Last Modified time: 2022-10-09 12:41:56
 
 ### module to generate an example configuration file
 
@@ -132,6 +132,14 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
         imsim_configs['casual_FracSeedGal'] = float(config_imsim.get('casual_FracSeedGal'))
     else:
         imsim_configs['casual_mag'] = 99.
+
+    ### how to calculate the sky area
+    simple_area = config_imsim.getboolean('simple_area')
+    if simple_area is None:
+        ## old code is using the simple way
+        imsim_configs['simple_area'] = True
+    else:
+        imsim_configs['simple_area'] = simple_area
 
     ### collect
     configs_dict['imsim'] = imsim_configs
@@ -321,6 +329,16 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             sex_configs['save_missed'] = config_cross.getboolean('save_missed')
             sex_configs['mag_closest'] = config_cross.getboolean('mag_closest')
             sex_configs['r_max'] = config_cross.getfloat('r_max')
+
+            ### match with TAN projection
+            use_TAN = config_cross.getboolean('use_TAN')
+            if use_TAN is None:
+                ## old code is using the sky coordinates
+                sex_configs['use_TAN'] = False
+            else:
+                sex_configs['use_TAN'] = use_TAN
+
+            sex_configs['r_max_pixel'] = config_cross.getfloat('r_max_pixel')
 
         ### collect
         configs_dict['sex'] = sex_configs
@@ -703,6 +721,9 @@ PSF_map =               False\n\
                                                # output the corresponding PSF map or not\n\
                                                # can be used by GAaP, but not mandatory if stars are simulated\n\
 mag_zero =              30                     # simulated magnitude zero point\n\
+simple_area =           False                  # calculate the sky area using \n\
+                                               # simple Euclidean geometry (True)\n\
+                                               # proper Spherical geometry (False), recommended for |dec|>5\n\
 \n\n\
 ################################## SWarp ###################################################\n\
 [SWarp]\n\n\
@@ -752,6 +773,10 @@ save_false =            False                  # save false-detected object info
 save_missed =           False                  # save the missed object info\n\
 mag_closest =           True                   # use magnitude to select for duplicated match\n\
 r_max =                 0.6                    # (arcsec) allowed maximum separation\n\
+                                               # used when use_TAN==False\n\
+use_TAN =               True                   # using TAN projection before CrossMatch\n\
+r_max_pixel =           2.5                    # (pixel) allowed maximum separation\n\
+                                               # used when use_TAN==True\n\
 \n\n\
 ################################## MeasurePhotometry ########################################################\n\
 [MeasurePhotometry]\n\n\
