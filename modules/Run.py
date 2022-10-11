@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-10-09 13:16:45
+# @Last Modified time: 2022-08-26 15:31:33
 
 ### main module to run the whole pipeline
 
@@ -288,8 +288,7 @@ if ('1' in taskIDs) or ('all' in taskIDs):
                                             stars_area=star_area, stars_info=stars_info, star_position_type=star_position_type,
                                             PSF_map=configs_dict['imsim']['PSF_map'], N_PSF=100, sep_PSF=120,
                                             image_chips=configs_dict['imsim']['image_chips'], image_PSF=[configs_dict['imsim']['image_PSF'], configs_dict['imsim']['image_PSF_size']],
-                                            psf_type_list=configs_dict['noise']['psf_type_list'],
-                                            CalSimpleArea=configs_dict['imsim']['simple_area'])
+                                            psf_type_list=configs_dict['noise']['psf_type_list'])
     del noise_info, gals_info, stars_info
 
     logger.info(f'====== Task 1: simulate images === finished in {(time.time()-start_time)/3600.} h ======')
@@ -527,39 +526,35 @@ if ('3' in taskIDs) or ('all' in taskIDs):
     ## Mark stars
     tmp = glob.glob(os.path.join(ori_cata_dir_tmp, f'stars_info_*.feather'))
     if tmp:
-        if configs_dict['sex']['cross_match']:
-            logger.info('Mask Stars based on input info...')
+        logger.info('Mask Stars based on input info.')
 
-            for tile_label in tile_labels:
+        for tile_label in tile_labels:
 
-                input_cata = pd.read_feather(os.path.join(ori_cata_dir_tmp, f'stars_info_tile{tile_label}.feather'))
+            input_cata = pd.read_feather(os.path.join(ori_cata_dir_tmp, f'stars_info_tile{tile_label}.feather'))
 
-                for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
+            for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
 
-                    detec_file = os.path.join(out_dir_tmp, f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
-                    detec_cata = pd.read_feather(detec_file)
+                detec_file = os.path.join(out_dir_tmp, f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
+                detec_cata = pd.read_feather(detec_file)
 
-                    id_list = ['index_input', 'NUMBER']
-                    position_list = [['RA_input', 'DEC_input'], ['X_WORLD', 'Y_WORLD']]
-                    mag_list = [f'{detection_band}_input', 'MAG_AUTO']
+                id_list = ['index_input', 'NUMBER']
+                position_list = [['RA_input', 'DEC_input'], ['X_WORLD', 'Y_WORLD']]
+                mag_list = [f'{detection_band}_input', 'MAG_AUTO']
 
-                    matched_cata, _, _ = CrossMatch.run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
-                                        outDir=None, basename=None, save_matched=False, save_false=False, save_missed=False,
-                                        r_max=configs_dict['sex']['r_max']/3600., k=4, mag_closest=configs_dict['sex']['mag_closest'], running_info=False,
-                                        useTan=configs_dict['sex']['use_TAN'], pixel_scale=pixel_scale, r_max_pixel=configs_dict['sex']['r_max_pixel'])
+                matched_cata, _, _ = CrossMatch.run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
+                                    outDir=None, basename=None, save_matched=False, save_false=False, save_missed=False,
+                                    r_max=0.6/3600., k=4, mag_closest=True, running_info=False)
 
-                    mask_stars = detec_cata['NUMBER'].isin(matched_cata['id_detec'])
-                    detec_cata.loc[mask_stars, 'perfect_flag_star'] = 1
-                    detec_cata.loc[~mask_stars, 'perfect_flag_star'] = 0
-                    detec_cata = detec_cata.astype({'perfect_flag_star': int})
-                    detec_cata.to_feather(detec_file)
-        else:
-            logger.warning('contain stars but no CrossMatch config, stars will not be flagged!')
+                mask_stars = detec_cata['NUMBER'].isin(matched_cata['id_detec'])
+                detec_cata.loc[mask_stars, 'perfect_flag_star'] = 1
+                detec_cata.loc[~mask_stars, 'perfect_flag_star'] = 0
+                detec_cata = detec_cata.astype({'perfect_flag_star': int})
+                detec_cata.to_feather(detec_file)
 
     ## cross-match with the input catalogue
     if configs_dict['sex']['cross_match']:
 
-        logger.info('Cross-match with the input catalogue...')
+        logger.info('cross-match with the input catalogue.')
 
         for tile_label in tile_labels:
 
@@ -591,8 +586,7 @@ if ('3' in taskIDs) or ('all' in taskIDs):
                 mag_list = [f'{detection_band}_input', 'MAG_AUTO']
                 _, _, _ = CrossMatch.run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
                                     outDir=out_dir_cross, basename=basename_cross, save_matched=configs_dict['sex']['save_matched'], save_false=configs_dict['sex']['save_false'], save_missed=configs_dict['sex']['save_missed'],
-                                    r_max=configs_dict['sex']['r_max']/3600., k=4, mag_closest=configs_dict['sex']['mag_closest'], running_info=True,
-                                    useTan=configs_dict['sex']['use_TAN'], pixel_scale=pixel_scale, r_max_pixel=configs_dict['sex']['r_max_pixel'])
+                                    r_max=configs_dict['sex']['r_max']/3600., k=4, mag_closest=configs_dict['sex']['mag_closest'], running_info=True)
 
     logger.info(f'====== Task 3: detect objects === finished in {(time.time()-start_time)/3600.} h ======')
 

@@ -15,8 +15,6 @@ import numpy as np
 import pandas as pd
 import scipy.spatial as sst
 
-import galsim
-
 logger = logging.getLogger(__name__)
 
 def KDTreeFunc(X1, X2, max_distance=np.inf, unique=True, k=1, second_base=[], leafsize=100):
@@ -128,24 +126,15 @@ def KDTreeFunc(X1, X2, max_distance=np.inf, unique=True, k=1, second_base=[], le
 
 def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
                     outDir=None, basename=None, save_matched=False, save_false=False, save_missed=False,
-                    r_max=0.6/3600., k=4, mag_closest=True, running_info=True,
-                    useTan=False, pixel_scale=None, r_max_pixel=3):
+                    r_max=0.6/3600., k=4, mag_closest=True, running_info=True):
     """
     Run cross-match based on positions.
         output files only include the unique id from both catalogues (and distance).
 
-    Two options:
-        useTan=True (recommend): mapping sky position to image position, then matching in image
-            require:
-                r_max_pixel defined in pixel
-                pixel_scale: the corresponding image pixel
-        useTan=False: directly match using sky position
-            require:
-                r_max defined in deg
-
     mag_closest:
         True (default): choose the magnitude-closest one in case of multiple matching
         False: choose the distance-closest one in case of multiple matching
+
     """
 
     if running_info:
@@ -165,55 +154,13 @@ def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
         second_base = []
 
     # location
-    if useTan:
-        logger.info('CrossMatch using TAN projected distance')
-        r_max = r_max_pixel
-        col_r = 'distance_pixel_CM'
-        logger.info(f'   max distance {r_max} pixel')
-        if pixel_scale is None:
-            raise Exception('need pixel_scale for TAN projection')
-
-        # the coordinates provided
-        RA_input = np.array(input_cata[position_list[0][0]], dtype=float)
-        DEC_input = np.array(input_cata[position_list[0][1]], dtype=float)
-        ##
-        RA_detec = np.array(detec_cata[position_list[1][0]], dtype=float)
-        DEC_detec = np.array(detec_cata[position_list[1][1]], dtype=float)
-
-        # build the wcs
-        ## Linear projection matrix
-        dudx = pixel_scale/3600. # degree
-        dudy = 0.
-        dvdx = 0.
-        dvdy = pixel_scale/3600. # degree
-        ## Reference pixel in image
-        origin_ima = galsim.PositionI(x=0, y=0)
-        ## Reference point in wcs
-        world_origin = galsim.CelestialCoord(ra=np.amin(RA_input)*galsim.degrees, 
-                                                dec=np.amin(DEC_input)*galsim.degrees)
-        ## the wcs
-        wcs_affine = galsim.AffineTransform(dudx, dudy, dvdx, dvdy, origin=origin_ima)
-        wcs = galsim.TanWCS(wcs_affine, world_origin, units=galsim.degrees)
-
-        # transfer ra dec to x y
-        xy_input = np.empty((len(id_input), 2), dtype=float)
-        xy_input[:, 0], xy_input[:, 1] = wcs.toImage(RA_input, DEC_input, units=galsim.degrees)
-        del RA_input, DEC_input
-        xy_detec = np.empty((len(id_detec), 2), dtype=float)
-        xy_detec[:, 0], xy_detec[:, 1] = wcs.toImage(RA_detec, DEC_detec, units=galsim.degrees)
-        del RA_detec, DEC_detec
-
-    else:
-        logger.info('CrossMatch using provided distance')
-        logger.info(f'   max distance {r_max*3600} arcsec')
-        col_r = 'distance_deg_CM'
-        xy_input = np.empty((len(id_input), 2), dtype=float)
-        xy_input[:, 0] = np.array(input_cata[position_list[0][0]], dtype=float)
-        xy_input[:, 1] = np.array(input_cata[position_list[0][1]], dtype=float)
-        ##
-        xy_detec = np.empty((len(id_detec), 2), dtype=float)
-        xy_detec[:, 0] = np.array(detec_cata[position_list[1][0]], dtype=float)
-        xy_detec[:, 1] = np.array(detec_cata[position_list[1][1]], dtype=float)
+    xy_input = np.empty((len(id_input), 2), dtype=float)
+    xy_input[:, 0] = np.array(input_cata[position_list[0][0]], dtype=float)
+    xy_input[:, 1] = np.array(input_cata[position_list[0][1]], dtype=float)
+    ##
+    xy_detec = np.empty((len(id_detec), 2), dtype=float)
+    xy_detec[:, 0] = np.array(detec_cata[position_list[1][0]], dtype=float)
+    xy_detec[:, 1] = np.array(detec_cata[position_list[1][1]], dtype=float)
 
     if running_info:
         logger.info('Number of input {:}'.format(len(id_input)))
@@ -230,7 +177,7 @@ def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
     matched_cata = pd.DataFrame({
                     'id_detec': id_detec[flag_matched],
                     'id_input': id_input[ind_matched],
-                    col_r: dist[flag_matched],
+                    'distance_CM': dist[flag_matched],
                     'dmag_CM': (mag_input[ind_matched]-mag_detec[flag_matched])
                     })
     if running_info:
