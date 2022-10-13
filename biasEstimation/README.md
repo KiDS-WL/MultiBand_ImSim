@@ -1,4 +1,4 @@
-# Estimate shear bias from simulated catalogues
+# Estimate shear bias for constant shear simulations
 
 [bias_estimate_func.py](https://github.com/KiDS-WL/MultiBand_ImSim/tree/main/biasEstimation/bias_estimate_func.py)
 
