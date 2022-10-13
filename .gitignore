@@ -26,5 +26,6 @@ plot/
 plots/
 diagnostic/
 .ipynb_checkpoints/
+outputs/
 
 .DS_Store
