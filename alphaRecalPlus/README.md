@@ -6,7 +6,7 @@ Empirically calibrate the PSF contaminations in the *lens*fit measurements (weig
 
 - The first part code calibrating the weight
 
-- It should be applied to the combined (mosaic) catalogue after photometric and *lens*fit selections except for the weight cut
+- It should be applied to the combined (mosaic) catalogue after photometric and *lens*fit selections except for the weight cut.
 
 [step2_methodD.py](https://github.com/KiDS-WL/MultiBand_ImSim/blob/main/alphaRecalPlus/step2_methodD.py)
 
