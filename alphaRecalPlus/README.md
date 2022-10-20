@@ -15,3 +15,7 @@ Empirically calibrate the PSF contaminations in the *lens*fit measurements (weig
 - It should be applied to the final shear catalogue after any redshift calibrations.
 
 - It performs the tomographic binning before calibrating.
+
+[QC_step1.py](https://github.com/KiDS-WL/MultiBand_ImSim/blob/main/alphaRecalPlus/QC_step1.py), [QC_step2.py](https://github.com/KiDS-WL/MultiBand_ImSim/blob/main/alphaRecalPlus/QC_step2.py)
+
+- scripts for diagnostic plots
