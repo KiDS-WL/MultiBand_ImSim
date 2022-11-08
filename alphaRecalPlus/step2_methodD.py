@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
-# @Date:   2022-03-14 17:57:35
+# @Date:   2022-10-27 14:13:20
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-09-26 17:33:55
+# @Last Modified time: 2022-10-27 15:04:04
 
 ### correct alpha in measured e with method D
 ##### weight should be corrected already
@@ -21,6 +21,9 @@ import pandas as pd
 import numpy.linalg as la
 import statsmodels.api as sm 
 
+from astropy.io import fits
+from astropy.table import Table
+
 # +++++++++++++++++++++++++++++ parser for command-line interfaces
 parser = argparse.ArgumentParser(
     description=f"step2_methodD.py: correct alpha in e1,2 with method D.",
@@ -28,11 +31,11 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "--inpath", type=str,
     help="the in path for the catalogue.\n\
-    supported formats: feather")
+    supported formats: feather, fits, LDAC cat")
 parser.add_argument(
     "--outDir", type=str, 
     help="directory for the final catalogue.\n\
-    outpath name will be inpath_name + _A2 or _A2_goldclasses")
+    outpath name will be inpath_name + .A2.feather")
 parser.add_argument(
     "--col_goldFlag", type=str,
     help="columns to the redshift gold class in the catalogue.")
@@ -59,13 +62,9 @@ parser.add_argument(
 args = parser.parse_args()
 inpath = args.inpath
 outDir = args.outDir
+outpath = os.path.join(outDir, inpath + '.A2.feather')
 
 col_goldFlag = args.col_goldFlag
-if col_goldFlag is not None:
-    outpath = os.path.join(outDir, os.path.basename(inpath).replace('.feather', '_A2_goldclasses.feather'))
-else:
-    outpath = os.path.join(outDir, os.path.basename(inpath).replace('.feather', '_A2.feather'))
-
 col_weight = args.col_weight
 col_snr = args.col_snr
 col_ZB = args.col_ZB
@@ -77,7 +76,17 @@ del args
 # >>>>>>>>>>>>>>>>>>>>> workhorse
 
 # ++++++ 0. load catalogue
-cata = pd.read_feather(inpath)
+file_type = inpath[-3:]
+if file_type == 'her':
+    cata = pd.read_feather(inpath)
+elif file_type == 'cat':
+    with fits.open(inpath) as hdul:
+        cata = Table(hdul['OBJECTS'].data).to_pandas()
+elif file_type == 'its':
+    with fits.open(inpath) as hdul:
+        cata = Table(hdul[1].data).to_pandas()
+else:
+    raise Exception(f'Not supported input file type! {inpath}')
 print('number original', len(cata))
 ## all float32 to float64
 cata[cata.select_dtypes(np.float32).columns] = cata.select_dtypes(np.float32).astype(np.float64)
