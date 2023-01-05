@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2022-07-05 14:44:10
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-10-13 14:32:49
+# @Last Modified time: 2023-01-05 17:32:43
 
 ### script to run the bias calculation
 ##### simulation reweighted with the data
@@ -47,6 +47,10 @@ parser.add_argument(
 parser.add_argument(
     "--cols_g12", type=str, nargs=2, default=['g2_in', 'g1_in'], 
     help="column names for g1_in, g2_in.")
+parser.add_argument(
+    "--col_goldFlag_sim_data", type=str, nargs=2, default=None,
+    help="columns to the gold flag.\n\
+    order: (sim, data)")
 parser.add_argument(
     "--col_weight_sim_data", type=str, nargs=2,
     help="columns to the weight.\n\
@@ -112,6 +116,11 @@ col_g1, col_g2 = args.cols_g12
 
 col_weight_sim, col_weight_data = args.col_weight_sim_data
 
+if args.col_goldFlag_sim_data is not None:
+    col_goldFlag_sim, col_goldFlag_data = args.col_goldFlag_sim_data
+else:
+    col_goldFlag_sim, col_goldFlag_data = None, None    
+
 col_label = args.col_label
 col_id_input = args.col_id_input
 
@@ -176,7 +185,7 @@ elif fitting_method == 'pair_based':
     else:
         raise Exception('pair_based chosen, but no col_id_input provided!')
 
-# >>>>>>>>>>>>>>>>>> the data
+# >>>>>>>>>>>>>>>>>> data
 # load data catalogue
 file_type = in_file_data[-3:]
 if file_type == 'csv':
@@ -189,6 +198,11 @@ elif file_type == 'its':
 else:
     raise Exception(f'Not supported input file type! {in_file_data}')
 print('Number of sources in the data', len(cata_data))
+### select gold class
+if col_goldFlag_data is not None:
+    cata_data = cata_data[(cata_data[col_goldFlag_data].values>0)]
+    cata_data.reset_index(drop=True, inplace=True)
+    print('     number after gold selection', len(cata_data))
 ### select those within the edges
 if ('bin_edges' in locals()):
     cata_data = cata_data[(cata_data[col_binning_data]>bin_edges[0])&(cata_data[col_binning_data]<=bin_edges[-1])]
@@ -212,7 +226,7 @@ else:
                     'shape_weight': np.array(cata_data[col_weight_data]).astype(float)
                     })
 
-# >>>>>>>>>>>>>>>>>> the simulations
+# >>>>>>>>>>>>>>>>>> simulations
 # load simulation catalogue
 file_type = in_file[-3:]
 if file_type == 'csv':
@@ -225,6 +239,11 @@ elif file_type == 'its':
 else:
     raise Exception(f'Not supported input file type! {in_file}')
 print('Number of sources in the simulation', len(cata_sim))
+### select gold class
+if col_goldFlag_sim is not None:
+    cata_sim = cata_sim[(cata_sim[col_goldFlag_sim].values>0)]
+    cata_sim.reset_index(drop=True, inplace=True)
+    print('     number after gold selection', len(cata_sim))
 ### select those within the edges
 if ('bin_edges' in locals()):
     cata_sim = cata_sim[(cata_sim[col_binning_sim]>bin_edges[0])&(cata_sim[col_binning_sim]<=bin_edges[-1])]

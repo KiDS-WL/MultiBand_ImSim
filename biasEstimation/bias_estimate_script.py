@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2022-04-13 14:16:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-10-13 14:32:34
+# @Last Modified time: 2022-11-08 17:00:30
 
 ### script to run the bias calculation
 
@@ -44,6 +44,9 @@ parser.add_argument(
     "--out_path", type=str, default='./test.txt',
     help="where to save the final results. \n\
     Default ./test.txt.")
+parser.add_argument(
+    "--col_goldFlag", type=str, default=None,
+    help="columns to the redshift gold class in the catalogue.")
 parser.add_argument(
     "--cols_e12", type=str, nargs=2, default=['e1_LF_r', 'e2_LF_r'], 
     help="column names for e1_gal, e2_gal.")
@@ -91,6 +94,8 @@ args = parser.parse_args()
 bias_type = args.bias_type
 in_file = args.in_file
 out_path = args.out_path
+
+col_goldFlag = args.col_goldFlag
 
 col_e1, col_e2 = args.cols_e12
 e_type = args.e_type
@@ -163,6 +168,11 @@ elif file_type == 'its':
 else:
     raise Exception(f'Not supported input file type! {in_file}')
 print('Number of sources in the catalogue', len(cata_sim))
+### select gold class
+if col_goldFlag is not None:
+    cata_sim = cata_sim[(cata_sim[col_goldFlag].values>0)]
+    cata_sim.reset_index(drop=True, inplace=True)
+    print('number after gold selection', len(cata_sim))
 ### select those within the edges
 if ('bin_edges' in locals()):
     cata_sim = cata_sim[(cata_sim[col_binning]>bin_edges[0])&(cata_sim[col_binning]<=bin_edges[-1])]
