@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2022-10-27 14:13:20
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-10-27 15:04:04
+# @Last Modified time: 2023-02-20 10:47:50
 
 ### correct alpha in measured e with method D
 ##### weight should be corrected already
@@ -256,8 +256,8 @@ for name, group in cata.groupby(by=['bin_ZB', 'bin_R', 'bin_snr']):
     # unique index
     index_obj = group['AlphaRecal_index'].values
     # out shear
-    e1_out = np.array(group[col_e1])
-    e2_out = np.array(group[col_e2])
+    e1_out = np.array(group['AlphaRecalD1_e1'])
+    e2_out = np.array(group['AlphaRecalD1_e2'])
     weight_out = np.array(group[col_weight])
     # out PSF 
     e1_psf = np.array(group[col_psf_e1])

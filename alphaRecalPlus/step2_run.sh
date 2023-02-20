@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2022-09-14 17:50:27
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-09-26 20:37:17
+# @Last Modified time: 2023-02-20 11:21:16
 
 # ### running script
 # usage: step2_methodD.py [-h] [--inpath INPATH] [--outDir OUTDIR]
@@ -46,11 +46,11 @@ python step2_methodD.py\
 # number original 31497505
 # number after weight selection 26618226
 # number after Z_B selection 26360327
-# alpha map produced in 241.2777271270752 s
+# alpha map produced in 312.2583520412445 s
 # number with meaningful e after D1 26360323 fraction 0.9999998482568141
-# D1 finished in 143.0598111152649 s
-# number with meaningful e after D2 26360323 fraction 1.0
-# D2 finished in 704.8611278533936 s
-# number in final cata 26360323
-# final results saved to /disks/shear16/ssli/KiDS/K1000_forSKiLLS/kids_photo_LF_321_shear_noSG_noWeiCut_newCut_817tiles_A1_A2.feather
-# Elapsed:20:40.25,User=1101.575,System=2720.411,CPU=308.1%.
+# D1 finished in 136.04623103141785 s
+# number with meaningful e after D2 26360321 fraction 0.9999999241283956
+# D2 finished in 882.0825955867767 s
+# number in final cata 26360321
+# final results saved to /disks/shear16/ssli/KiDS/K1000_forSKiLLS/kids_photo_LF_321_shear_noSG_noWeiCut_newCut_817tiles_A1.feather.A2.feather
+# Elapsed:31:23.57,User=1553.900,System=4386.402,CPU=315.3%.
