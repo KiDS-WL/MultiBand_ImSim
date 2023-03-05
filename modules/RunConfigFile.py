@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-10-09 12:41:56
+# @Last Modified time: 2023-01-20 11:51:25
 
 ### module to generate an example configuration file
 
@@ -115,6 +115,14 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
         imsim_configs['image_chips'] = imsim_configs['image_chips'] * len(imsim_configs['bands'])
     if len(imsim_configs['image_PSF']) == 1:
         imsim_configs['image_PSF'] = imsim_configs['image_PSF'] * len(imsim_configs['bands'])
+
+    ### detection band 
+    detection_band = config_imsim.get('detection_band')
+    if detection_band:
+        imsim_configs['detection_band'] = detection_band
+    else:
+        ## set to be the first band in the list
+        imsim_configs['detection_band'] = imsim_configs['bands'][0]
 
     ### psf image size 
     psf_size = config_imsim.get('image_PSF_size')
@@ -682,6 +690,8 @@ survey =                KiDS                   # survey being simulated\n\
                                                #    one_tile: simple one image including all the galaxies\n\
                                                #    simple_Nsqdeg: N can be any float corresponding to the tile sky area\n\
                                                #    KiDS: KiDS-like images (5 exposures, 32 chips, dither patterns and chip gaps)\n\
+detection_band =        r                      # band with detection catalogue\n\
+                                               #    not necessary to be simulated, could be simply for selection\n\
 band_list =             r, u, g, i, Z, Y, J, H, Ks\n\
                                                # bands being simulated\n\
 pixel_scale_list =      0.214, 0.214, 0.214, 0.214, 0.34, 0.34, 0.34, 0.34, 0.34\n\

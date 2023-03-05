@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-10-08 13:57:39
+# @Last Modified time: 2023-01-20 12:16:55
 
 ### running module for ImSim
 
@@ -513,7 +513,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                     # number of exposures
                     if band == 'u':
                         n_exposures = 4
-                    elif band in ['g', 'r', 'i']:
+                    elif band in ['g', 'r', 'i', 'i1', 'i2']:
                         n_exposures = 5
                     else:
                         raise Exception(f'{band} is not in OmegaCAM! Cannot use KiDS_diffExpo!')

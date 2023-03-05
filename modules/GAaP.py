@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-09-17 21:28:17
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-06-03 09:50:30
+# @Last Modified time: 2023-02-07 13:28:22
 
 ### Wrapper for GAaP code
 
@@ -13,6 +13,7 @@ import glob
 import time
 import shutil
 import logging
+import pyarrow
 import subprocess
 
 import numpy as np
@@ -392,7 +393,7 @@ class GAaPwrapper(object):
                     data_out.loc[mask_tmp, f'MAGERR_GAAP_{str_minaper}_{band}'] \
                                     = -99.
                     del mask_tmp
-                elif band in ['u', 'g', 'r', 'i']:
+                elif band in ['u', 'g', 'r', 'i', 'i1', 'i2']:
                     ##### good measurement
                     mask_tmp = (flux>0.) & (fluxerr>=0) & (flux>=fluxerr)
                     data_out.loc[mask_tmp, f'MAG_GAAP_{str_minaper}_{band}'] \
@@ -454,11 +455,12 @@ class GAaPwrapper(object):
                             data_out[f'{col_main}_{str_minaper_min}_{band}'].values) 
 
         # the same for aperture para
-        for col_main in ['Agaper', 'Bgaper', 'PAgaap']:
-                data_out.loc[:, f'{col_main}'] \
-                    = np.where(large_aper, 
-                            data_out[f'{col_main}_{str_minaper_max}'].values, 
-                            data_out[f'{col_main}_{str_minaper_min}'].values) 
+        if self._detection_band in GaapFile_list_dic.keys():
+            for col_main in ['Agaper', 'Bgaper', 'PAgaap']:
+                    data_out.loc[:, f'{col_main}'] \
+                        = np.where(large_aper, 
+                                data_out[f'{col_main}_{str_minaper_max}'].values, 
+                                data_out[f'{col_main}_{str_minaper_min}'].values) 
 
         del large_aper
 
@@ -548,7 +550,10 @@ class GAaPwrapper(object):
             return 1
 
         # load the detection catalogue
-        SKYcata = pd.read_feather(SKYcataFile)
+        try:
+            SKYcata = pd.read_feather(SKYcataFile)
+        except pyarrow.lib.ArrowInvalid:
+            raise Exception(f'{SKYcataFile} is not a feather file, something is wrong about it!')
 
         # loop over bands with multiprocess
         queue = mp.Queue()

@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-10-09 13:16:45
+# @Last Modified time: 2023-03-05 09:59:05
 
 ### main module to run the whole pipeline
 
@@ -34,7 +34,7 @@ import CrossMatch
 
 import RunConfigFile
 
-__version__ = "MultiBand_ImSim v0.6.4"
+__version__ = "MultiBand_ImSim v0.7"
 
 # ++++++++++++++ parser for command-line interfaces
 parser = argparse.ArgumentParser(
@@ -137,6 +137,7 @@ start_time0 = time.time()
 input_folder, detect_foler, CrossMatch_folder, \
             photometry_folder, photo_z_folder, \
             shapes_folder, combined_suffix = configs_dict['work_dirs']['cata_folder_names']
+logger.info(f'Used folders: {input_folder}, {detect_foler}, {CrossMatch_folder}, {photometry_folder}, {photo_z_folder}, {shapes_folder}, {combined_suffix}')
 
 # varChips dictionary 
 varChips_dic = {}
@@ -246,7 +247,7 @@ if ('1' in taskIDs) or ('all' in taskIDs):
                     psf_PixelIma_dir=configs_dict['noise']['psf_PixelIma_dir'])    
 
     ## load galaxy info
-    gals_info = LoadCata.GalInfo(configs_dict['gal']['file'], configs_dict['imsim']['bands'],
+    gals_info = LoadCata.GalInfo(configs_dict['gal']['file'], configs_dict['imsim']['detection_band'], configs_dict['imsim']['bands'],
                         configs_dict['gal']['id_name'], configs_dict['gal']['detection_mag_name'], configs_dict['gal']['mag_name_list'],
                         configs_dict['gal']['RaDec_names'],
                         configs_dict['gal']['shape_names'],
@@ -268,7 +269,7 @@ if ('1' in taskIDs) or ('all' in taskIDs):
 
     ## load star info
     if configs_dict['star']['file']:
-        stars_info = LoadCata.StarInfo(configs_dict['star']['file'], configs_dict['imsim']['bands'],
+        stars_info = LoadCata.StarInfo(configs_dict['star']['file'], configs_dict['imsim']['detection_band'], configs_dict['imsim']['bands'],
                             configs_dict['star']['id_name'], configs_dict['star']['detection_mag_name'], configs_dict['star']['mag_name_list'],
                             RaDec_names=configs_dict['star']['RaDec_names'],
                             mag_cut=configs_dict['star']['mag_cut'])
@@ -388,6 +389,8 @@ if ('2' in taskIDs) or ('all' in taskIDs):
                     ######## therefore, using different tmp directory
                     RESAMPLE_DIR = os.path.join(tmp_dir_tmp, configs_dict['swarp']['image_label_list'][i_group],
                                 f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
+                    if (os.path.exists(RESAMPLE_DIR)):
+                        shutil.rmtree(RESAMPLE_DIR)
                     image_out = os.path.join(out_dir_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
                     proc = work_pool.apply_async(func=Astromatic.SwarpImage,
                                     args=(image_in, swarp_config,
@@ -412,6 +415,8 @@ if ('2' in taskIDs) or ('all' in taskIDs):
                             RESAMPLE_DIR = os.path.join(tmp_dir_tmp, configs_dict['swarp']['image_label_list'][i_group],
                                                 'psf_map',
                                                 f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
+                            if (os.path.exists(RESAMPLE_DIR)):
+                                shutil.rmtree(RESAMPLE_DIR)
                             image_out = os.path.join(out_dir_psf_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
                             proc = work_pool.apply_async(func=Astromatic.SwarpImage,
                                             args=(image_in_psf, swarp_config,

@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:25:05
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-12-15 08:57:56
+# @Last Modified time: 2023-02-09 16:02:50
 
 ### Everything about KiDS-like images
 __all__ = ['_PSFNoisySkyImages_KiDS_sameExpo', '_PSFNoisySkyImages_KiDS_singleExpo', '_PSFNoisySkyImages_KiDS_varChips']
@@ -86,7 +86,7 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
     # number of exposures
     if band == 'u':
         n_exposures = 4
-    elif band in ['g', 'r', 'i']:
+    elif band in ['g', 'r', 'i', 'i1', 'i2']:
         n_exposures = 5
     else:
         raise Exception(f'{band} is not in OmegaCAM! Cannot use KiDS_sameExpo!')

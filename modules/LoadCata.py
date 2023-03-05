@@ -25,7 +25,7 @@ warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 
 logger = logging.getLogger(__name__)
 
-def GalInfo(cata_pathfile, bands,
+def GalInfo(cata_pathfile, primary_band, bands,
             id_name, primary_mag_name, mag_name_list,
             RaDec_names,
             shape_names,
@@ -39,6 +39,8 @@ def GalInfo(cata_pathfile, bands,
     ----------
     cata_pathfile : str
         Path to the input catalogue.
+    primary_band : str
+        the band always loaded, should be consistent with primary_mag_name.
     bands : str
         A list of bands being queried, should be consistent with mag_name_list.
     id_name : str
@@ -68,8 +70,9 @@ def GalInfo(cata_pathfile, bands,
         galaxies info
     """
 
-    logger.info('Collect galaxy info from input catalogue...')
-    logger.info(f'Query bands {mag_name_list}, the detection band {primary_mag_name}')
+    logger.info('>>> Collect galaxy info from input catalogue...')
+    logger.info(f'Primary band {primary_band} = {primary_mag_name}')
+    logger.info(f'Query bands {bands} = {mag_name_list}')
     if mag_cut:
         logger.info(f"Magnitude cut in: {mag_cut}")
     if size_cut:
@@ -152,6 +155,9 @@ def GalInfo(cata_pathfile, bands,
 
     # magnitudes
     mag_list = [np.array(cata[mag_name]).astype(float) for mag_name in mag_name_list]
+    ## primary band is always loaded
+    if primary_mag_name not in mag_name_list:
+        mag_list.append(np.array(cata[primary_mag_name]).astype(float))
 
     # sky position
     X_gals = cata[RaDec_names[0]] # degree
@@ -171,6 +177,8 @@ def GalInfo(cata_pathfile, bands,
                 'sersic_n','Re','axis_ratio','position_angle',
                 'bulge_fraction','bulge_Re','bulge_axis_ratio','bulge_n',
                 'disk_Re','disk_axis_ratio'] + bands
+    if primary_band not in bands:
+        name += [primary_band]
     gals_info = pd.DataFrame(data=data, columns=name)
     gals_info = gals_info.astype({'index': int})
 
@@ -226,7 +234,7 @@ def GalInfo_adjust4casual(gals_info,
         galaxies can be casually simulated
     """
 
-    logger.info('Adjust galaxy info for casual mode...')
+    logger.info('>>> Adjust galaxy info for casual mode...')
     logger.info(f'bin band {qbin_band}, cut mag {qbin_mag}')
     logger.info(f'number bin {Nqbins}, Fraction of seed galaxies {Frac_careful}')
 
@@ -275,7 +283,7 @@ def GalInfo_adjust4casual(gals_info,
 
     return gals_info_careful, gals_info_casual
 
-def StarInfo(cata_pathfile, bands,
+def StarInfo(cata_pathfile, primary_band, bands,
             id_name, primary_mag_name, mag_name_list,
             RaDec_names=None, mag_cut=[]):
     """
@@ -285,6 +293,8 @@ def StarInfo(cata_pathfile, bands,
     ----------
     cata_pathfile : str
         Path to the input catalogue.
+    primary_band : str
+        the band always loaded, should be consistent with primary_mag_name.
     bands : str
         A list of bands being queried, should be consistent with mag_name_list.
     id_name : str
@@ -305,8 +315,9 @@ def StarInfo(cata_pathfile, bands,
         stars info
     """
 
-    logger.info('Collect star info from input catalogue...')
-    logger.info(f'Query bands {mag_name_list}, the primary band {primary_mag_name}')
+    logger.info('>>> Collect star info from input catalogue...')
+    logger.info(f'Primary band {primary_band} = {primary_mag_name}')
+    logger.info(f'Query bands {bands} = {mag_name_list}')
     if mag_cut:
         logger.info(f"Magnitude cut in: {mag_cut}")
 
@@ -339,6 +350,9 @@ def StarInfo(cata_pathfile, bands,
 
     # magnitudes
     mag_list = [np.array(cata[mag_name]).astype(float) for mag_name in mag_name_list]
+    ## primary band is always loaded
+    if primary_mag_name not in mag_name_list:
+        mag_list.append(np.array(cata[primary_mag_name]).astype(float))
 
     # sky position
     if RaDec_names is not None:
@@ -354,6 +368,8 @@ def StarInfo(cata_pathfile, bands,
     data = [np.array(index).astype(int), np.array(X_stars).astype(float), np.array(Y_stars).astype(float)] + mag_list
     data = np.transpose(data)
     name = ['index','RA','DEC'] + bands
+    if primary_band not in bands:
+        name += [primary_band]
     stars_info = pd.DataFrame(data=data, columns=name)
     stars_info = stars_info.astype({'index': int})
     logger.debug('Desired info collected to DataFrame.')
@@ -418,7 +434,7 @@ def NoiseInfo(cata_pathfile, bands,
         noise info
     """
 
-    logger.info('Collect observational info from input noise catalogue...')
+    logger.info('>>> Collect observational info from input noise catalogue...')
 
     # due to compatibility
     if len(psf_type_list) != len(bands):

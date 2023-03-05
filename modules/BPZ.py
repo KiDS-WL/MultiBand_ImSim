@@ -12,6 +12,7 @@ import sys
 import glob
 import shutil
 import logging
+import pyarrow
 import subprocess
 import numpy as np
 import pandas as pd
@@ -120,9 +121,16 @@ class BPZwrapper(object):
             return 1
 
         # load file
-        cata = pd.read_feather(PhotoFile)
+        try:
+            cata = pd.read_feather(PhotoFile)
+        except pyarrow.lib.ArrowInvalid:
+            raise Exception(f'{PhotoFile} is not a feather file, something is wrong about it!')
+
         ## we need MAG_AUTO from detection cata
-        cata_tmp = pd.read_feather(DetecFile)
+        try:
+            cata_tmp = pd.read_feather(DetecFile)
+        except pyarrow.lib.ArrowInvalid:
+            raise Exception(f'{DetecFile} is not a feather file, something is wrong about it!')
         ### check if they are in the same order
         if np.sum(cata['id_detec'].values == cata_tmp['NUMBER'].values) != len(cata):
             raise Exception('Provided photometric and detection catalogues have different IDs!')
