@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2022-07-03 13:44:20
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-10-13 15:45:07
+# @Last Modified time: 2023-01-20 13:10:17
 
 #### all nine bands 
 
@@ -59,16 +59,16 @@ python ../../modules/Run.py 1 --runTag m283m283 --threads 48 --rng_seed 9603\
  --cosmic_shear -0.0283 -0.0283 -c ./config_part2.ini --sep_running_log 
 
 # >>>> part 3
-python ../../modules/Run.py 1 --runTag m283p283 --threads 48 --rng_seed 96_1\
+python ../../modules/Run.py 1 --runTag m283p283 --threads 48 --rng_seed 97\
  --cosmic_shear -0.0283 0.0283 -c ./config_part3.ini --sep_running_log 
 
-python ../../modules/Run.py 1 --runTag p283p283 --threads 48 --rng_seed 96_101\
+python ../../modules/Run.py 1 --runTag p283p283 --threads 48 --rng_seed 9701\
  --cosmic_shear 0.0283 0.0283 -c ./config_part3.ini --sep_running_log 
 
-python ../../modules/Run.py 1 --runTag p283m283 --threads 48 --rng_seed 96_102\
+python ../../modules/Run.py 1 --runTag p283m283 --threads 48 --rng_seed 9702\
  --cosmic_shear 0.0283 -0.0283 -c ./config_part3.ini --sep_running_log 
 
-python ../../modules/Run.py 1 --runTag m283m283 --threads 48 --rng_seed 96_103\
+python ../../modules/Run.py 1 --runTag m283m283 --threads 48 --rng_seed 9703\
  --cosmic_shear -0.0283 -0.0283 -c ./config_part3.ini --sep_running_log 
 
 # >>>> part 4
