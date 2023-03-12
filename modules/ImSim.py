@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2023-01-20 12:16:55
+# @Last Modified time: 2023-03-09 14:31:03
 
 ### running module for ImSim
 
@@ -34,7 +34,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                             PSF_map=[], N_PSF=100, sep_PSF=120,
                                             image_chips=None, image_PSF=None,
                                             psf_type_list=['moffat'],
-                                            CalSimpleArea=True):
+                                            CalSimpleArea=True,
+                                            needed_tile=None):
     '''
     Run ImSim for multi-tile of mutli-band with parallel process.
         Support extending input catalogues
@@ -615,6 +616,11 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
     del gals_info_list, gals_info_tile, gals_info_band
     if (stars_info is not None):
         del stars_info_list, stars_info_tile, stars_info_band
+
+    # select the specific tile and rot that is needed
+    if (needed_tile is not None):
+        para_lists = [para_list for para_list in para_lists if para_list[0]==needed_tile]
+        logger.warning(f'Only simulate tile {para_lists[0][0]}')
 
     # start parallel running
     N_tasks = len(para_lists)

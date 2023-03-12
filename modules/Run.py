@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2023-03-06 15:40:39
+# @Last Modified time: 2023-03-09 14:51:45
 
 ### main module to run the whole pipeline
 
@@ -36,7 +36,7 @@ import RunConfigFile
 
 if __name__ == "__main__": 
 
-    __version__ = "MultiBand_ImSim v0.7"
+    __version__ = "MultiBand_ImSim v0.7.1"
 
     # ++++++++++++++ parser for command-line interfaces
     parser = argparse.ArgumentParser(
@@ -84,6 +84,9 @@ if __name__ == "__main__":
         "--sep_running_log", action="store_true",
         help="If set, save log files for external code running info.")
     parser.add_argument(
+        '--needed_tile', type=str, default=None, metavar='needed_tile',
+        help="Select a specific tile for simulation; if specified, the others will be skipped.")
+    parser.add_argument(
         '--version', action='version', version=__version__,
         help="The pipeline version.")
 
@@ -98,6 +101,7 @@ if __name__ == "__main__":
     rng_seed = args.rng_seed
     log_level = args.loglevel
     running_log = args.sep_running_log
+    needed_tile = args.needed_tile
 
     ## logging
     numeric_level = getattr(logging, log_level.upper(), None)
@@ -292,7 +296,8 @@ if __name__ == "__main__":
                                                 PSF_map=configs_dict['imsim']['PSF_map'], N_PSF=100, sep_PSF=120,
                                                 image_chips=configs_dict['imsim']['image_chips'], image_PSF=[configs_dict['imsim']['image_PSF'], configs_dict['imsim']['image_PSF_size']],
                                                 psf_type_list=configs_dict['noise']['psf_type_list'],
-                                                CalSimpleArea=configs_dict['imsim']['simple_area'])
+                                                CalSimpleArea=configs_dict['imsim']['simple_area'],
+                                                needed_tile=needed_tile)
         del noise_info, gals_info, stars_info
 
         logger.info(f'====== Task 1: simulate images === finished in {(time.time()-start_time)/3600.} h ======')
@@ -347,6 +352,10 @@ if __name__ == "__main__":
                 out_dir_psf_tmp =  os.path.join(out_dir_tmp, 'psf_map')
 
             for tile_label in tile_labels:
+
+                if (needed_tile is not None) and (tile_label!=needed_tile):
+                    logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                    continue
 
                 for band in swarp_bands:
 
@@ -499,6 +508,10 @@ if __name__ == "__main__":
         proc_list = []
         for i_tile, tile_label in enumerate(tile_labels):
 
+            if (needed_tile is not None) and (tile_label!=needed_tile):
+                logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                continue
+
             SeeingFWHM = SeeingFWHM_list[i_tile]
 
             for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
@@ -539,6 +552,10 @@ if __name__ == "__main__":
 
                 for tile_label in tile_labels:
 
+                    if (needed_tile is not None) and (tile_label!=needed_tile):
+                        logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                        continue
+
                     input_cata = pd.read_feather(os.path.join(ori_cata_dir_tmp, f'stars_info_tile{tile_label}.feather'))
 
                     for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
@@ -569,6 +586,10 @@ if __name__ == "__main__":
             logger.info('Cross-match with the input catalogue...')
 
             for tile_label in tile_labels:
+
+                if (needed_tile is not None) and (tile_label!=needed_tile):
+                    logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                    continue
 
                 input_cata = pd.read_feather(os.path.join(ori_cata_dir_tmp, f'gals_info_tile{tile_label}.feather'))
 
@@ -659,6 +680,12 @@ if __name__ == "__main__":
                 else:
                     tile_label = tile_labels_tasks[i_worker]
                     gal_rotation_angle = rots_tasks[i_worker]
+
+                    if (needed_tile is not None) and (tile_label!=needed_tile):
+                        logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                        i_worker += 1
+                        time.sleep(1.)
+                        continue
 
                     ### star info for psf estimation
                     if not configs_dict['MP']['use_PSF_map']:
@@ -771,6 +798,10 @@ if __name__ == "__main__":
             proc_list = []
             for tile_label in tile_labels:
 
+                if (needed_tile is not None) and (tile_label!=needed_tile):
+                    logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                    continue
+
                 for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
 
                     # input
@@ -823,6 +854,10 @@ if __name__ == "__main__":
                 varChips = varChips_dic[band]
 
                 for tile_label in tile_labels:
+
+                    if (needed_tile is not None) and (tile_label!=needed_tile):
+                        logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                        continue
 
                     psf_ima_dir = os.path.join(in_ima_dir_tmp, f'psf_tile{tile_label}_band{band}')
 
@@ -880,6 +915,10 @@ if __name__ == "__main__":
                 in_ima_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], ima_label)
 
                 for tile_label in tile_labels:
+
+                    if (needed_tile is not None) and (tile_label!=needed_tile):
+                        logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                        continue
 
                     # detection catalogue
                     path_input_cata = os.path.join(in_cata_dir_tmp, f'tile{tile_label}_band{detection_band}_rot0.feather')
@@ -970,6 +1009,10 @@ if __name__ == "__main__":
 
                 for tile_label in tile_labels:
 
+                    if (needed_tile is not None) and (tile_label!=needed_tile):
+                        logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                        continue
+
                     ### data info
                     weight_dir = None
 
@@ -1038,6 +1081,11 @@ if __name__ == "__main__":
 
         # combine catalogues for each run
         for tile_label in tile_labels:
+
+            if (needed_tile is not None) and (tile_label!=needed_tile):
+                logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                continue
+
             for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
 
                 logger.info(f'Combining outputs for tile {tile_label}, rot {gal_rotation_angle}...')
