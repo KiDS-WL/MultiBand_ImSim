@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2022-03-23 13:39:24
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-10-10 14:18:46
+# @Last Modified time: 2023-02-07 10:13:19
 
 ### a combined catalogue with everthing from ImSim pipeline
 
@@ -21,13 +21,13 @@ from astropy.table import Table
 
 # skills version
 skills_version = 'skills_v07D7'
+skills_version_forSave = 'skills_v07D7ten'
 
 # lensfit version
 LF_version = '321'
 
 # combined catalogue info
-# combined_suffix = 'combined'
-combined_suffix = 'combined_kids_filters'
+combined_suffix = 'combined_dr5_ten_kids_filters'
 
 # output file type
 ## fits, feather or csv
@@ -45,8 +45,7 @@ unique_shear_tags = ['m283m283', 'm283p283', 'p283m283', 'p283p283']
 unique_rots = [0., 90.]
 
 # out info
-# outpath = os.path.join(main_dir, f'{skills_version}_LF_{LF_version}_everything.feather')
-outpath = os.path.join(main_dir, f'{skills_version}_LF_{LF_version}_kidsPhotometry_everything.feather')
+outpath = os.path.join(main_dir, f'{skills_version_forSave}_LF_{LF_version}_kidsPhotometry_everything.feather')
 
 # +++++++++++++++++++++++++++++ workhorse
 
@@ -131,7 +130,7 @@ print(f'Total number of source {len(cata_final)}')
 cata_final.to_feather(outpath)
 print('combined cata saved to', outpath)
 
-########### original Shark photometry
+# # # # ####### kids photometry
 # Total number of subdirs: 24
 # Running for m283m283
 # number of subdirs: 6
@@ -189,68 +188,5 @@ print('combined cata saved to', outpath)
 # Number of files: 36
 # working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part5/p283p283
 # Number of files: 36
-# Total number of source 89303975
-# combined cata saved to /disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7_LF_321_everything.feather
-# Elapsed:14:00.20,User=1444.176,System=4452.990,CPU=701.8%.
-
-# ####### kids photometry
-# Total number of subdirs: 24
-# Running for m283m283
-# number of subdirs: 6
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part0/m283m283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part1/m283m283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part2/m283m283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part3/m283m283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part4/m283m283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part5/m283m283
-# Number of files: 36
-# Running for m283p283
-# number of subdirs: 6
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part0/m283p283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part1/m283p283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part2/m283p283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part3/m283p283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part4/m283p283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part5/m283p283
-# Number of files: 36
-# Running for p283m283
-# number of subdirs: 6
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part0/p283m283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part1/p283m283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part2/p283m283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part3/p283m283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part4/p283m283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part5/p283m283
-# Number of files: 36
-# Running for p283p283
-# number of subdirs: 6
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part0/p283p283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part1/p283p283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part2/p283p283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part3/p283p283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part4/p283p283
-# Number of files: 36
-# working on subdir /disks/shear16/ssli/ImSim/output/skills_v07D7/part5/p283p283
-# Number of files: 36
-# Total number of source 89303975
-# combined cata saved to /disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7_LF_321_kidsPhotometry_everything.feather
-# Elapsed:13:05.10,User=1466.580,System=3862.607,CPU=678.7%.
+# Total number of source 89303769
+# combined cata saved to /disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7ten_LF_321_kidsPhotometry_everything.feather

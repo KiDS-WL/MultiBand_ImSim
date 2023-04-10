@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2022-10-10 14:20:13
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-10-10 17:22:01
+# @Last Modified time: 2023-03-08 09:18:46
 
 ### add flag columns for KiDS-like photo and lensfit selections
 ######## flag_gaap: 0 for good GAaP photometry
@@ -16,8 +16,8 @@ import pandas as pd
 # +++++++++++++++++++++++++++++ general info
 
 # in info
-# inpath = '/disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7_LF_321_everything.feather'
-inpath = '/disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7_LF_321_kidsPhotometry_everything.feather'
+# inpath = '/disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7p1_LF_321_kidsPhotometry_everything.feather'
+inpath = '/disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7p1_LF_321_sharkPhotometry_everything.feather'
 # out info
 outpath = inpath.replace('.feather', '_col_flag.feather')
 
@@ -115,26 +115,28 @@ print('>>> number after all selection', Ntmp, Ntmp/Nori)
 cata.to_feather(outpath)
 print('final cata saved to', outpath)
 
-# # ########## shark photometry
-# number original 89303975
-# B_skills_flag.py:49: RuntimeWarning: invalid value encountered in true_divide
+# # ########## kids photometry
+# number original 89303769
+# B_skills_flag.py:48: RuntimeWarning: invalid value encountered in true_divide
 #   cata.loc[:, 'R'] = cata['PSFsize'].values / (cata['r_ab'].values**2 + cata['PSFsize'].values)
-# >>> number after GAaP selection 88951359 0.9960515083455131
-# >>> number after asteroid selection 87865958 0.9838975028827104
-# >>> number after binary selection 89274164 0.9996661850718291
-# >>> number after LF_noWeiCut selection 48098591 0.5385940659416336
-# >>> number after all selection 47929683 0.5367026831672387
-# final cata saved to /disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7_LF_321_everything_col_flag.feather
-# Elapsed:12:40.85,User=1371.797,System=5888.267,CPU=954.2%.
+# >>> number after GAaP selection 88951120 0.9960511297121177
+# >>> number after asteroid selection 88135997 0.9869235978158996
+# >>> number after binary selection 89273029 0.9996557816053654
+# >>> number after LF_noWeiCut selection 48057488 0.5381350478052052
+# >>> number after all selection 47869587 0.5360309820742281
+# final cata saved to /disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7p1_LF_321_kidsPhotometry_everything_col_flag.feather
+# Elapsed:33:08.30,User=1593.102,System=3894.785,CPU=276.0%.
 
-# ########## kids photometry
-# number original 89303975
+
+# # ########## shark photometry
+# number original 89303769
 # B_skills_flag.py:49: RuntimeWarning: invalid value encountered in true_divide
 #   cata.loc[:, 'R'] = cata['PSFsize'].values / (cata['r_ab'].values**2 + cata['PSFsize'].values)
-# >>> number after GAaP selection 88951359 0.9960515083455131
-# >>> number after asteroid selection 87793473 0.9830858368846404
-# >>> number after binary selection 89273635 0.9996602614833214
-# >>> number after LF_noWeiCut selection 48057297 0.5381316677113197
-# >>> number after all selection 47870631 0.5360414360055081
-# final cata saved to /disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7_LF_321_kidsPhotometry_everything_col_flag.feather
-# Elapsed:10:48.80,User=1478.096,System=5519.657,CPU=1078.5%.
+# >>> number after GAaP selection 88951120 0.9960511297121177
+# >>> number after asteroid selection 88185401 0.9874768107491634
+# >>> number after binary selection 89273569 0.9996618283826296
+# >>> number after LF_noWeiCut selection 48098832 0.5385980069889323
+# >>> number after all selection 47928768 0.5366936752691815
+# final cata saved to /disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7p1_LF_321_sharkPhotometry_everything_col_flag.feather
+# Elapsed:12:21.60,User=1284.451,System=5523.961,CPU=918.0%.
+
