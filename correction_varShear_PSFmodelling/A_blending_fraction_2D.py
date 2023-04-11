@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2022-09-29 20:43:26
 # @Last Modified by:   lshuns
-# @Last Modified time: 2023-01-05 17:46:25
+# @Last Modified time: 2023-04-11 16:40:31
 
 ### get the blending fraction in 2D surface of dome
 
@@ -20,11 +20,11 @@ from astropy.table import Table
 # +++++++++++++++++++++++++++++ general info
 
 # the whole sample
-inpath = '/disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7_LF_321_kidsPhotometry_shear_noSG_noWeiCut_newCut.feather'
+inpath = '/disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7p1_LF_321_kidsPhotometry_shear_noSG_noWeiCut_newCut.feather'
 col_weight = 'oldweight_LF_r'
 
 # the binning bounds 
-inpath_prefix_bounds = '../biasEstimation/outputs/m_weiRaw_DR4817Rewei_skills_v07D7_LF_321_kidsPhotometry_shear_noSG_noWeiCut_newCut'
+inpath_prefix_bounds = '../biasEstimation/results/m_weiRaw_K1000_LF_321_skills_v07D7p1_kidsPhotometry'
 bin1_col = 'SNR_LF_r'
 bin2_col = 'R'
 
@@ -40,7 +40,7 @@ inpath_blend_list = [f'/disks/shear10/ssli/ImSim/input/SURFS_cata/varShear/skill
                             for part in parts]
 
 # where to save
-outpath_prefix = './outputs/blending_fraction'
+outpath_prefix = './results/blending_fraction'
 
 # +++++++++++++++++++++++++++++ load catalogues
 
@@ -149,6 +149,5 @@ for i_bin in range(len(binning_edges)):
     del surface
     print('saved to', outpath)
 
-# ...
-# saved to ./outputs/blending_fraction_bin5.csv
-# Elapsed:27:57.97,User=992.120,System=523.290,CPU=90.3%.
+# # ...
+# Elapsed:23:08.03,User=1055.181,System=1607.967,CPU=191.8%.

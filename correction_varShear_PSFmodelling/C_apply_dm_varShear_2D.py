@@ -2,10 +2,10 @@
 # @Author: lshuns
 # @Date:   2022-09-29 20:23:37
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-09-30 13:20:38
+# @Last Modified time: 2023-04-11 16:43:36
 
 ### apply the dm from varShear to the whole sample results
-####### in 2D bins (R and SNR)
+####### in 2D bins (R and SNR) for each tomographic bin
 
 import os
 import re
@@ -21,24 +21,24 @@ from astropy.table import Table
 # +++++++++++++++++++++++++++++ general info
 
 # the ZB bins
-ZB_mins = [-999, 0.1, 0.3, 0.5, 0.7, 0.9, 1.2]
-ZB_maxs = [-999, 0.3, 0.5, 0.7, 0.9, 1.2, 2.0]
+ZB_mins = [0.1, 0.1, 0.3, 0.5, 0.7, 0.9, 1.2]
+ZB_maxs = [2.0, 0.3, 0.5, 0.7, 0.9, 1.2, 2.0]
 
 # the raw results
-inpath_raw_list = ['../biasEstimation/outputs/m_weiRaw_DR4817Rewei_skills_v07D7_LF_321_kidsPhotometry_shear_noSG_noWeiCut_newCut_whole.csv']
-inpath_raw_list += [f'../biasEstimation/outputs/m_weiRaw_DR4817Rewei_skills_v07D7_LF_321_kidsPhotometry_shear_noSG_noWeiCut_newCut_bin{i_bin}.csv'
+inpath_raw_list = ['../biasEstimation/results/m_weiRaw_K1000_LF_321_skills_v07D7p1_kidsPhotometry_whole.csv']
+inpath_raw_list += [f'../biasEstimation/results/m_weiRaw_K1000_LF_321_skills_v07D7p1_kidsPhotometry_bin{i_bin}.csv'
                     for i_bin in range(6)]
 
 # the blending-only correction
-inpath_blend_list = ['./outputs/dm_forBlending_dz0p1_whole.csv']
-inpath_blend_list += [f'./outputs/dm_forBlending_dz0p1_bin{i_bin}.csv' for i_bin in range(6)]
+inpath_blend_list = ['./results/dm_forBlending_dz0p1_whole.csv']
+inpath_blend_list += [f'./results/dm_forBlending_dz0p1_bin{i_bin}.csv' for i_bin in range(6)]
 
 # the blending fraction
-inpath_fraction_list = ['./outputs/blending_fraction_whole.csv']
-inpath_fraction_list += [f'./outputs/blending_fraction_bin{i_bin}.csv' for i_bin in range(6)]
+inpath_fraction_list = ['./results/blending_fraction_whole.csv']
+inpath_fraction_list += [f'./results/blending_fraction_bin{i_bin}.csv' for i_bin in range(6)]
 
 # where to save
-outpath = './outputs/m_weiRaw_DR4817Rewei_skills_v07D7_LF_321_kidsPhotometry_shear_noSG_noWeiCut_newCut_varCorr_dz0p1_2D.csv'
+outpath = './results/m_weiRaw_K1000_LF_321_skills_v07D7p1_kidsPhotometry_varCorr_dz0p1_2D.csv'
 
 # +++++++++++++++++++++++++++ correct the m 
 
@@ -100,16 +100,16 @@ print(res_df)
 res_df.to_csv(outpath, index=False)
 print('saved to', outpath)
 
-############# out info
+# # ############# out info
 #          m1        m2        c1  ...  Z_B_min  Z_B_max  mean_blendFraction
-# 0 -0.002906  0.002916  0.000322  ...   -999.0   -999.0            0.353935
-# 1 -0.011517 -0.017842  0.000111  ...      0.1      0.3            0.345336
-# 2 -0.026941 -0.017456 -0.000026  ...      0.3      0.5            0.331540
-# 3 -0.012706 -0.010971  0.000319  ...      0.5      0.7            0.364526
-# 4  0.009503  0.021798  0.000622  ...      0.7      0.9            0.365566
-# 5  0.024692  0.032705  0.000681  ...      0.9      1.2            0.370393
-# 6  0.066028  0.062894  0.000463  ...      1.2      2.0            0.358295
+# 0 -0.002976  0.002583  0.000317  ...      0.1      2.0            0.353972
+# 1 -0.013173 -0.017910  0.000100  ...      0.1      0.3            0.345218
+# 2 -0.026823 -0.016834 -0.000007  ...      0.3      0.5            0.331529
+# 3 -0.013003 -0.010699  0.000313  ...      0.5      0.7            0.364396
+# 4  0.011380  0.021672  0.000608  ...      0.7      0.9            0.365923
+# 5  0.024748  0.032318  0.000686  ...      0.9      1.2            0.370566
+# 6  0.066679  0.062029  0.000429  ...      1.2      2.0            0.358490
 
 # [7 rows x 11 columns]
-# saved to ./outputs/m_weiRaw_DR4817Rewei_skills_v07D7_LF_321_kidsPhotometry_shear_noSG_noWeiCut_newCut_varCorr_dz0p1_2D.csv
-# Elapsed:0:02.55,User=3.159,System=7.530,CPU=418.8%.
+# saved to ./results/m_weiRaw_K1000_LF_321_skills_v07D7p1_kidsPhotometry_varCorr_dz0p1_2D.csv
+# Elapsed:0:04.91,User=3.446,System=7.468,CPU=221.9%.

@@ -2,11 +2,11 @@
 # @Author: lshuns
 # @Date:   2022-09-04 16:13:56
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-09-30 13:18:53
+# @Last Modified time: 2023-04-11 16:40:58
 
 ### get the dm by applying constShear results first
 #### do not bin in zTrue for constShear
-#### in 2D bins (R and SNR)
+#### in 2D bins (R and SNR) for each tomographic bin
 ###### algorithm: 
 ############### 1. get gOut(z) = gIn(z) * (1+m(z)) + c(z)
 ############### 2. get (1+m) = average (1+m(z))
@@ -21,17 +21,16 @@ import statsmodels.api as sm
 # >>>>>>>>>>>>>> I/O and setups
 
 # the catalogues
-# inpath_var = '/disks/shear16/ssli/ImSim/output/skills_v07D7v/skills_v07D7v_LF_321_shear_noSG_noWeiCut_newCut_var.feather'
-inpath_var = '/disks/shear16/ssli/ImSim/output/skills_v07D7v/skills_v07D7v_LF_321_shear_noSG_noWeiCut_newCut_var_withextra.feather'
-inpath_const = '/disks/shear16/ssli/ImSim/output/skills_v07D7v/skills_v07D7v_LF_321_shear_noSG_noWeiCut_newCut_const.feather'
+inpath_var = '/disks/shear16/ssli/ImSim/output/skills_v07D7v/skills_v07D7p1v_LF_321_shear_noSG_noWeiCut_newCut_var_withextra.feather'
+inpath_const = '/disks/shear16/ssli/ImSim/output/skills_v07D7v/skills_v07D7p1v_LF_321_shear_noSG_noWeiCut_newCut_const.feather'
 
 # the binning bounds 
-inpath_prefix_bounds = '../biasEstimation/outputs/m_weiRaw_DR4817Rewei_skills_v07D7_LF_321_kidsPhotometry_shear_noSG_noWeiCut_newCut'
+inpath_prefix_bounds = '../biasEstimation/results/m_weiRaw_K1000_LF_321_skills_v07D7p1_kidsPhotometry'
 bin1_col = 'SNR_LF_r'
 bin2_col = 'R'
 
 # output
-outpath_prefix = './outputs/dm_forBlending'
+outpath_prefix = './results/dm_forBlending'
 
 # bin width in true z
 dz = 0.1
@@ -352,37 +351,37 @@ for i_bin in range(len(binning_edges)):
     del mc_surface
     print('saved to', outpath)
 
-# ######## out info
+# # ######## out info
 # defined z range [0.  0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.  1.1 1.2 1.3 1.4 1.5 1.6 1.7
 #  1.8 1.9 2.  2.1 2.2 2.3 2.4 2.5]
-# >>> cata loaded from /disks/shear16/ssli/ImSim/output/skills_v07D7v/skills_v07D7v_LF_321_shear_noSG_noWeiCut_newCut_var_withextra.feather
-# >>> cata loaded from /disks/shear16/ssli/ImSim/output/skills_v07D7v/skills_v07D7v_LF_321_shear_noSG_noWeiCut_newCut_const.feather
+# >>> cata loaded from /disks/shear16/ssli/ImSim/output/skills_v07D7v/skills_v07D7p1v_LF_321_shear_noSG_noWeiCut_newCut_var_withextra.feather
+# >>> cata loaded from /disks/shear16/ssli/ImSim/output/skills_v07D7v/skills_v07D7p1v_LF_321_shear_noSG_noWeiCut_newCut_const.feather
 # >> Number of 2D bins 20 20
-# var remaining after 2D binning 0.9999998699890628
-# const remaining after 2D binning 0.999999628555743
-# saved to ./outputs/dm_forBlending_dz0p1_whole.csv
+# var remaining after 2D binning 0.9999998700212691
+# const remaining after 2D binning 0.9999996286460919
+# saved to ./results/dm_forBlending_dz0p1_whole.csv
 # >> Number of 2D bins 20 20
-# var remaining after 2D binning 0.9999938420509152
-# const remaining after 2D binning 0.9999948690899613
-# saved to ./outputs/dm_forBlending_dz0p1_bin0.csv
+# var remaining after 2D binning 0.9999935866882222
+# const remaining after 2D binning 0.9999948701848991
+# saved to ./results/dm_forBlending_dz0p1_bin0.csv
 # >> Number of 2D bins 20 20
-# var remaining after 2D binning 0.9999983438395481
-# const remaining after 2D binning 0.999998300291568
-# saved to ./outputs/dm_forBlending_dz0p1_bin1.csv
+# var remaining after 2D binning 0.9999983451522699
+# const remaining after 2D binning 0.9999976222365718
+# saved to ./results/dm_forBlending_dz0p1_bin1.csv
 # >> Number of 2D bins 20 20
-# var remaining after 2D binning 0.999997891913021
-# const remaining after 2D binning 0.9999985704021201
-# saved to ./outputs/dm_forBlending_dz0p1_bin2.csv
+# var remaining after 2D binning 0.9999980428372398
+# const remaining after 2D binning 0.9999985762197953
+# saved to ./results/dm_forBlending_dz0p1_bin2.csv
 # >> Number of 2D bins 20 20
-# var remaining after 2D binning 0.9999983101254003
-# const remaining after 2D binning 0.999998069519685
-# saved to ./outputs/dm_forBlending_dz0p1_bin3.csv
+# var remaining after 2D binning 0.9999984495487024
+# const remaining after 2D binning 0.9999984502016869
+# saved to ./results/dm_forBlending_dz0p1_bin3.csv
 # >> Number of 2D bins 20 20
-# var remaining after 2D binning 0.9999953989829452
-# const remaining after 2D binning 0.9999948909289977
-# saved to ./outputs/dm_forBlending_dz0p1_bin4.csv
+# var remaining after 2D binning 0.9999959690806733
+# const remaining after 2D binning 0.999995907643703
+# saved to ./results/dm_forBlending_dz0p1_bin4.csv
 # >> Number of 2D bins 20 20
-# var remaining after 2D binning 0.9999964977328657
-# const remaining after 2D binning 0.9999979999786665
-# saved to ./outputs/dm_forBlending_dz0p1_bin5.csv
-# Elapsed:1:01:29.16,User=8942.616,System=12848.242,CPU=590.6%.
+# var remaining after 2D binning 0.9999963260705872
+# const remaining after 2D binning 0.9999979973097194
+# saved to ./results/dm_forBlending_dz0p1_bin5.csv
+# Elapsed:45:15.50,User=18400.528,System=71668.230,CPU=3316.8%.
