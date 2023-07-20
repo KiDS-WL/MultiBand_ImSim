@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2023-01-20 11:51:25
+# @Last Modified time: 2023-07-20 16:07:22
 
 ### module to generate an example configuration file
 
@@ -242,7 +242,7 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
 
         ### grid size 
         grid_size = config_gal.get('grid_size')
-        if not grid_size:
+        if grid_size:
             gal_configs['grid_size'] = float(grid_size)
         else:
             gal_configs['grid_size'] = 18 #arcsec
