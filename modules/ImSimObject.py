@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-11-26 16:03:10
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-08-18 13:19:50
+# @Last Modified time: 2023-10-10 17:08:37
 
 ### Everything about celestial objects
 
@@ -324,7 +324,7 @@ def GalaxiesImage_casual(canvas, band, pixel_scale, PSF,
     gals_info_selec.loc[:, 'y'] = np.int32(np.floor(gals_info_selec['y'] + 0.5))
 
     # bin the cata based on the qbin id
-    info_grouped = gals_info_selec.groupby(by=['i_qbin'])
+    info_grouped = gals_info_selec.groupby(by='i_qbin')
     del gals_info_selec
     
     # loop over the bins and draw galaxies

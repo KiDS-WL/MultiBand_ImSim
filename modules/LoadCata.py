@@ -248,7 +248,7 @@ def GalInfo_adjust4casual(gals_info,
 
     # bin the causual sample with Nqbins provided
     gals_info_casual.loc[:, 'i_qbin'] = pd.qcut(gals_info_casual[qbin_band], Nqbins, labels=False)
-    info_grouped = gals_info_casual.groupby(by=['i_qbin'])
+    info_grouped = gals_info_casual.groupby(by='i_qbin')
     del gals_info_casual
     
     # loop over the bins and draw galaxies
