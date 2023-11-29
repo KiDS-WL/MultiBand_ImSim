@@ -358,7 +358,7 @@ def StarInfo(cata_pathfile, primary_band, bands,
     if RaDec_names is not None:
         ## use true position
         X_stars = cata[RaDec_names[0]] # degree
-        Y_stars = cata[RaDec_names[0]] # degree
+        Y_stars = cata[RaDec_names[1]] # degree
     else:
         ## will be set late
         X_stars = np.zeros(Nstar)
