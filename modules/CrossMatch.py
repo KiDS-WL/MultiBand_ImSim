@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: lshuns
 # @Date:   2020-09-24 17:42:47
-# @Last modified by:   ssli
-# @Last modified time: 2021-05-03, 9:55:56
+# @Last modified by:   lshuns
+# @Last modified time: 2024-01-31 12:11:24
 
 ### cross-match catalogues based on object positions using KDTree
 
@@ -245,7 +245,7 @@ def run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
         logger.info('false_detec/detections {:}'.format(len(false_cata)/len(id_detec)))
 
     # missed inputs
-    mask_tmp = np.ones(len(id_input), np.bool)
+    mask_tmp = np.ones(len(id_input), bool)
     mask_tmp[ind_matched] = 0
     id_miss = id_input[mask_tmp]
     miss_cata = pd.DataFrame({'id_input': id_miss})
