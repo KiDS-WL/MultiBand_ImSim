@@ -1,7 +1,7 @@
 # @Author: lshuns
 # @Date:   2022-07-08 13:58:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-09-05 08:45:31
+# @Last Modified time: 2023-04-10 12:32:24
 
 python ../../modules/Run.py 7 --runTag m283p283 --threads 48 --rng_seed 94\
  --cosmic_shear -0.0283 0.0283 -c ./C_config.ini --sep_running_log

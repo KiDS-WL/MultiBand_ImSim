@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2022-08-29 09:20:26
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-08-29 09:25:14
+# @Last Modified time: 2023-04-10 17:15:16
 
 ### delete copied images
 
@@ -16,7 +16,7 @@ import os
 import glob
 
 # where saved the selected tiles
-test_dir = '/disks/shear16/ssli/ImSim/output/skills_v07D7_PSFmodelling/'
+test_dir = '/disks/shear16/ssli/ImSim/output/skills_v07D7p1_PSFmodelling/'
 shear_labels = ['m283m283',  'm283p283',  'p283m283',  'p283p283']
 
 # loop over shear tags to delete

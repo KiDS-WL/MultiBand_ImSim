@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2022-07-08 10:43:44
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-08-26 13:52:17
+# @Last Modified time: 2023-02-28 08:59:40
 
 ### copy selected images and catalogues from the fiducial runs
 
@@ -22,7 +22,7 @@ parts = ['part0', 'part1', 'part2', 'part3', 'part4', 'part5']
 shear_labels = ['m283m283',  'm283p283',  'p283m283',  'p283p283']
 
 # where to save the selected tiles
-test_dir = '/disks/shear16/ssli/ImSim/output/skills_v07D7_PSFmodelling/'
+test_dir = '/disks/shear16/ssli/ImSim/output/skills_v07D7p1_PSFmodelling/'
 
 # selected tiles
 inpath_selected = './tile_forTEST.csv'
@@ -84,7 +84,7 @@ for tile in tile_selec:
                 subdir_test_cata_tmp = os.path.join(subdir_test_cata, 'SExtractor')
                 pathlib.Path(subdir_test_cata_tmp).mkdir(parents=True, exist_ok=True)
                 files_tmp = glob.glob(os.path.join(subdir, 'catalogues', 'SExtractor', f'tile{tile}_*'))
-                print('number of SExtractor_KiDS found', len(files_tmp))
+                print('number of SExtractor found', len(files_tmp))
                 for file in files_tmp:
                     if not os.path.exists(os.path.join(subdir_test_cata_tmp, os.path.basename(file))):
                         shutil.copy(file, subdir_test_cata_tmp)
@@ -93,7 +93,9 @@ for tile in tile_selec:
                 subdir_test_ima_tmp = os.path.join(subdir_test_ima, 'original')
                 pathlib.Path(subdir_test_ima_tmp).mkdir(parents=True, exist_ok=True)
                 dir_tmp_list = glob.glob(os.path.join(subdir, 'images', 'original', f'chips_tile{tile}_*'))
-                print('number of images found', len(files_tmp))
+                print('number of images found', len(dir_tmp_list))
                 for dir_tmp in dir_tmp_list:
                     if not os.path.exists(os.path.join(subdir_test_ima_tmp, os.path.basename(dir_tmp))):
                         shutil.copytree(dir_tmp, os.path.join(subdir_test_ima_tmp, os.path.basename(dir_tmp)))
+
+# Elapsed:4:08:07.70,User=192.058,System=1515.111,CPU=11.4%.

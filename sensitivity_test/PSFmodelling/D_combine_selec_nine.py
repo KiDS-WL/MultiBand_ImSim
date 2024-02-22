@@ -2,9 +2,10 @@
 # @Author: lshuns
 # @Date:   2022-07-15 14:11:55
 # @Last Modified by:   lshuns
-# @Last Modified time: 2022-09-05 09:07:29
+# @Last Modified time: 2023-04-10 17:06:15
 
 ### a combined catalogue with selections
+###### following nine-band catalogue selections
 
 import os
 import re
@@ -16,11 +17,10 @@ import pandas as pd
 
 # +++++++++++++++++++++++++++++ general info
 
-# combined_tag = 'combined_PSFmodelling00_321'
 combined_tag = 'combined_PSFmodelling41_321'
 
 # main directory contains all the outputs
-main_dir = '/disks/shear16/ssli/ImSim/output/skills_v07D7_PSFmodelling/'
+main_dir = '/disks/shear16/ssli/ImSim/output/skills_v07D7p1_PSFmodelling/'
 
 # shear and rotation info
 unique_shear_tags = ['m283m283', 'm283p283', 'p283m283', 'p283p283']
@@ -30,14 +30,14 @@ unique_rots = [0., 90.]
 dir_fiducial = '/disks/shear16/ssli/ImSim/output/skills_v07D7/'
 parts = ['part0', 'part1', 'part2', 'part3', 'part4', 'part5']
 # txt file includes wanted columns
-wanted_cols = './columns_photometry.txt'
+wanted_cols = './columns_photometry_nine.txt'
 ## wanted info
 with open(wanted_cols) as f:
     cols_final = f.readlines()
 cols_final = [x.strip() for x in cols_final if x[0]!='#'] 
 
 # out info
-outpath = os.path.join(main_dir, f'skills_v07D7_LF_321_{combined_tag}_noSG_noWeiCut_newCut.feather')
+outpath = os.path.join(main_dir, f'skills_v07D7p1_LF_321_{combined_tag}_noSG_noWeiCut_newCut.feather')
 
 # +++++++++++++++++++++++++++++ workhorse
 
@@ -71,7 +71,6 @@ for shear_tag in unique_shear_tags:
 
         # useful info
         print('working on file', os.path.basename(file))
-        print('>>> cata NUMBER', cata['NUMBER'].values)
         tile_label = re.search(r'tile(.*)_rot', file).group(1)
         gal_rot = float(re.search(r'_rot(\d+)', file).group(1))
 
@@ -87,7 +86,9 @@ for shear_tag in unique_shear_tags:
                 # load the catalogue
                 file = os.path.join(dir_fiducial_part, shear_tag, 'catalogues', f'tile{tile_label}_rot{gal_rot:.0f}_combined_kids_filters.feather')
                 cata0 = pd.read_feather(file)
-                print('>>> cata0 NUMBER', cata0['NUMBER'].values)
+                ### check the order
+                if not np.array_equal(cata['NUMBER'].values, cata0['NUMBER'].values):
+                    raise Exception('the order is different!')
                 ## used columns
                 cata0 = cata0[cols_final]
                 ## combine
@@ -187,11 +188,7 @@ print(f'Total number of source {len(cata_final)}')
 cata_final.to_feather(outpath)
 print('combined cata saved to', outpath)
 
-# Total number of source 13784445
-# combined cata saved to /disks/shear16/ssli/ImSim/output/skills_v07D7_PSFmodelling/skills_v07D7_LF_321_combined_PSFmodelling41_321_noSG_noWeiCut_newCut.feather
-# Elapsed:3:51.34,User=245.977,System=599.627,CPU=365.5%.
-
-# >>> number after fiducial selection 83091
-# >>> number after new selection 69039
-# Total number of source 3253065
-# combined cata saved to /disks/shear16/ssli/ImSim/output/skills_v07D7_PSFmodelling/skills_v07D7_LF_321_kids_filters_PSFmodelling00_noSG_noWeiCut_newCut.feather
+# ...
+# Total number of source 13787117
+# combined cata saved to /disks/shear16/ssli/ImSim/output/skills_v07D7p1_PSFmodelling/skills_v07D7p1_LF_321_combined_PSFmodelling41_321_noSG_noWeiCut_newCut.feather
+# Elapsed:5:07.18,User=247.271,System=721.503,CPU=315.3%.
