@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2023-04-03 09:27:37
 # @Last Modified by:   lshuns
-# @Last Modified time: 2023-05-18 18:31:59
+# @Last Modified time: 2024-02-26 16:53:22
 
 ### calculate the dm between variations and fiducial
 ###### in redshift bins
@@ -32,26 +32,27 @@ wei_col_data = 'weight'
 save_suffix = 'nogold_reweighted'
 
 # the test tags
-# test_labels = ['skills_v07D7_nD', 'skills_v07D7_nU']
+test_labels = ['skills_v07D7_nD', 'skills_v07D7_nU']
 # test_labels = ['skills_v07D7_qD', 'skills_v07D7_qU']
-test_labels = ['skills_v07D7_sizeD', 'skills_v07D7_sizeU']
+# test_labels = ['skills_v07D7_sizeD', 'skills_v07D7_sizeU']
 
 # the test catalogues
-# inpath_test_list = [f'/disks/shear16/ssli/ImSim/output/{test_label}/{test_label}_LF_321_part0_everything_col_flag.feather'
-#                             for test_label in test_labels]
-inpath_test_list = [f'/disks/shear16/ssli/ImSim/output/{test_label}/{test_label}_LF_321_part0_no_134.0_0.5_everything_col_flag.feather'
+inpath_test_list = [f'/disks/shear16/ssli/ImSim/output/{test_label}/{test_label}_LF_321_part0_everything_col_flag.feather'
                             for test_label in test_labels]
+# inpath_test_list = [f'/disks/shear16/ssli/ImSim/output/{test_label}/{test_label}_LF_321_part0_no_134.0_0.5_everything_col_flag.feather'
+#                             for test_label in test_labels]
 
 # the fiducial catalogue
-# inpath_fiducial = '/disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7p1_LF_321_part0_everything_col_flag.feather'
-inpath_fiducial = '/disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7p1_LF_321_part0_no_134.0_0.5_everything_col_flag.feather'
+inpath_fiducial = '/disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7p1_LF_321_part0_everything_col_flag.feather'
+# inpath_fiducial = '/disks/shear16/ssli/ImSim/output/skills_v07D7/skills_v07D7p1_LF_321_part0_no_134.0_0.5_everything_col_flag.feather'
 
 # where to save results
 outDir = './results'
 
 # binning info
 bin_col = 'Z_B'
-bin_edges = [0.1, 0.3, 0.5, 0.7, 0.9, 1.2]
+# bin_edges = [0.1, 0.3, 0.5, 0.7, 0.9, 1.2]
+bin_edges = [0.1, 0.3, 0.5, 0.7, 0.9, 1.2, 2.0]
 
 ############### function
 def _WgQuantile1DFunc(values, weights, Nbin):
