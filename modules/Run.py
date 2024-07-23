@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2023-03-09 14:51:45
+# @Last Modified time: 2024-07-23 14:18:06
 
 ### main module to run the whole pipeline
 
@@ -23,16 +23,17 @@ import multiprocessing as mp
 
 from astropy.table import Table
 
-import BPZ
-import GAaP
-import ImSim
-import PSFmodelling
-import LensFit
 import LoadCata
-import Astromatic
-import CrossMatch
-
 import RunConfigFile
+
+##### these modules will be imported when it is needed
+# import BPZ
+# import GAaP
+# import ImSim
+# import PSFmodelling
+# import LensFit
+# import Astromatic
+# import CrossMatch
 
 if __name__ == "__main__": 
 
@@ -173,6 +174,7 @@ if __name__ == "__main__":
 
     # 1: simulate images
     if ('1' in taskIDs) or ('all' in taskIDs):
+        import ImSim
         logger.info('====== Task 1: simulate images === started ======')
         start_time = time.time()
 
@@ -304,6 +306,7 @@ if __name__ == "__main__":
 
     # 2: swarp images
     if ('2' in taskIDs) or ('all' in taskIDs):
+        import Astromatic
         logger.info('====== Task 2: swarp images === started ======')
         start_time = time.time()
 
@@ -452,6 +455,8 @@ if __name__ == "__main__":
 
     # 3: detect objects
     if ('3' in taskIDs) or ('all' in taskIDs):
+        import Astromatic
+        import CrossMatch
         logger.info('====== Task 3: detect objects === started ======')
         start_time = time.time()
 
@@ -630,6 +635,7 @@ if __name__ == "__main__":
         start_time = time.time()
 
         if configs_dict['MP']['method'].lower() == 'gaap':
+            import GAaP
             logger.info('Use GAaP for photometry measurement.')
 
             ## I/O
@@ -754,6 +760,7 @@ if __name__ == "__main__":
         start_time = time.time()
 
         if configs_dict['MZ']['method'].lower() == 'bpz':
+            import BPZ
             logger.info('Use BPZ for photo-z measurement.')
 
             ## I/O
@@ -829,6 +836,7 @@ if __name__ == "__main__":
 
     # 6_1: PSF modelling
     if ('6_1' in taskIDs) or ('all' in taskIDs):
+        import PSFmodelling
         logger.info('====== Task 6_1: PSF modelling === started ======')
         start_time = time.time()
 
@@ -960,6 +968,7 @@ if __name__ == "__main__":
         detection_band = configs_dict['MS']['detection_band']
 
         if configs_dict['MS']['method'].lower() == 'lensfit':
+            import LensFit
             logger.info('Use lensfit for shape measurement.')
             logger.info('   NOTE: the original lensfit weights need to be globally recalibrated.')
 
