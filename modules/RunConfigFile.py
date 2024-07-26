@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2023-07-20 16:07:22
+# @Last Modified time: 2024-07-25 18:43:09
 
 ### module to generate an example configuration file
 
@@ -293,6 +293,13 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                          'image_label_list': [x.strip() for x in config_swarp.get('image_label_list').split(',')],
                          'only_resamples': [bool(distutils.util.strtobool(x.strip())) for x in config_swarp.get('only_resamples').split(',')],
                          'clean_up_levels': [int(x.strip()) for x in config_swarp.get('clean_up_levels').split(',')]}
+
+        ### the images for swarpping
+        ori_image_label_list = config_swarp.get('ori_image_label_list')
+        if ori_image_label_list is not None:
+            swarp_configs['ori_image_label_list'] = [x.strip() for x in ori_image_label_list.split(',')]
+        else:
+            swarp_configs['ori_image_label_list'] = ['original' for _ in config_swarp.get('image_label_list').split(',')]
 
         ### legitimate check
         if not shutil.which(swarp_configs['cmd']):
@@ -745,7 +752,8 @@ config_files =          coadd_theli.swarp, coadd_aw.swarp\n\
                                                #    in which case, more than one treatments are applied\n\
 bands_group =           [r], [u, g, r, i]      # bands to be swarped\n\
                                                # NOTE: the group corresponding to the same config should be surrounded by `[]`\n\
-image_label_list =      THELI, AW              # name to label the swaped results, one to each group\n\
+ori_image_label_list =  original, original     # name for images to be swarpped\n\
+image_label_list =      THELI, AW              # name to label the swarpped results, one to each group\n\
 only_resamples =        False, False           # set it True if only resampling but not coadding\n\
 clean_up_levels =       0, 0                   # clean up level\n\
                                                #    0: none\n\

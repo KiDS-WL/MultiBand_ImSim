@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2024-07-23 14:18:06
+# @Last Modified time: 2024-07-26 12:04:08
 
 ### main module to run the whole pipeline
 
@@ -311,14 +311,6 @@ if __name__ == "__main__":
         start_time = time.time()
 
         ## I/O
-        in_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], 'original')
-        if configs_dict['imsim']['PSF_map'][0]:
-            in_dir_psf_tmp = os.path.join(in_dir_tmp, 'psf_map')
-        if running_log:
-            log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'SWarp')
-            pathlib.Path(log_dir_tmp).mkdir(parents=True, exist_ok=True)
-        else:
-            log_dir_tmp = None
         ### output directory
         for label_tmp in configs_dict['swarp']['image_label_list']:
             out_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], label_tmp)
@@ -329,6 +321,12 @@ if __name__ == "__main__":
         ### the main tmp directory
         tmp_dir_tmp = os.path.join(configs_dict['work_dirs']['tmp'], 'swarp')
         pathlib.Path(tmp_dir_tmp).mkdir(parents=True, exist_ok=True)
+        ### the running log
+        if running_log:
+            log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'SWarp')
+            pathlib.Path(log_dir_tmp).mkdir(parents=True, exist_ok=True)
+        else:
+            log_dir_tmp = None
 
         ## running
         swarp_cores = 12
@@ -348,6 +346,12 @@ if __name__ == "__main__":
             only_resample = configs_dict['swarp']['only_resamples'][i_group]
 
             clean_up_level_tmp = configs_dict['swarp']['clean_up_levels'][i_group]
+
+            # where to find original images
+            in_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], configs_dict['swarp']['ori_image_label_list'][i_group])
+            if configs_dict['imsim']['PSF_map'][0]:
+                in_dir_psf_tmp = os.path.join(in_dir_tmp, 'psf_map')
+            logger.info(f'  images for swarp: {in_dir_tmp}')
 
             # place to save the final image
             out_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], configs_dict['swarp']['image_label_list'][i_group])
@@ -372,7 +376,6 @@ if __name__ == "__main__":
                             image_in = glob.glob(os.path.join(in_dir_tmp, f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}_expo?.fits'))
                             if not image_in:
                                 ## chips
-                                # image_in = os.path.join(in_dir_tmp, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', '*.fits')
                                 image_in = glob.glob(os.path.join(in_dir_tmp, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}', '*.fits'))
                                 ## avoid weight images
                                 image_in = [tmp for tmp in image_in if '.weight.' not in tmp]
@@ -1015,6 +1018,7 @@ if __name__ == "__main__":
                 WAVEBAND = band.upper()
                 MS_label = configs_dict['MS']['image_label_list'][i_band]
                 in_ima_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], MS_label)
+                logger.info(f'  images for measurements: {in_ima_dir_tmp}')
 
                 for tile_label in tile_labels:
 
