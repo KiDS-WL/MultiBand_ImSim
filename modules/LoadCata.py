@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-01-07 16:24:17
 # @Last modified by:   lshuns
-# @Last modified time: 2021-06-10, 18:17:08
+# @Last modified time: 2025-03-12 09:34:40
 
 ### Everything about input catalogue
 
@@ -345,6 +345,10 @@ def StarInfo(cata_pathfile, primary_band, bands,
 
     # unique id
     index = cata[id_name]
+    ## add 999 to star IDs to distinguish them from galaxies
+    max_scaling = 10 ** (np.floor(np.log10(np.max(index))) + 1).astype(int)
+    index = 999 * max_scaling + index
+    del max_scaling
     Nstar = len(index)
     logger.debug(f'Number of stars {Nstar}')
 

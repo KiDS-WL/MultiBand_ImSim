@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2024-07-26 12:04:08
+# @Last Modified time: 2025-03-12 12:01:58
 
 ### main module to run the whole pipeline
 
@@ -37,7 +37,7 @@ import RunConfigFile
 
 if __name__ == "__main__": 
 
-    __version__ = "MultiBand_ImSim v0.7.1"
+    __version__ = "MultiBand_ImSim v0.7.2"
 
     # ++++++++++++++ parser for command-line interfaces
     parser = argparse.ArgumentParser(
@@ -552,83 +552,93 @@ if __name__ == "__main__":
         for proc in proc_list:
             proc.get()
 
-        ## Mark stars
-        tmp = glob.glob(os.path.join(ori_cata_dir_tmp, f'stars_info_*.feather'))
-        if tmp:
-            if configs_dict['sex']['cross_match']:
-                logger.info('Mask Stars based on input info...')
-
-                for tile_label in tile_labels:
-
-                    if (needed_tile is not None) and (tile_label!=needed_tile):
-                        logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
-                        continue
-
-                    input_cata = pd.read_feather(os.path.join(ori_cata_dir_tmp, f'stars_info_tile{tile_label}.feather'))
-
-                    for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
-
-                        detec_file = os.path.join(out_dir_tmp, f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
-                        detec_cata = pd.read_feather(detec_file)
-
-                        id_list = ['index_input', 'NUMBER']
-                        position_list = [['RA_input', 'DEC_input'], ['X_WORLD', 'Y_WORLD']]
-                        mag_list = [f'{detection_band}_input', 'MAG_AUTO']
-
-                        matched_cata, _, _ = CrossMatch.run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
-                                            outDir=None, basename=None, save_matched=False, save_false=False, save_missed=False,
-                                            r_max=configs_dict['sex']['r_max']/3600., k=4, mag_closest=configs_dict['sex']['mag_closest'], running_info=False,
-                                            useTan=configs_dict['sex']['use_TAN'], pixel_scale=pixel_scale, r_max_pixel=configs_dict['sex']['r_max_pixel'])
-
-                        mask_stars = detec_cata['NUMBER'].isin(matched_cata['id_detec'])
-                        detec_cata.loc[mask_stars, 'perfect_flag_star'] = 1
-                        detec_cata.loc[~mask_stars, 'perfect_flag_star'] = 0
-                        detec_cata = detec_cata.astype({'perfect_flag_star': int})
-                        detec_cata.to_feather(detec_file)
-            else:
-                logger.warning('contain stars but no CrossMatch config, stars will not be flagged!')
-
         ## cross-match with the input catalogue
         if configs_dict['sex']['cross_match']:
-
             logger.info('Cross-match with the input catalogue...')
 
             for tile_label in tile_labels:
-
                 if (needed_tile is not None) and (tile_label!=needed_tile):
                     logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
                     continue
 
-                input_cata = pd.read_feather(os.path.join(ori_cata_dir_tmp, f'gals_info_tile{tile_label}.feather'))
+                ## match stars
+                try:
+                    input_cata = pd.read_feather(os.path.join(ori_cata_dir_tmp, f'stars_info_tile{tile_label}.feather'))
+                    logger.info('Working on stars...')
+                    for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
+                        detec_file = os.path.join(out_dir_tmp, f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
+                        detec_cata = pd.read_feather(detec_file)
+                        # cross-match
+                        basename_cross =  f'tile{tile_label}_rot{gal_rotation_angle:.0f}_stars'
+                        id_list = ['index_input', 'NUMBER']
+                        position_list = [['RA_input', 'DEC_input'], ['X_WORLD', 'Y_WORLD']]
+                        mag_list = [f'{detection_band}_input', 'MAG_AUTO']
+                        matched_cata, _, _ = CrossMatch.run_position2id(input_cata, detec_cata, 
+                                                                        id_list, position_list, mag_list,
+                                                                        outDir=out_dir_cross, 
+                                                                        basename=basename_cross, 
+                                                                        save_matched=configs_dict['sex']['save_matched'], 
+                                                                        save_false=configs_dict['sex']['save_false'], 
+                                                                        save_missed=configs_dict['sex']['save_missed'],
+                                                                        r_max=configs_dict['sex']['r_max']/3600., 
+                                                                        k=4, 
+                                                                        mag_closest=configs_dict['sex']['mag_closest'], 
+                                                                        running_info=True,
+                                                                        useTan=configs_dict['sex']['use_TAN'], 
+                                                                        pixel_scale=pixel_scale, 
+                                                                        r_max_pixel=configs_dict['sex']['r_max_pixel'])
+                        # add star flag
+                        mask_stars = detec_cata['NUMBER'].isin(matched_cata['id_detec'])
+                        del matched_cata
+                        detec_cata.loc[mask_stars, 'perfect_flag_star'] = 1
+                        detec_cata.loc[~mask_stars, 'perfect_flag_star'] = 0
+                        del mask_stars
+                        detec_cata = detec_cata.astype({'perfect_flag_star': int})
+                        detec_cata.to_feather(detec_file)
+                        del detec_cata
+                    del input_cata
 
-                ## magnitude pre-selection
+                except FileNotFoundError:
+                    logger.warning('No input star catalogue found—assuming no stars!')
+
+                ## match galaxies
+                input_cata = pd.read_feather(os.path.join(ori_cata_dir_tmp, f'gals_info_tile{tile_label}.feather'))
+                logger.info('Working on galaxies...')
+                # magnitude pre-selection
                 input_cata = input_cata[input_cata[f'{detection_band}_input']<=configs_dict['sex']['mag_faint_cut']]
                 input_cata.reset_index(drop=True, inplace=True)
-
                 for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
-
                     detec_file = os.path.join(out_dir_tmp, f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
                     detec_cata = pd.read_feather(detec_file)
-
-                    ## select galaxies
+                    # select galaxies
                     try:
                         mask_gals = (detec_cata['perfect_flag_star'] == 0)
                         detec_cata = detec_cata[mask_gals]
+                        del mask_gals
                         detec_cata.reset_index(drop=True, inplace=True)
                     except KeyError:
                         pass
-
-                    # output info
-                    basename_cross =  f'tile{tile_label}_rot{gal_rotation_angle:.0f}'
-
                     # cross-match
+                    basename_cross =  f'tile{tile_label}_rot{gal_rotation_angle:.0f}'
                     id_list = ['index_input', 'NUMBER']
                     position_list = [['RA_input', 'DEC_input'], ['X_WORLD', 'Y_WORLD']]
                     mag_list = [f'{detection_band}_input', 'MAG_AUTO']
-                    _, _, _ = CrossMatch.run_position2id(input_cata, detec_cata, id_list, position_list, mag_list,
-                                        outDir=out_dir_cross, basename=basename_cross, save_matched=configs_dict['sex']['save_matched'], save_false=configs_dict['sex']['save_false'], save_missed=configs_dict['sex']['save_missed'],
-                                        r_max=configs_dict['sex']['r_max']/3600., k=4, mag_closest=configs_dict['sex']['mag_closest'], running_info=True,
-                                        useTan=configs_dict['sex']['use_TAN'], pixel_scale=pixel_scale, r_max_pixel=configs_dict['sex']['r_max_pixel'])
+                    _, _, _ = CrossMatch.run_position2id(input_cata, detec_cata, 
+                                                         id_list, position_list, mag_list,
+                                                         outDir=out_dir_cross, 
+                                                         basename=basename_cross, 
+                                                         save_matched=configs_dict['sex']['save_matched'], 
+                                                         save_false=configs_dict['sex']['save_false'], 
+                                                         save_missed=configs_dict['sex']['save_missed'],
+                                                         r_max=configs_dict['sex']['r_max']/3600., 
+                                                         k=4, 
+                                                         mag_closest=configs_dict['sex']['mag_closest'], 
+                                                         running_info=True,
+                                                         useTan=configs_dict['sex']['use_TAN'], 
+                                                         pixel_scale=pixel_scale, 
+                                                         r_max_pixel=configs_dict['sex']['r_max_pixel'])
+                    del detec_cata
+                del input_cata
 
         logger.info(f'====== Task 3: detect objects === finished in {(time.time()-start_time)/3600.} h ======')
 
@@ -1110,19 +1120,38 @@ if __name__ == "__main__":
                 # CrossMatch
                 infile_tmp = os.path.join(out_dir_cross, f'tile{tile_label}_rot{gal_rotation_angle:.0f}_matched.feather')
                 if os.path.isfile(infile_tmp):
+                    ## combine CrossMatch and input for galaxies 
                     tmp_info = pd.read_feather(infile_tmp)
-                    data_final = data_final.merge(tmp_info, left_on='NUMBER', right_on='id_detec', how='left')
-                    data_final.drop(columns=['id_detec'], inplace=True)
-
-                    ## input info
+                    ### input info
                     infile_tmp = os.path.join(out_dir_input, f'gals_info_tile{tile_label}.feather')
-                    tmp_info = pd.read_feather(infile_tmp)
-                    ### rename
-                    tmp_info.rename(columns={f'e1_input_rot{int(gal_rotation_angle)}': 'e1_input', f'e2_input_rot{int(gal_rotation_angle)}': 'e2_input'}, inplace=True)
-                    tmp_info.drop(columns=[s for s in tmp_info.columns if ("e1_input_" in s) or ("e2_input_" in s)], inplace=True)
-                    ### merge
-                    data_final = data_final.merge(tmp_info, left_on='id_input', right_on='index_input', how='left')
-                    data_final.drop(columns=['index_input'], inplace=True)
+                    tmp_input = pd.read_feather(infile_tmp)
+                    #### pick and rename the input e
+                    tmp_input.rename(columns={f'e1_input_rot{int(gal_rotation_angle)}': 'e1_input', f'e2_input_rot{int(gal_rotation_angle)}': 'e2_input'}, inplace=True)
+                    tmp_input.drop(columns=[s for s in tmp_input.columns if ("e1_input_" in s) or ("e2_input_" in s)], inplace=True)
+                    #### merge
+                    tmp_info = tmp_info.merge(tmp_input, left_on='id_input', right_on='index_input', how='left')
+                    del tmp_input
+
+                    ## combine CrossMatch and input for stars 
+                    infile_tmp = os.path.join(out_dir_cross, f'tile{tile_label}_rot{gal_rotation_angle:.0f}_stars_matched.feather')
+                    if os.path.isfile(infile_tmp):
+                        tmp_info_stars = pd.read_feather(infile_tmp)
+                        ## input info
+                        infile_tmp = os.path.join(out_dir_input, f'stars_info_tile{tile_label}.feather')
+                        tmp_input = pd.read_feather(infile_tmp)
+                        ### merge
+                        tmp_info_stars = tmp_info_stars.merge(tmp_input, left_on='id_input', right_on='index_input', how='left')
+                        del tmp_input
+                        tmp_info = pd.concat([tmp_info, tmp_info_stars])
+                        del tmp_info_stars
+                    else:
+                        logger.warning('No star CrossMatch found—assuming no stars!')
+
+                    ## combine with detections
+                    data_final = data_final.merge(tmp_info, left_on='NUMBER', right_on='id_detec', how='left')
+                    del tmp_info
+                    data_final.drop(columns=['id_detec', 'index_input'], inplace=True)
+
                 else:
                     logger.warning('CrossMatch is not performed, the final catalogue will not contain input info.')
 
