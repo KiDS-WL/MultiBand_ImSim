@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-03-12 12:01:58
+# @Last Modified time: 2025-03-12 13:46:02
 
 ### main module to run the whole pipeline
 
@@ -321,12 +321,6 @@ if __name__ == "__main__":
         ### the main tmp directory
         tmp_dir_tmp = os.path.join(configs_dict['work_dirs']['tmp'], 'swarp')
         pathlib.Path(tmp_dir_tmp).mkdir(parents=True, exist_ok=True)
-        ### the running log
-        if running_log:
-            log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'SWarp')
-            pathlib.Path(log_dir_tmp).mkdir(parents=True, exist_ok=True)
-        else:
-            log_dir_tmp = None
 
         ## running
         swarp_cores = 12
@@ -357,6 +351,13 @@ if __name__ == "__main__":
             out_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], configs_dict['swarp']['image_label_list'][i_group])
             if configs_dict['imsim']['PSF_map'][0]:
                 out_dir_psf_tmp =  os.path.join(out_dir_tmp, 'psf_map')
+
+            # place to save the running log  
+            if running_log:
+                log_dir_tmp = os.path.join(configs_dict['work_dirs']['log'], 'SWarp', configs_dict['swarp']['image_label_list'][i_group])
+                pathlib.Path(log_dir_tmp).mkdir(parents=True, exist_ok=True)
+            else:
+                log_dir_tmp = None
 
             for tile_label in tile_labels:
 
