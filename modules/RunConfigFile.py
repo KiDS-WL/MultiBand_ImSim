@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2024-07-25 18:43:09
+# @Last Modified time: 2025-07-31 15:39:41
 
 ### module to generate an example configuration file
 
@@ -148,6 +148,22 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
         imsim_configs['simple_area'] = True
     else:
         imsim_configs['simple_area'] = simple_area
+
+    ### how to cut the sky
+    simple_cut = config_imsim.getboolean('simple_cut')
+    if simple_cut is None:
+        ## old code is using the simple way
+        imsim_configs['simple_cut'] = True
+    else:
+        imsim_configs['simple_cut'] = simple_cut
+
+    ### how to perform transformations
+    simple_camera = config_imsim.getboolean('simple_camera')
+    if simple_camera is None:
+        ## old code is using the simple way
+        imsim_configs['simple_camera'] = True
+    else:
+        imsim_configs['simple_camera'] = simple_camera
 
     ### collect
     configs_dict['imsim'] = imsim_configs
@@ -741,6 +757,12 @@ mag_zero =              30                     # simulated magnitude zero point\
 simple_area =           False                  # calculate the sky area using \n\
                                                # simple Euclidean geometry (True)\n\
                                                # proper Spherical geometry (False), recommended for |dec|>5\n\
+simple_cut =            True                   # cut the input sky to tiles using \n\
+                                               # simple fixed tile area (True)\n\
+                                               # properly varying tile area (False), recommended for |dec|>10\n\
+simple_camera =         True                   # Camera layout using \n\
+                                               # simple transformations without FoV distortion across chips (True)\n\
+                                               # properly transformations (False), recommended for |dec|>10\n\
 \n\n\
 ################################## SWarp ###################################################\n\
 [SWarp]\n\n\

@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:25:05
 # @Last Modified by:   lshuns
-# @Last Modified time: 2023-02-09 16:02:50
+# @Last Modified time: 2025-07-31 17:49:57
 
 ### Everything about KiDS-like images
 __all__ = ['_PSFNoisySkyImages_KiDS_sameExpo', '_PSFNoisySkyImages_KiDS_singleExpo', '_PSFNoisySkyImages_KiDS_varChips']
@@ -25,8 +25,6 @@ import galsim
 import logging
 
 import numpy as np
-import pandas as pd
-
 from astropy.io import fits
 
 logger = logging.getLogger(__name__)
@@ -48,7 +46,8 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         save_image_chips, save_image_PSF, image_PSF_size,
         outpath_dir,
         gal_position_type,
-        g_const) = para_list
+        g_const,
+        SimpleCam) = para_list
 
     logger.info(f'Simulating KiDS_sameExpo image for tile {tile_label} band {band} rot {gal_rotation_angle}...')
 
@@ -315,7 +314,8 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         outpath_dir,
         id_exposure,
         gal_position_type,
-        g_const) = para_list
+        g_const,
+        SimpleCam) = para_list
 
     logger.info(f'Simulating KiDS exposure for tile {tile_label} band {band} expo {id_exposure} rot {gal_rotation_angle}...')
 
@@ -447,7 +447,7 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
             DEC_gals = np.hstack([DEC_gals, gals_info_band[1]['DEC'].values])
         RA0 = (np.amax(RA_gals) + np.amin(RA_gals))/2.
         DEC0 = (np.amax(DEC_gals) + np.amin(DEC_gals))/2.
-        canvases_list = KiDSModule.getKiDScanvases(RA0, DEC0, id_exposure=id_exposure)
+        canvases_list = KiDSModule.getKiDScanvases(RA0, DEC0, SimpleCam, id_exposure=id_exposure)
         del RA_gals, DEC_gals, RA0, DEC0
 
         # all desired images
@@ -515,7 +515,8 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
         outpath_dir,
         id_exposure,
         gal_position_type,
-        g_const) = para_list
+        g_const,
+        SimpleCam) = para_list
     logger.info(f'Simulating KiDS exposure with varChips for tile {tile_label} band {band} expo {id_exposure} rot {gal_rotation_angle}...')
 
     # PSF profiles
@@ -647,7 +648,7 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
             DEC_gals = np.hstack([DEC_gals, gals_info_band[1]['DEC'].values])
         RA0 = (np.amax(RA_gals) + np.amin(RA_gals))/2.
         DEC0 = (np.amax(DEC_gals) + np.amin(DEC_gals))/2.
-        canvases_list = KiDSModule.getKiDScanvases(RA0, DEC0, id_exposure=id_exposure)
+        canvases_list = KiDSModule.getKiDScanvases(RA0, DEC0, SimpleCam, id_exposure=id_exposure)
         del RA_gals, DEC_gals, RA0, DEC0
 
         # all desired images

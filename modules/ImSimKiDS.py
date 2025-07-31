@@ -2,14 +2,13 @@
 # @Author: lshuns
 # @Date:   2020-11-30 16:54:44
 # @Last modified by:   lshuns
-# @Last modified time: 2021-06-09, 17:37:40
+# @Last modified time: 2025-07-31 17:48:31
 
 ### Everything about KiDS observations (instrumental setup & data acquisition procedure)
 ###### reference: https://www.eso.org/sci/facilities/paranal/instruments/omegacam/doc/VST-MAN-OCM-23100-3110_p107_v2.pdf
 
 import math
 import galsim
-import numpy as np
 
 # some OmegaCAM values
 Pixel_scale = 0.214/3600. # degree
@@ -31,7 +30,7 @@ Dither_y_pix = 85./0.214 # pix # dither step along dec
 Dither_x_arcsec = 25. # arcsec # dither step along RA
 Dither_y_arcsec = 85. # arcsec # dither step along dec
 
-def getKiDScanvases(RA0, DEC0, id_exposure=0):
+def getKiDScanvases(RA0, DEC0, SimpleCam, id_exposure=0):
     """
     Build a bunch of canvases mimicking OmegaCAM chips
 
@@ -41,6 +40,8 @@ def getKiDScanvases(RA0, DEC0, id_exposure=0):
         The original RA for the reference pixel
     DEC0: float
         The original DEC for the reference pixel
+    SimpleCam: bool
+        Use the simple camera and sky relation (True) or with proper FoV distortion (False)
     id_exposure: int, optional (default: 0)
         ID for exposure (start with 0)
 
@@ -50,48 +51,79 @@ def getKiDScanvases(RA0, DEC0, id_exposure=0):
         a list of canvases mimicking OmegaCAM chips
     """
 
-    # center value shifted due to dither step
+    # Centre value shifted due to dither step
     RA0 -= (id_exposure-2)*(Dither_x_arcsec/3600.)
     DEC0 -= (id_exposure-2)*(Dither_y_arcsec/3600.)
 
-    # transfer to the center value for the first chip
-    RA0 -= (Npix_x/2.-Npix_chip_x/2.)*Pixel_scale
-    DEC0 -= (Npix_y/2.-Npix_chip_y/2.)*Pixel_scale
-
-    # bounds for each CCD
-    bounds = galsim.BoundsI(xmin=0, xmax=Npix_chip_x-1, ymin=0, ymax=Npix_chip_y-1)
-    ## use the center pixel as the reference pixel in image
-    origin_ima = galsim.PositionI(x=math.floor(Npix_chip_x/2.), y=math.floor(Npix_chip_y/2.))
+    # Chip bounds (same for all)
+    bounds = galsim.BoundsI(xmin=0, xmax=Npix_chip_x-1, 
+                            ymin=0, ymax=Npix_chip_y-1)
 
     # Linear projection matrix for wcs
     dudx = Pixel_scale # degree
     dudy = 0.
     dvdx = 0.
     dvdy = Pixel_scale # degree
-    wcs_affine = galsim.AffineTransform(dudx, dudy, dvdx, dvdy, origin=origin_ima)
 
-    # loop over all chips
     canvases_list = []
-    for i_chip_x in range(Nchips_x):
-        for i_chip_y in range(Nchips_y):
-
-            ## Reference point in wcs
-            RA0_tmp = RA0 + i_chip_x*(Npix_chip_x+GAP_x)*Pixel_scale
-            DEC0_tmp = DEC0 + i_chip_y*Npix_chip_y*Pixel_scale
-            ### gaps in y axis
-            if i_chip_y >= 1:
-                DEC0_tmp += GAP_y_wide*Pixel_scale
-            if i_chip_y >= 2:
-                DEC0_tmp += GAP_y_narrow*Pixel_scale
-            if i_chip_y >= 3:
-                DEC0_tmp += GAP_y_wide*Pixel_scale
-            world_origin = galsim.CelestialCoord(ra=RA0_tmp*galsim.degrees, dec=DEC0_tmp*galsim.degrees)
-
-            ## build the wcs
-            wcs = galsim.TanWCS(wcs_affine, world_origin, units=galsim.degrees)
-
-            ## build the canvas
-            canvases_list.append(galsim.ImageF(bounds=bounds, wcs=wcs))
+    if SimpleCam:
+        ## Shift sky coordinates
+        # Chip image centre
+        chip_centre = galsim.PositionI(x=math.floor(Npix_chip_x/2.), 
+                                       y=math.floor(Npix_chip_y/2.))
+        # Sky centre for the first chip
+        RA0_first_chip = RA0 - (Npix_x/2.-Npix_chip_x/2.)*Pixel_scale
+        DEC0_first_chip = DEC0 - (Npix_y/2.-Npix_chip_y/2.)*Pixel_scale
+        # loop over all chips
+        for i_chip_x in range(Nchips_x):
+            for i_chip_y in range(Nchips_y):
+                ## Sky centre for the chip
+                RA0_tmp = RA0_first_chip + i_chip_x*(Npix_chip_x+GAP_x)*Pixel_scale
+                DEC0_tmp = DEC0_first_chip + i_chip_y*Npix_chip_y*Pixel_scale
+                ### gaps in y axis
+                if i_chip_y >= 1:
+                    DEC0_tmp += GAP_y_wide*Pixel_scale
+                if i_chip_y >= 2:
+                    DEC0_tmp += GAP_y_narrow*Pixel_scale
+                if i_chip_y >= 3:
+                    DEC0_tmp += GAP_y_wide*Pixel_scale
+                world_origin = galsim.CelestialCoord(ra=RA0_tmp*galsim.degrees, 
+                                                     dec=DEC0_tmp*galsim.degrees)
+                ## build the wcs
+                wcs_affine = galsim.AffineTransform(dudx, dudy, dvdx, dvdy, 
+                                                    origin=chip_centre)
+                wcs = galsim.TanWCS(wcs_affine, world_origin, units=galsim.degrees)
+                ## build the canvas
+                canvases_list.append(galsim.ImageF(bounds=bounds, wcs=wcs))
+    else:
+        ## Shift image coordinates
+        # Sky origin corresponding to the tile centre
+        world_origin = galsim.CelestialCoord(ra=RA0 * galsim.degrees, 
+                                             dec=DEC0 * galsim.degrees)
+        # Image centre for the first chip
+        x0_first_chip = Npix_chip_x - Npix_x/2.
+        y0_first_chip = Npix_chip_y - Npix_y/2.
+        # loop over all chips
+        for i_chip_x in range(Nchips_x):
+            for i_chip_y in range(Nchips_y):
+                ## Image centre for the chip
+                x0 = x0_first_chip + i_chip_x * (Npix_chip_x + GAP_x)
+                y0 = y0_first_chip + i_chip_y * Npix_chip_y
+                ### gaps in y axis
+                if i_chip_y >= 1:
+                    y0 += GAP_y_wide
+                if i_chip_y >= 2:
+                    y0 += GAP_y_narrow
+                if i_chip_y >= 3:
+                    y0 += GAP_y_wide
+                chip_centre = galsim.PositionI(x=math.floor(x0), 
+                                            y=math.floor(y0))
+                ## build the wcs
+                wcs_affine = galsim.AffineTransform(dudx, dudy, dvdx, dvdy, 
+                                                    origin=chip_centre)
+                wcs = galsim.TanWCS(wcs_affine, world_origin, units=galsim.degrees)
+                ## build the canvas
+                canvases_list.append(galsim.ImageF(bounds=bounds, wcs=wcs))
 
     return canvases_list
 

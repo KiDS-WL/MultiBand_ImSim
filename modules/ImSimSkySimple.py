@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:34:12
 # @Last Modified by:   lshuns
-# @Last Modified time: 2023-02-09 16:03:13
+# @Last Modified time: 2025-07-31 17:50:46
 
 ### Everything about simple images
 __all__ = ['_PSFNoisySkyImages_simple']
@@ -16,11 +16,9 @@ import ImSimObject as ObjModule
 import ImSimNoiseBackground as NoiseModule
 
 import os
-import galsim
 import logging
 
 import numpy as np
-
 from astropy.io import fits
 
 logger = logging.getLogger(__name__)
@@ -41,7 +39,8 @@ def _PSFNoisySkyImages_simple(para_list):
         save_image_chips, save_image_PSF, image_PSF_size,
         outpath_dir,
         gal_position_type,
-        g_const) = para_list
+        g_const,
+        SimpleCam) = para_list
 
     logger.info(f'Simulating simple image for tile {tile_label} band {band} rot {gal_rotation_angle}...')
 
@@ -152,7 +151,7 @@ def _PSFNoisySkyImages_simple(para_list):
                         pixelPSF=psf_pixel)
 
         ## noise background
-        image_PSF_rot.addNoise(noise)
+        image_PSF.addNoise(noise)
 
         ## save
         image_PSF.write(outpath_PSF_name)

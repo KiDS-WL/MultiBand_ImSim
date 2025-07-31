@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-03-12 13:46:02
+# @Last Modified time: 2025-07-31 15:31:43
 
 ### main module to run the whole pipeline
 
@@ -37,7 +37,7 @@ import RunConfigFile
 
 if __name__ == "__main__": 
 
-    __version__ = "MultiBand_ImSim v0.7.2"
+    __version__ = "MultiBand_ImSim v0.7.3"
 
     # ++++++++++++++ parser for command-line interfaces
     parser = argparse.ArgumentParser(
@@ -299,6 +299,8 @@ if __name__ == "__main__":
                                                 image_chips=configs_dict['imsim']['image_chips'], image_PSF=[configs_dict['imsim']['image_PSF'], configs_dict['imsim']['image_PSF_size']],
                                                 psf_type_list=configs_dict['noise']['psf_type_list'],
                                                 CalSimpleArea=configs_dict['imsim']['simple_area'],
+                                                SimpleCut=configs_dict['imsim']['simple_cut'],
+                                                SimpleCam=configs_dict['imsim']['simple_camera'],
                                                 needed_tile=needed_tile)
         del noise_info, gals_info, stars_info
 
