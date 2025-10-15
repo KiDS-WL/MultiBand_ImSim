@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-07-31 17:24:38
+# @Last Modified time: 2025-10-14 17:32:10
 
 ### running module for ImSim
 
@@ -195,7 +195,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
             # rng seed associated with tile labels
             rng_seed_tile = rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=int).sum()*54
-            rng_seed_list.append(rng_seed_tile)
+            rng_seed_list.append(int(rng_seed_tile))
 
             ## output noise info
             outpath_tmp = os.path.join(outcata_dir, f'noise_info_tile{tile_label}.csv')
@@ -253,7 +253,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                 X_gals = X_gals.flatten()
                 Y_gals = Y_gals.flatten()
                 # random order to avoid systematic patterns
-                random.seed(rng_seed_tile)
+                random.seed(int(rng_seed_tile))
                 index_selected = random.sample(range(len(X_gals)), Ngal)
                 ### over-write
                 gals_info_selec[0].loc[:, 'RA'] = X_gals[index_selected][:Ngal0]
@@ -274,9 +274,9 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                     Ngal = Ngal0
 
                 ### random sample positions
-                np.random.seed(rng_seed_tile * 11)
+                np.random.seed(int(rng_seed_tile * 11))
                 RA_random = np.random.uniform(low=ra_min, high=ra_max, size=Ngal)
-                np.random.seed(rng_seed_tile * 62)
+                np.random.seed(int(rng_seed_tile * 62))
                 DEC_random = np.random.uniform(low=dec_min, high=dec_max, size=Ngal)
                 ###### assign
                 gals_info_selec[0].loc[:, 'RA'] = RA_random[:Ngal0]
@@ -327,16 +327,16 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
                 if star_position_type == 'random':
                     ## randomly select stars
-                    random.seed(rng_seed_tile)
+                    random.seed(int(rng_seed_tile))
                     mask_star = random.sample(range(len(stars_info)), Nstar_even)
                     stars_info_selec = stars_info.iloc[mask_star].copy()
                     stars_info_selec.reset_index(drop=True, inplace=True)
                     del mask_star
 
                     ## randomly place stars
-                    np.random.seed(rng_seed_tile * 90)
+                    np.random.seed(int(rng_seed_tile * 90))
                     stars_info_selec.loc[:, 'RA'] = np.random.uniform(low=ra_min, high=ra_max, size=Nstar_even)
-                    np.random.seed(rng_seed_tile * 63)
+                    np.random.seed(int(rng_seed_tile * 63))
                     stars_info_selec.loc[:, 'DEC'] = np.random.uniform(low=dec_min, high=dec_max, size=Nstar_even)
 
                 elif star_position_type == 'true':
@@ -451,7 +451,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
             # rng seed associated with tile labels
             rng_seed_tile = rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=int).sum()*54
-            rng_seed_list.append(rng_seed_tile)
+            rng_seed_list.append(int(rng_seed_tile))
 
             ## output noise info
             outpath_tmp = os.path.join(outcata_dir, f'noise_info_tile{tile_label}.csv')
@@ -497,7 +497,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                 X_gals = X_gals.flatten()
                 Y_gals = Y_gals.flatten()
                 # random order to avoid systematic patterns
-                random.seed(rng_seed_tile)
+                random.seed(int(rng_seed_tile))
                 index_selected = random.sample(range(len(X_gals)), Ngal)
                 ### over-write
                 gals_info_selec[0].loc[:, 'RA'] = X_gals[index_selected][:Ngal0]
@@ -518,9 +518,9 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                     Ngal = Ngal0
 
                 ### random sample positions
-                np.random.seed(rng_seed_tile * 11)
+                np.random.seed(int(rng_seed_tile * 11))
                 RA_random = np.random.uniform(low=ra_min, high=ra_max, size=Ngal)
-                np.random.seed(rng_seed_tile * 62)
+                np.random.seed(int(rng_seed_tile * 62))
                 DEC_random = np.random.uniform(low=dec_min, high=dec_max, size=Ngal)
                 ###### assign
                 gals_info_selec[0].loc[:, 'RA'] = RA_random[:Ngal0]
@@ -572,16 +572,16 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
  
                 if star_position_type == 'random':
                     ## randomly select stars
-                    random.seed(rng_seed_tile)
+                    random.seed(int(rng_seed_tile))
                     mask_star = random.sample(range(len(stars_info)), Nstar_even)
                     stars_info_selec = stars_info.iloc[mask_star].copy()
                     stars_info_selec.reset_index(drop=True, inplace=True)
                     del mask_star
 
                     ## randomly place stars
-                    np.random.seed(rng_seed_tile * 90)
+                    np.random.seed(int(rng_seed_tile * 90))
                     stars_info_selec.loc[:, 'RA'] = np.random.uniform(low=ra_min, high=ra_max, size=Nstar_even)
-                    np.random.seed(rng_seed_tile * 63)
+                    np.random.seed(int(rng_seed_tile * 63))
                     stars_info_selec.loc[:, 'DEC'] = np.random.uniform(low=dec_min, high=dec_max, size=Nstar_even)
 
                 elif star_position_type == 'true':
@@ -658,7 +658,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
         for i_band, band in enumerate(bands):
 
-            rng_seed_band = rng_seed_tile + i_band
+            rng_seed_band = int(rng_seed_tile + i_band)
 
             pixel_scale = pixel_scale_list[i_band]
             image_type = image_type_list[i_band]
