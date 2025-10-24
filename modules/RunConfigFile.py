@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-07-31 15:39:41
+# @Last Modified time: 2025-10-24 12:33:51
 
 ### module to generate an example configuration file
 
@@ -360,6 +360,10 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             sex_configs['save_missed'] = config_cross.getboolean('save_missed')
             sex_configs['mag_closest'] = config_cross.getboolean('mag_closest')
             sex_configs['r_max'] = config_cross.getfloat('r_max')
+
+            ### legitimate check
+            if sex_configs['mag_faint_cut'] > imsim_configs['casual_mag']:
+                raise Exception("mag_faint_cut has to be brighter than the casual_mag!")
 
             ### match with TAN projection
             use_TAN = config_cross.getboolean('use_TAN')
