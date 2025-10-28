@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-01-07 16:24:17
 # @Last modified by:   lshuns
-# @Last modified time: 2025-03-12 09:34:40
+# @Last modified time: 2025-10-28 12:10:41
 
 ### Everything about input catalogue
 
@@ -168,19 +168,35 @@ def GalInfo(cata_pathfile, primary_band, bands,
         z_gals = np.full(Ngal, -999)
 
     # collect all information to dataframe
-    data = [np.array(index).astype(int), np.array(X_gals).astype(float), np.array(Y_gals).astype(float), np.array(z_gals).astype(float),
-                np.array(sersic_n).astype(float), np.array(Re).astype(float), np.array(axis_ratios).astype(float), np.array(position_angles).astype(float),
-                np.array(bulge_fractions).astype(float), np.array(bulge_Re).astype(float), np.array(bulge_axis_ratios).astype(float), np.array(bulge_n).astype(float),
-                np.array(disk_Re).astype(float), np.array(disk_axis_ratios).astype(float)] + mag_list
-    data = np.transpose(data)
-    name = ['index','RA','DEC','redshift',
-                'sersic_n','Re','axis_ratio','position_angle',
-                'bulge_fraction','bulge_Re','bulge_axis_ratio','bulge_n',
-                'disk_Re','disk_axis_ratio'] + bands
+    gals_info = pd.DataFrame({
+        'index': np.array(index).astype(int),
+        'RA': np.array(X_gals).astype(float),
+        'DEC': np.array(Y_gals).astype(float),
+        'redshift': np.array(z_gals).astype(float),
+        'sersic_n': np.array(sersic_n).astype(float),
+        'Re': np.array(Re).astype(float),
+        'axis_ratio': np.array(axis_ratios).astype(float),
+        'position_angle': np.array(position_angles).astype(float),
+        'bulge_fraction': np.array(bulge_fractions).astype(float),
+        'bulge_Re': np.array(bulge_Re).astype(float),
+        'bulge_axis_ratio': np.array(bulge_axis_ratios).astype(float),
+        'bulge_n': np.array(bulge_n).astype(float),
+        'disk_Re': np.array(disk_Re).astype(float),
+        'disk_axis_ratio': np.array(disk_axis_ratios).astype(float)
+    })
+    del index, X_gals, Y_gals, z_gals, 
+    del sersic_n, Re, axis_ratios, position_angles, 
+    del bulge_fractions, bulge_Re, bulge_axis_ratios, bulge_n, 
+    del disk_Re, disk_axis_ratios
+    ## magnitudes
+    band_names = bands
     if primary_band not in bands:
-        name += [primary_band]
-    gals_info = pd.DataFrame(data=data, columns=name)
-    gals_info = gals_info.astype({'index': int})
+        band_names += [primary_band]
+    gals_mag = pd.DataFrame(data=np.column_stack(mag_list), 
+                            columns=band_names)
+    del mag_list
+    gals_info = pd.concat([gals_info, gals_mag], axis=1)
+    del gals_mag
 
     # input shear if provided
     if g_columns is not None:
