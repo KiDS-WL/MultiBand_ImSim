@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-10-27 14:13:40
+# @Last Modified time: 2025-10-27 17:21:17
 
 ### running module for ImSim
 
@@ -539,7 +539,10 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                     raise Exception(f'Unsupported gal_position_type: {gal_position_type[0]} !')
 
             ## output galaxies info
-            output_col_tmp = ['index', 'RA', 'DEC', 'redshift', 'Re', 'axis_ratio', 'position_angle', 'sersic_n'] + bands
+            output_col_tmp = ['index', 'RA', 'DEC', 'redshift', 'position_angle',
+                              'Re', 'axis_ratio', 'sersic_n',
+                              'bulge_fraction', 'bulge_Re', 'bulge_axis_ratio', 'bulge_n',
+                              'disk_Re','disk_axis_ratio'] + bands
             if not g_const:
                 output_col_tmp += ['gamma1', 'gamma2']
             output_tmp = gals_info_selec[0][output_col_tmp].copy()
@@ -548,13 +551,14 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                 ignore_index=True)
             ### better naming
             output_tmp = output_tmp.add_suffix(f'_input')
-            ### add ellipticity based on q and beta
-            g_tmp = (1-output_tmp['axis_ratio_input'])/(1+output_tmp['axis_ratio_input'])
-            for gal_rotation_angle in gal_rotation_angles:
-                true_pa_tmp = output_tmp['position_angle_input'] + gal_rotation_angle
-                output_tmp.loc[:, f'e1_input_rot{int(gal_rotation_angle)}'] = g_tmp * np.cos(2. * (true_pa_tmp/180.*np.pi))
-                output_tmp.loc[:, f'e2_input_rot{int(gal_rotation_angle)}'] = g_tmp * np.sin(2. * (true_pa_tmp/180.*np.pi))
-            del g_tmp, true_pa_tmp
+            ### add ellipticity based on q and beta if it is single sersic profile
+            if int(output_tmp['axis_ratio_input'][0])!=-999:
+                g_tmp = (1-output_tmp['axis_ratio_input'])/(1+output_tmp['axis_ratio_input'])
+                for gal_rotation_angle in gal_rotation_angles:
+                    true_pa_tmp = output_tmp['position_angle_input'] + gal_rotation_angle
+                    output_tmp.loc[:, f'e1_input_rot{int(gal_rotation_angle)}'] = g_tmp * np.cos(2. * (true_pa_tmp/180.*np.pi))
+                    output_tmp.loc[:, f'e2_input_rot{int(gal_rotation_angle)}'] = g_tmp * np.sin(2. * (true_pa_tmp/180.*np.pi))
+                del g_tmp, true_pa_tmp
             ### save
             outpath_tmp = os.path.join(outcata_dir, f'gals_info_tile{tile_label}.feather')
             output_tmp.to_feather(outpath_tmp)
