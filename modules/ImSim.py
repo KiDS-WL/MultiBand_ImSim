@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-10-27 17:21:17
+# @Last Modified time: 2025-11-17 10:42:31
 
 ### running module for ImSim
 
@@ -159,18 +159,15 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
     # The old simple fixed cut
     if SimpleCut:
-        # check if the total area is enough for one tile
-        if (area_ra0 < area_ra) or (area_dec0 < area_dec):
-            logger.warning(f'Input galaxy catalogue is not enough for producing one tile.\n\
-            Use the whole input catalogue.\n\
+        # check if the shape of the input catalogue is fit for chopping
+        if (area_ra0+0.01 < area_ra) or (area_dec0+0.01 < area_dec):
+            logger.error(f'Input galaxy catalogue is not good for cut, use one_tile!!!\n\
             dRA_tile={area_ra}, dRA_cata={area_ra0}; dDEC_tile={area_dec}, dDEC_cata={area_dec0}')
-            area_ra = area_ra0
-            area_dec = area_dec0
-
+            raise Exception('Input galaxy catalogue is not good for cut!!!')
         # number of tiles along RA direction
-        N_ra = int(area_ra0/area_ra)
+        N_ra = round(area_ra0/area_ra)
         # number along dec direction
-        N_dec = int(area_dec0/area_dec)
+        N_dec = round(area_dec0/area_dec)
         # check if the total area is enough for chopping
         if (N_ra*N_dec) < N_tiles:
             logger.warning(f'Input galaxy catalogue is not enough for required number of tiles: {N_ra}*{N_dec}<{N_tiles}')
