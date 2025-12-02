@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-07-31 15:31:43
+# @Last Modified time: 2025-12-02 15:34:07
 
 ### main module to run the whole pipeline
 
@@ -37,7 +37,7 @@ import RunConfigFile
 
 if __name__ == "__main__": 
 
-    __version__ = "MultiBand_ImSim v0.7.3"
+    __version__ = "MultiBand_ImSim v0.8.0"
 
     # ++++++++++++++ parser for command-line interfaces
     parser = argparse.ArgumentParser(
@@ -1071,10 +1071,147 @@ if __name__ == "__main__":
             for proc in proc_list:
                 proc.get()
 
-        ## clean tmp
-        if configs_dict['MS']['clean_up_level'] >= 1:
-            shutil.rmtree(tmp_dir_tmp)
-            logger.info(f'{tmp_dir_tmp} removed.')
+        elif configs_dict['MS']['method'].lower() == 'ams':
+            import HSM
+            logger.info('Use FindAdaptiveMom for shape measurement.')
+            logger.info('   NOTE: FindAdaptiveMom does not correct PSF.')
+
+            ## I/O
+            in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], detect_foler)
+            out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], shapes_folder)
+            pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
+
+            ## save one core for safety
+            ams_cores = Nmax_proc - 1
+            logger.info(f'Number of processes for FindAdaptiveMom: {ams_cores}')
+            ## start running
+            for i_band, band in enumerate(configs_dict['MS']['bands']):
+                logger.info(f'Measure shapes for band {band}...')
+
+                MS_label = configs_dict['MS']['image_label_list'][i_band]
+                in_ima_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], MS_label)
+                logger.info(f'  images for measurements: {in_ima_dir_tmp}')
+
+                in_seg_dir_tmp = os.path.join(in_ima_dir_tmp, 'SEGMENTATION')
+
+                for tile_label in tile_labels:
+                    if (needed_tile is not None) and (tile_label!=needed_tile):
+                        logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                        continue
+
+                    for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
+
+                        # output
+                        outpath_feather = os.path.join(out_dir_tmp, 
+                                                       f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.feather')
+
+                        # detection catalogue
+                        inpath_detection = os.path.join(in_cata_dir_tmp, 
+                                                       f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
+
+                        # images
+                        inpath_image = os.path.join(in_ima_dir_tmp, 
+                                                  f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
+
+                        # segmentation
+                        inpath_seg_map = os.path.join(in_seg_dir_tmp, 
+                                                f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
+                        
+                        # run
+                        HSM.AdaptiveMomShape(outpath_feather,
+                                        inpath_detection, 
+                                        inpath_image, 
+                                        inpath_seg_map,
+                                        inpath_weight_map=None, 
+                                        sigma_fromSNR_amp=configs_dict['MS']['ams_sigma_fromSNR_amp'],
+                                        sigma_fromSNR_index=configs_dict['MS']['ams_sigma_fromSNR_index'],
+                                        sigma_fromSNR_base=configs_dict['MS']['ams_sigma_fromSNR_base'],
+                                        sigma_intrinsic=configs_dict['MS']['ams_sigma_intrinsic'],
+                                        guess_sig=configs_dict['MS']['ams_guess_sig'],
+                                        precision=configs_dict['MS']['ams_precision'],
+                                        round_moments=configs_dict['MS']['ams_round_moments'],
+                                        save_Nstamps=configs_dict['MS']['ams_save_Nstamps'],
+                                        random_seed=rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=int).sum()*547 + int(gal_rotation_angle)*97,
+                                        postage_size=configs_dict['MS']['ams_postage_size'],
+                                        max_cores=ams_cores)
+
+        elif configs_dict['MS']['method'].lower() == 'hsm':
+            import HSM
+            logger.info('Use EstimateShear from galsim.hsm for shape measurement.')
+
+            ## I/O
+            in_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], detect_foler)
+            out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], shapes_folder)
+            pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
+
+            ## save one core for safety
+            hsm_cores = Nmax_proc - 1
+            logger.info(f'Number of processes for EstimateShear: {hsm_cores}')
+            ## start running
+            for i_band, band in enumerate(configs_dict['MS']['bands']):
+                logger.info(f'Measure shapes for band {band}...')
+
+                MS_label = configs_dict['MS']['image_label_list'][i_band]
+                in_ima_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], MS_label)
+                logger.info(f'  images for measurements: {in_ima_dir_tmp}')
+
+                in_seg_dir_tmp = os.path.join(in_ima_dir_tmp, 'SEGMENTATION')
+
+                for tile_label in tile_labels:
+                    if (needed_tile is not None) and (tile_label!=needed_tile):
+                        logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                        continue
+
+                    for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
+
+                        # output
+                        outpath_feather = os.path.join(out_dir_tmp, 
+                                                       f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.feather')
+
+                        # detection catalogue
+                        inpath_detection = os.path.join(in_cata_dir_tmp, 
+                                                       f'tile{tile_label}_band{detection_band}_rot{gal_rotation_angle:.0f}.feather')
+
+                        # images
+                        inpath_image = os.path.join(in_ima_dir_tmp, 
+                                                  f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
+
+                        # segmentation
+                        inpath_seg_map = os.path.join(in_seg_dir_tmp, 
+                                                f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
+                        
+                        # PSF image
+                        if configs_dict['MS']['hsm_same_PSF']:
+                            inpath_psf_image = os.path.join(in_ima_dir_tmp, 
+                                                            f'psf_tile{tile_label}_band{band}',
+                                                            'psf_ima.fits')
+
+                            # run
+                            HSM.EstimateShear_samePSF(outpath_feather,
+                                                    inpath_detection, 
+                                                    inpath_image, 
+                                                    inpath_seg_map,  
+                                                    inpath_psf_image,
+                                                    inpath_weight_map=None, 
+                                                    sigma_fromSNR_amp=configs_dict['MS']['hsm_sigma_fromSNR_amp'],
+                                                    sigma_fromSNR_index=configs_dict['MS']['hsm_sigma_fromSNR_index'],
+                                                    sigma_fromSNR_base=configs_dict['MS']['hsm_sigma_fromSNR_base'],
+                                                    sigma_intrinsic=configs_dict['MS']['hsm_sigma_intrinsic'],
+                                                    shear_est=configs_dict['MS']['hsm_shear_est'], 
+                                                    recompute_flux=configs_dict['MS']['hsm_recompute_flux'], 
+                                                    guess_sig_gal=configs_dict['MS']['hsm_guess_sig_gal'], 
+                                                    guess_sig_PSF=configs_dict['MS']['hsm_guess_sig_PSF'], 
+                                                    precision=configs_dict['MS']['hsm_precision'], 
+                                                    save_Nstamps=configs_dict['MS']['hsm_save_Nstamps'],
+                                                    random_seed=rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=int).sum()*547 + int(gal_rotation_angle)*97,
+                                                    postage_size=configs_dict['MS']['hsm_postage_size'],
+                                                    max_cores=hsm_cores)
+                                                            
+                        else:
+                            raise Exception('Different PSF for each object is not supported yet!')
+
+        else:
+            raise Exception('Unsupported shape measurement method!')
 
         logger.info(f'====== Task 6_2: measure galaxy shapes === finished in {(time.time()-start_time)/3600.} h ======')
 

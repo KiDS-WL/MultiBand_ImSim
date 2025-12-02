@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-10-24 12:33:51
+# @Last Modified time: 2025-11-30 17:50:45
 
 ### module to generate an example configuration file
 
@@ -577,6 +577,33 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             if not os.path.isfile(lensfit_run):
                 raise Exception(f"lensfit code {lensfit_run} not found!")
 
+        elif MS_method.lower() == 'ams':
+            config_ams = config['ams']
+            MS_configs['ams_postage_size'] = config_ams.getint('postage_size')
+            MS_configs['ams_sigma_fromSNR_amp'] = config_ams.getfloat('sigma_fromSNR_amp')
+            MS_configs['ams_sigma_fromSNR_index'] = config_ams.getfloat('sigma_fromSNR_index')
+            MS_configs['ams_sigma_fromSNR_base'] = config_ams.getfloat('sigma_fromSNR_base')
+            MS_configs['ams_sigma_intrinsic'] = config_ams.getfloat('sigma_intrinsic')
+            MS_configs['ams_guess_sig'] = config_ams.getfloat('guess_sig')
+            MS_configs['ams_precision'] = config_ams.getfloat('precision')
+            MS_configs['ams_round_moments'] = config_ams.getboolean('round_moments')
+            MS_configs['ams_save_Nstamps'] = config_ams.getint('save_Nstamps')
+
+        elif MS_method.lower() == 'hsm':
+            config_hsm = config['hsm']
+            MS_configs['hsm_postage_size'] = config_hsm.getint('postage_size')
+            MS_configs['hsm_same_PSF'] = config_hsm.getboolean('same_PSF')
+            MS_configs['hsm_sigma_fromSNR_amp'] = config_hsm.getfloat('sigma_fromSNR_amp')
+            MS_configs['hsm_sigma_fromSNR_index'] = config_hsm.getfloat('sigma_fromSNR_index')
+            MS_configs['hsm_sigma_fromSNR_base'] = config_hsm.getfloat('sigma_fromSNR_base')
+            MS_configs['hsm_sigma_intrinsic'] = config_hsm.getfloat('sigma_intrinsic')
+            MS_configs['hsm_shear_est'] = config_hsm.get('shear_est')
+            MS_configs['hsm_recompute_flux'] = config_hsm.get('recompute_flux')
+            MS_configs['hsm_guess_sig_gal'] = config_hsm.getfloat('guess_sig_gal')
+            MS_configs['hsm_guess_sig_PSF'] = config_hsm.getfloat('guess_sig_PSF')
+            MS_configs['hsm_precision'] = config_hsm.getfloat('precision')
+            MS_configs['hsm_save_Nstamps'] = config_hsm.getint('save_Nstamps')
+
         else:
             raise Exception(f'Unsupported shape measurement method {MS_method}!')
 
@@ -918,7 +945,9 @@ SWARP_CONFIG =          your_dir_to_lensfit/input_files\n\
 [MeasureShape]\n\n\
 method =                lensfit                # method for galaxy shape measurement\n\
                                                # supported method:\n\
-                                               #    lensfit\n\
+                                               #    lensfit (require lensfit source code)\n\
+                                               #    ams (FindAdaptiveMom in GalSim)\n\
+                                               #    hsm (EstimateShear in GalSim)\n\
 detection_band =        r                      # band with detection catalogue\n\
 band_list =             r\n\
                                                # bands being measured\n\
@@ -951,6 +980,33 @@ MEMORY_LIMIT =          30000                  # only relevant for 321\n\
 clean_up_level =        0                      # clean up level\n\
                                                #    0: none\n\
                                                #    1: tmp directory\n\
+\n\n\
+[ams]\n\n\
+postage_size =          48                     # postage size in pixel\n\
+sigma_fromSNR_amp =     1.16                   # amplitude for e_err and SNR relation\n\
+sigma_fromSNR_index =   0.62                   # index for e_err and SNR relation\n\
+sigma_fromSNR_base =    0.05                   # base for e_err and SNR relation\n\
+sigma_intrinsic =       0.27                   # intrinsic sigma e\n\
+guess_sig =             5.0                    # initial guess for the sigma of the object (in pixels)\n\
+precision =             1e-6                   # convergence criterion for the moments\n\
+round_moments =         False                  # use a circular weight function instead of elliptical\n\
+save_Nstamps =          0                      # number of stamps saved for visual check\n\
+\n\n\
+[hsm]\n\n\
+postage_size =          48                     # postage size in pixel\n\
+same_PSF =              True                   # whether all objects have the same PSF\n\
+sigma_fromSNR_amp =     7.26                   # amplitude for e_err and SNR relation\n\
+sigma_fromSNR_index =   0.02                   # index for e_err and SNR relation\n\
+sigma_fromSNR_base =    -6.6                   # base for e_err and SNR relation\n\
+sigma_intrinsic =       0.27                   # intrinsic sigma e\n\
+shear_est =             KSB                    # shear estimation method\n\
+                                               # supported methods:\n\
+                                               #    REGAUSS, LINEAR, BJ, or KSB\n\
+recompute_flux =        NONE                   # recompute the flux or not\n\
+guess_sig_gal =         5.0                    # initial guess for the sigma of the galaxy (in pixels)\n\
+guess_sig_PSF =         3.0                    # initial guess for the sigma of the PSF (in pixels)\n\
+precision =             1e-6                   # convergence criterion for the moments\n\
+save_Nstamps =          0                      # number of stamps saved for visual check\n\
 \n\n\
 ################################## CombineCata ###################################################\n\
 [CombineCata]\n\n\
