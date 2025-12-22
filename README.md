@@ -21,8 +21,8 @@ For sample test scripts, refer to the [scripts](https://github.com/KiDS-WL/Multi
 
 ## Link to the input catalogues
 
-* [SURFS-based galaxies](https://surfdrive.surf.nl/files/index.php/s/uegK5tc15TbWib7)
-* [Trilegal stars](https://surfdrive.surf.nl/files/index.php/s/dMsqnkeEUFSSLHE)
+* [SURFS-based galaxies](https://drive.google.com/file/d/1lxaMGsKBWEScJfluMvhZAquceK6ln5u0/view?usp=sharing)
+* [Trilegal stars](https://drive.google.com/file/d/1cH-0orCV-uASEkThbRwTvMJHvOK5Xt3a/view?usp=sharing)
 
 ## Link to the SKiLLS output catalogues
 
@@ -30,7 +30,7 @@ SKiLLS: SURFS-based KiDS-Legacy-Like Simulations
 
 The post-processing codes can be found in the [post_processing](https://github.com/KiDS-WL/MultiBand_ImSim/tree/main/post_processing) directory.
 
-The catalogues can be download [here](https://surfdrive.surf.nl/files/index.php/s/iSvDmHQJjDa0ewG)
+The catalogues can be download [here](https://drive.google.com/drive/folders/1IkhFhU73mtNoJ6bMU8XtidrxVhrzsmNn?usp=sharing)
 
 > NOTE: These catalogues include all objects detected by SExtractor, encompassing false detections and stars. However, they also feature flag columns for applying KiDS-like photometry and *lens*fit selections. For more details, please refer to the readme.txt file within the shared folder.
 
