@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:34:12
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-07-31 17:50:46
+# @Last Modified time: 2026-01-07 17:05:58
 
 ### Everything about simple images
 __all__ = ['_PSFNoisySkyImages_simple']
@@ -36,7 +36,8 @@ def _PSFNoisySkyImages_simple(para_list):
         gals_info_band, gal_rotation_angle,
         stars_info_band,
         outpath_PSF_basename, N_PSF, sep_PSF,
-        save_image_chips, save_image_PSF, image_PSF_size,
+        save_image_chips, save_image_PSF, image_PSF_size, 
+        save_image_noise,
         outpath_dir,
         gal_position_type,
         g_const,
@@ -141,6 +142,7 @@ def _PSFNoisySkyImages_simple(para_list):
 
     # +++ background noise
     noise = NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+120*gal_rotation_angle))
+    noise_2 = NoiseModule.GaussianNoise(rms, rng_seed=int(rng_seed_band+99))
 
     # +++ PSF map
     if (not outpath_PSF_exist):
@@ -179,6 +181,21 @@ def _PSFNoisySkyImages_simple(para_list):
         canvas = ObjModule.SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale)
         del RA_gals, DEC_gals
 
+        # save noise image if required
+        ## different rotation has same noise, so only make once
+        if (save_image_noise) and (gal_rotation_angle==0.):
+            noise_dir_tmp = os.path.join(outpath_dir, 
+                                         f'noise_tile{tile_label}_band{band}')
+            noise_ima_file_tmp = os.path.join(noise_dir_tmp, 
+                                              f'noise_image.fits')
+            ## add noise background
+            noise_image = canvas.copy()
+            noise_image.addNoise(noise_2)
+            ## save the noisy image
+            noise_image.write(noise_ima_file_tmp)
+            logger.info(f"Noise image saved as {noise_ima_file_tmp}")
+            del noise_image
+
         # star image
         if (stars_info_band is not None):
             image_stars = ObjModule.StarsImage(canvas, band, pixel_scale, PSF, stars_info_band,
@@ -198,7 +215,6 @@ def _PSFNoisySkyImages_simple(para_list):
                                 g_cosmic=g_cosmic, gal_position_type=gal_position_type,
                                 g_const=g_const, 
                                 pixelPSF=psf_pixel)
-
 
         ## add stars
         if (image_stars is not None):

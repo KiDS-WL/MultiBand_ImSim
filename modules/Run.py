@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-12-02 15:34:07
+# @Last Modified time: 2026-01-13 13:32:47
 
 ### main module to run the whole pipeline
 
@@ -37,7 +37,7 @@ import RunConfigFile
 
 if __name__ == "__main__": 
 
-    __version__ = "MultiBand_ImSim v0.8.0"
+    __version__ = "MultiBand_ImSim v0.9.0"
 
     # ++++++++++++++ parser for command-line interfaces
     parser = argparse.ArgumentParser(
@@ -296,7 +296,10 @@ if __name__ == "__main__":
                                                 gals_info, gal_rotation_angles=configs_dict['imsim']['gal_rotation_angles'], g_cosmic=g_cosmic, gal_position_type=[configs_dict['gal']['position_type'], configs_dict['gal']['grid_size']],
                                                 stars_area=star_area, stars_info=stars_info, star_position_type=star_position_type,
                                                 PSF_map=configs_dict['imsim']['PSF_map'], N_PSF=100, sep_PSF=120,
-                                                image_chips=configs_dict['imsim']['image_chips'], image_PSF=[configs_dict['imsim']['image_PSF'], configs_dict['imsim']['image_PSF_size']],
+                                                image_chips=configs_dict['imsim']['image_chips'], 
+                                                image_PSF=[configs_dict['imsim']['image_PSF'], 
+                                                           configs_dict['imsim']['image_PSF_size']],
+                                                image_noise=configs_dict['imsim']['image_noise'], 
                                                 psf_type_list=configs_dict['noise']['psf_type_list'],
                                                 CalSimpleArea=configs_dict['imsim']['simple_area'],
                                                 SimpleCut=configs_dict['imsim']['simple_cut'],
@@ -1206,6 +1209,73 @@ if __name__ == "__main__":
                                                     random_seed=rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=int).sum()*547 + int(gal_rotation_angle)*97,
                                                     postage_size=configs_dict['MS']['hsm_postage_size'],
                                                     max_cores=hsm_cores)
+                                                            
+                        else:
+                            raise Exception('Different PSF for each object is not supported yet!')
+
+        elif configs_dict['MS']['method'].lower() == 'metadetect':
+            import MetaDetect
+            logger.info('Use MetaDetect for shape measurement.')
+            logger.info('   NOTE: MetaDetect performs its own source detection.')
+
+            ## I/O
+            out_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], shapes_folder)
+            pathlib.Path(out_dir_tmp).mkdir(parents=True, exist_ok=True)
+
+            ## save one core for safety
+            metadetect_cores = Nmax_proc - 1
+            logger.info(f'Number of processes for MetaDetect: {metadetect_cores}')
+            ## start running
+            for i_band, band in enumerate(configs_dict['MS']['bands']):
+                logger.info(f'Measure shapes for band {band}...')
+
+                MS_label = configs_dict['MS']['image_label_list'][i_band]
+                in_ima_dir_tmp = os.path.join(configs_dict['work_dirs']['ima'], MS_label)
+                logger.info(f'  images for measurements: {in_ima_dir_tmp}')
+
+                metadetect_pixel_scale = configs_dict['MS']['metadetect_pixel_scale_list'][i_band]
+                metadetect_config_file = configs_dict['MS']['metadetect_config_files'][i_band]
+
+                for tile_label in tile_labels:
+                    if (needed_tile is not None) and (tile_label!=needed_tile):
+                        logger.warning(f'tile {tile_label} is skipped because it is not the selected one!')
+                        continue
+
+                    # noise images
+                    inpath_noise_image = os.path.join(in_ima_dir_tmp, 
+                                                    f'noise_tile{tile_label}_band{band}',
+                                                    f'noise_image.fits')
+                    assert os.path.isfile(inpath_noise_image), f'Metadetect requires noise images! Generate with [ImSim] image_noise=True'
+
+                    for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
+
+                        # output
+                        outpath_feather = os.path.join(out_dir_tmp, 
+                                                       f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.feather')
+
+                        # images
+                        inpath_image = os.path.join(in_ima_dir_tmp, 
+                                                  f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}.fits')
+
+                        # PSF image
+                        if configs_dict['MS']['metadetect_same_PSF']:
+                            inpath_psf_image = os.path.join(in_ima_dir_tmp, 
+                                                            f'psf_tile{tile_label}_band{band}',
+                                                            'psf_ima.fits')
+
+                            # run
+                            MetaDetect.MetaDetectShear(outpath_feather,
+                                                        inpath_image, 
+                                                        inpath_psf_image,
+                                                        inpath_config=metadetect_config_file,
+                                                        pixel_scale=metadetect_pixel_scale,
+                                                        inpath_weight_map=None, 
+                                                        inpath_noise_map=inpath_noise_image,
+                                                        save_Ncells=configs_dict['MS']['metadetect_save_Ncells'],
+                                                        random_seed=rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=int).sum()*547 + int(gal_rotation_angle)*97,
+                                                        cell_size=configs_dict['MS']['metadetect_cell_size'],
+                                                        central_size=configs_dict['MS']['metadetect_central_size'],
+                                                        max_cores=metadetect_cores)
                                                             
                         else:
                             raise Exception('Different PSF for each object is not supported yet!')

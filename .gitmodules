@@ -1,0 +1,8 @@
+[submodule "modules/metadetect"]
+	path = modules/metadetect
+	url = https://github.com/lshuns/metadetect.git
+	ignore = untracked
+[submodule "modules/sxdes"]
+	path = modules/sxdes
+	url = https://github.com/lshuns/sxdes.git
+	ignore = untracked

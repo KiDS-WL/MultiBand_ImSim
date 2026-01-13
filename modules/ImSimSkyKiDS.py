@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-07-22 13:25:05
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-07-31 17:49:57
+# @Last Modified time: 2026-01-07 16:49:14
 
 ### Everything about KiDS-like images
 __all__ = ['_PSFNoisySkyImages_KiDS_sameExpo', '_PSFNoisySkyImages_KiDS_singleExpo', '_PSFNoisySkyImages_KiDS_varChips']
@@ -44,10 +44,13 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         stars_info_band,
         outpath_PSF_basename, N_PSF, sep_PSF,
         save_image_chips, save_image_PSF, image_PSF_size,
+        save_image_noise,
         outpath_dir,
         gal_position_type,
         g_const,
         SimpleCam) = para_list
+    
+    assert not save_image_noise, 'KiDS_sameExpo does not support for save noise_image for now!'
 
     logger.info(f'Simulating KiDS_sameExpo image for tile {tile_label} band {band} rot {gal_rotation_angle}...')
 
@@ -311,11 +314,14 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
         stars_info_band,
         outpath_PSF_basename, N_PSF, sep_PSF,
         save_image_PSF, image_PSF_size,
+        save_image_noise,
         outpath_dir,
         id_exposure,
         gal_position_type,
         g_const,
         SimpleCam) = para_list
+
+    assert not save_image_noise, 'KiDS_singleExpo does not support for save noise_image for now!'
 
     logger.info(f'Simulating KiDS exposure for tile {tile_label} band {band} expo {id_exposure} rot {gal_rotation_angle}...')
 
@@ -512,11 +518,15 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
         stars_info_band,
         outpath_PSF_basename, N_PSF, sep_PSF,
         save_image_PSF, image_PSF_size,
+        save_image_noise,
         outpath_dir,
         id_exposure,
         gal_position_type,
         g_const,
         SimpleCam) = para_list
+
+    assert not save_image_noise, 'KiDS_varChips does not support for save noise_image for now!'
+
     logger.info(f'Simulating KiDS exposure with varChips for tile {tile_label} band {band} expo {id_exposure} rot {gal_rotation_angle}...')
 
     # PSF profiles

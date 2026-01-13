@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-11-30 17:50:45
+# @Last Modified time: 2026-01-08 10:25:10
 
 ### module to generate an example configuration file
 
@@ -102,7 +102,8 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                     'pixel_scale_list': [float(i_p.strip()) for i_p in config_imsim.get('pixel_scale_list').split(',')],
                     'image_type_list': [x.strip() for x in config_imsim.get('image_type_list').split(',')],
                     'image_chips': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('image_chips').split(',')],
-                    'image_PSF': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('image_PSF').split(',')]}
+                    'image_PSF': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('image_PSF').split(',')],
+                    'image_noise': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('image_noise').split(',')]}
 
     ### repeat certain para to match with number of bands
     if len(imsim_configs['PSF_map']) == 1:
@@ -115,6 +116,8 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
         imsim_configs['image_chips'] = imsim_configs['image_chips'] * len(imsim_configs['bands'])
     if len(imsim_configs['image_PSF']) == 1:
         imsim_configs['image_PSF'] = imsim_configs['image_PSF'] * len(imsim_configs['bands'])
+    if len(imsim_configs['image_noise']) == 1:
+        imsim_configs['image_noise'] = imsim_configs['image_noise'] * len(imsim_configs['bands'])
 
     ### detection band 
     detection_band = config_imsim.get('detection_band')
@@ -604,6 +607,15 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             MS_configs['hsm_precision'] = config_hsm.getfloat('precision')
             MS_configs['hsm_save_Nstamps'] = config_hsm.getint('save_Nstamps')
 
+        elif MS_method.lower() == 'metadetect':
+            config_metadetect = config['metadetect']
+            MS_configs['metadetect_same_PSF'] = config_metadetect.getboolean('same_PSF')
+            MS_configs['metadetect_config_files'] = [os.path.join(config_dir, x.strip()) for x in config_metadetect.get('config_files').split(',')]
+            MS_configs['metadetect_pixel_scale_list'] = [float(i_p.strip()) for i_p in config_metadetect.get('pixel_scale_list').split(',')]
+            MS_configs['metadetect_cell_size'] = config_metadetect.getint('cell_size')
+            MS_configs['metadetect_central_size'] = config_metadetect.getint('central_size')
+            MS_configs['metadetect_save_Ncells'] = config_metadetect.getint('save_Ncells')
+
         else:
             raise Exception(f'Unsupported shape measurement method {MS_method}!')
 
@@ -766,6 +778,9 @@ image_PSF =             True, False, False, False, False, False, False, False, F
 image_PSF_size =        48                     # (pixels) the size of the saved PSF image\n\
                                                #    it is assumed to be a square\n\
                                                #    default: 48*48 \n\
+image_noise =           False, False, False, False, False, False, False, False, False\n\
+                                               # save noise-only images\n\
+                                               # required by metadetect\n\
 casual_mag =            25                     # up to which magnitude galaxies are casually simulated\n\
                                                #    means: only drawImage for a few, \n\
                                                #        the rest is randomly sampled from those simulated\n\
@@ -800,7 +815,7 @@ simple_camera =         True                   # Camera layout using \n\
 # for coadding or resampling\n\
 cmd =                   swarp                  # the executable path to the SWarp code\n\
 config_files =          coadd_theli.swarp, coadd_aw.swarp\n\
-                                               # SWarp configuration files\n\
+                                               # SWarp configuration files in the config folder\n\
                                                # more than one files are supported\n\
                                                #    in which case, more than one treatments are applied\n\
 bands_group =           [r], [u, g, r, i]      # bands to be swarped\n\
@@ -825,10 +840,10 @@ pixel_scale =           0.214                  # pixel scale for the image\n\
 cross_match =           True                   # cross-match with the input catalogue\n\
                                                #    in which case, catalogues with match info will be saved\n\
                                                #    see next section for configuration\n\
-config_file =           kids_sims.sex          # SExtractor configuration file\n\
-param_file =            sex_image.param        # SExtractor parameter file\n\
-filter_file =           default.conv           # SExtractor filter file\n\
-starNNW_file =          default.nnw            # SExtractor Neural-Network_Weight table file\n\
+config_file =           kids_sims.sex          # SExtractor configuration file in the config folder\n\
+param_file =            sex_image.param        # SExtractor parameter file in the config folder\n\
+filter_file =           default.conv           # SExtractor filter file in the config folder\n\
+starNNW_file =          default.nnw            # SExtractor Neural-Network_Weight table file in the config folder\n\
 checkimage_type =       NONE                   # can be one of \n\
                                                # NONE, BACKGROUND, MINIBACKGROUND, OBJECTS, SEGMENTATION, APERTURES, FILTERED\n\
 clean_up_level =        0                      # clean up level\n\
@@ -948,6 +963,7 @@ method =                lensfit                # method for galaxy shape measure
                                                #    lensfit (require lensfit source code)\n\
                                                #    ams (FindAdaptiveMom in GalSim)\n\
                                                #    hsm (EstimateShear in GalSim)\n\
+                                               #    metadetect (metadetection) \n\
 detection_band =        r                      # band with detection catalogue\n\
 band_list =             r\n\
                                                # bands being measured\n\
@@ -1007,6 +1023,18 @@ guess_sig_gal =         5.0                    # initial guess for the sigma of 
 guess_sig_PSF =         3.0                    # initial guess for the sigma of the PSF (in pixels)\n\
 precision =             1e-6                   # convergence criterion for the moments\n\
 save_Nstamps =          0                      # number of stamps saved for visual check\n\
+\n\n\
+[metadetect]\n\n\
+same_PSF =              True                   # whether all objects have the same PSF\n\
+config_files =          metadetect_config.json # metadetect config file in the config folder\n\
+                                               #    file number matches with number of bands to be measured\n\
+pixel_scale_list =      0.214                  # the measured images' pixel scales\n\
+                                               #    should match with what have been simulated\n\
+cell_size =             250                    # the cell size for metadetection\n\
+                                               #    should be even number\n\
+central_size =          150                    # the central size for metadetection\n\
+                                               #    should be even number and smaller than cell size\n\
+save_Ncells =           0                      # number of cells saved for visual check\n\
 \n\n\
 ################################## CombineCata ###################################################\n\
 [CombineCata]\n\n\

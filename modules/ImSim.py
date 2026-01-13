@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2025-11-17 10:42:31
+# @Last Modified time: 2026-01-07 16:41:39
 
 ### running module for ImSim
 
@@ -33,7 +33,9 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                             gals_info, gal_rotation_angles=[0.], g_cosmic=[0, 0], gal_position_type=['true', 18],
                                             stars_area=None, stars_info=None, star_position_type='random',
                                             PSF_map=[], N_PSF=100, sep_PSF=120,
-                                            image_chips=None, image_PSF=None,
+                                            image_chips=None, 
+                                            image_PSF=None, 
+                                            image_noise=None,
                                             psf_type_list=['moffat'],
                                             CalSimpleArea=True,
                                             SimpleCut=True, SimpleCam=True,
@@ -676,7 +678,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                 # make a directory if save
                 if save_image_chips:
                     for gal_rotation_angle in gal_rotation_angles:
-                        chip_dir_tmp = os.path.join(outpath_dir, f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
+                        chip_dir_tmp = os.path.join(outpath_dir, 
+                                                    f'chips_tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}')
                         if (not os.path.exists(chip_dir_tmp)):
                             os.mkdir(chip_dir_tmp)
             else:
@@ -689,11 +692,25 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
                 # make a directory if save
                 if save_image_PSF:
-                    psf_dir_tmp = os.path.join(outpath_dir, f'psf_tile{tile_label}_band{band}')
+                    psf_dir_tmp = os.path.join(outpath_dir, 
+                                               f'psf_tile{tile_label}_band{band}')
                     if (not os.path.exists(psf_dir_tmp)):
                         os.mkdir(psf_dir_tmp)
             else:
                 save_image_PSF = False
+
+            # save noise image or not
+            if image_noise is not None:
+                save_image_noise = image_noise[i_band]
+
+                # make a directory if save
+                if save_image_noise:
+                    noise_dir_tmp = os.path.join(outpath_dir, 
+                                                 f'noise_tile{tile_label}_band{band}')
+                    if (not os.path.exists(noise_dir_tmp)):
+                        os.mkdir(noise_dir_tmp)
+            else:
+                save_image_noise = False
 
             # save tag
             outpath_image_basename = os.path.join(outpath_dir, f'tile{tile_label}_band{band}')
@@ -788,6 +805,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                         stars_info_band,
                                         outpath_PSF_basename, N_PSF, sep_PSF,
                                         save_image_PSF, image_PSF_size, 
+                                        save_image_noise,
                                         outpath_dir,
                                         i_expo,
                                         gal_position_type,
@@ -854,6 +872,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                         stars_info_band,
                                         outpath_PSF_basename, N_PSF, sep_PSF,
                                         save_image_PSF, image_PSF_size, 
+                                        save_image_noise,
                                         outpath_dir,
                                         i_expo,
                                         gal_position_type,
@@ -902,6 +921,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                 stars_info_band,
                                 outpath_PSF_basename, N_PSF, sep_PSF,
                                 save_image_chips, save_image_PSF, image_PSF_size,
+                                save_image_noise,
                                 outpath_dir,
                                 gal_position_type,
                                 g_const,
