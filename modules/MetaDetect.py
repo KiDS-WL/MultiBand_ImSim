@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   1969-12-31 16:00:00
 # @Last Modified by:   lshuns
-# @Last Modified time: 2026-01-13 13:32:57
+# @Last Modified time: 2026-01-20 16:23:31
 
 ## Shear measurement using metadetection
 
@@ -340,6 +340,21 @@ def MetaDetectShear(outpath_feather,
         del noise_data
     else:
         shm_noise_img = None
+
+    ## >>>>>>>>>>>>> 1.5 Pre-compile numba functions to avoid fork issues
+    logger.info("Pre-compiling numba functions...")
+    ## Create a dummy observation to trigger JIT compilation
+    dummy_img = np.ones((10, 10), dtype=np.float64)
+    dummy_jac = ngmix.DiagonalJacobian(scale=pixel_scale, row=4.5, col=4.5)
+    dummy_obs = ngmix.Observation(
+        image=dummy_img,
+        weight=np.ones_like(dummy_img),
+        jacobian=dummy_jac,
+    )
+    ## This triggers the fill_pixels compilation
+    _ = dummy_obs.pixels
+    logger.info("Numba compilation complete")
+    del dummy_img, dummy_jac, dummy_obs
 
     ## >>>>>>>>>>>>> 2. Run metadetection for each cell
     ## Calculate how many cells needed to tile the PADDED image
