@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2026-01-08 10:25:10
+# @Last Modified time: 2026-01-20 16:49:33
 
 ### module to generate an example configuration file
 
@@ -102,8 +102,7 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                     'pixel_scale_list': [float(i_p.strip()) for i_p in config_imsim.get('pixel_scale_list').split(',')],
                     'image_type_list': [x.strip() for x in config_imsim.get('image_type_list').split(',')],
                     'image_chips': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('image_chips').split(',')],
-                    'image_PSF': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('image_PSF').split(',')],
-                    'image_noise': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('image_noise').split(',')]}
+                    'image_PSF': [bool(distutils.util.strtobool(x.strip())) for x in config_imsim.get('image_PSF').split(',')]}
 
     ### repeat certain para to match with number of bands
     if len(imsim_configs['PSF_map']) == 1:
@@ -116,8 +115,20 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
         imsim_configs['image_chips'] = imsim_configs['image_chips'] * len(imsim_configs['bands'])
     if len(imsim_configs['image_PSF']) == 1:
         imsim_configs['image_PSF'] = imsim_configs['image_PSF'] * len(imsim_configs['bands'])
-    if len(imsim_configs['image_noise']) == 1:
-        imsim_configs['image_noise'] = imsim_configs['image_noise'] * len(imsim_configs['bands'])
+
+    ### image noise
+    image_noise = config_imsim.get('image_noise')
+    if image_noise:
+        imsim_configs['image_noise'] = [
+                                        bool(
+                                            distutils.util.strtobool(x.strip())
+                                            ) 
+                                            for x in image_noise.split(',')
+                                        ]
+        if len(imsim_configs['image_noise']) == 1:
+            imsim_configs['image_noise'] = imsim_configs['image_noise'] * len(imsim_configs['bands'])
+    else:
+        imsim_configs['image_noise'] = [False] * len(imsim_configs['bands'])
 
     ### detection band 
     detection_band = config_imsim.get('detection_band')

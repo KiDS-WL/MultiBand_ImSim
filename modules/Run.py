@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2026-01-13 13:32:47
+# @Last Modified time: 2026-01-20 16:54:39
 
 ### main module to run the whole pipeline
 
@@ -37,7 +37,7 @@ import RunConfigFile
 
 if __name__ == "__main__": 
 
-    __version__ = "MultiBand_ImSim v0.9.0"
+    __version__ = "MultiBand_ImSim v0.9.2"
 
     # ++++++++++++++ parser for command-line interfaces
     parser = argparse.ArgumentParser(
