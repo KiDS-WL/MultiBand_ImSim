@@ -105,14 +105,23 @@ def _PSFNoisySkyImages_simple(para_list):
     if (save_image_PSF) and (gal_rotation_angle==0.):
         psf_dir_tmp = os.path.join(outpath_dir, f'psf_tile{tile_label}_band{band}')
         psf_ima_file_tmp = os.path.join(psf_dir_tmp, f'psf_ima.fits')
-        if os.path.isfile(psf_ima_file_tmp):
+        ## the centred counterpart, for metadetect and HSM (see ImSimPSF.PSFima)
+        psf_ima_centred_file_tmp = PSFModule.psf_centred_path(psf_ima_file_tmp)
+        if os.path.isfile(psf_ima_file_tmp) and os.path.isfile(psf_ima_centred_file_tmp):
             logger.info('PSF images already exist.')
         else:
+            os.makedirs(psf_dir_tmp, exist_ok=True)
             PSF = psf_func(*psf_paras)
+            ## half-pixel-shifted, as lensfit expects
             psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size,
-                            pixelPSF=psf_pixel)
+                            pixelPSF=psf_pixel, half_pixel_shift=True)
             psf_ima.write(psf_ima_file_tmp)
-            logger.info(f'PSF image saved as {psf_ima_file_tmp}')
+            ## on the stamp true centre, as ngmix/metadetect assume
+            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size,
+                            pixelPSF=psf_pixel, half_pixel_shift=False)
+            psf_ima.write(psf_ima_centred_file_tmp)
+            logger.info(f'PSF images saved as {psf_ima_file_tmp} '
+                        f'and {psf_ima_centred_file_tmp}')
 
     ## if all exist, quit
     if (outpath_image_exist) and (outpath_PSF_exist):

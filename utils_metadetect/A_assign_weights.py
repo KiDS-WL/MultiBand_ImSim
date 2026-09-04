@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   1969-12-31 16:00:00
 # @Last Modified by:   lshuns
-# @Last Modified time: 2026-01-13 13:36:09
+# @Last Modified time: 2026-09-02 16:24:22
 
 ### Assign shear weights to the metadetect catalogues 
 ###### follow the approach of https://ui.adsabs.harvard.edu/abs/2023OJAp....6E..17S/abstract
@@ -21,6 +21,9 @@ main_dir = '/sdf/data/kipac/u/liss/ImSim/output/test_dev/LSST_r/'
 ## Shear inputs in simulations
 shear_tags = ['m283m283', 'm283p283', 'p283m283', 'p283p283']
 
+## Shape folder name
+shape_folder_list = ['shapes_metadetect', 'shapes_metadetect_shifted']
+
 ## What is the fitting model used in metadetect
 fit_model = 'wmom'
 
@@ -35,49 +38,56 @@ sigma_SN = 0.07
 
 ## Loop over catalogues
 for i_shear, shear_tag in enumerate(shear_tags):
-    inpath_list = glob.glob(os.path.join(main_dir, 
-                                         shear_tag, 
-                                         'catalogues/shapes_metadetect', 
-                                         '*.feather'))
-    print(f">>> Number of catalogues found in {shear_tag}: {len(inpath_list)}")
+    for i_shape, shape_folder in enumerate(shape_folder_list):
+        print(f">>> Processing {shear_tag} ({i_shear+1}/{len(shear_tags)}), "
+              f"{shape_folder} ({i_shape+1}/{len(shape_folder_list)})")
 
-    for inpath in inpath_list:
-        cata = pd.read_feather(inpath)
+        ## Find all the catalogues
+        inpath_list = glob.glob(os.path.join(main_dir, 
+                                            shear_tag, 
+                                            'catalogues',
+                                            shape_folder, 
+                                            '*.feather'))
+        print(f">>> Number of catalogues found in {shear_tag}: {len(inpath_list)}")
 
-        ## Weight based on ellipticity noise
-        cata['weight_sigma_e'] = 1./(sigma_SN**2 
-                                    + np.square(
-                                        cata[f'{fit_model}_g_cov_as_sigma'].values
+        for inpath in inpath_list:
+            cata = pd.read_feather(inpath)
+
+            ## Weight based on ellipticity noise
+            cata['weight_sigma_e'] = 1./(sigma_SN**2 
+                                        + np.square(
+                                            cata[f'{fit_model}_g_cov_as_sigma'].values
+                                            )
                                         )
-                                    )
-        
-        ## Weight based on ellipticity
-        e_sq = np.square(cata[f'{fit_model}_g_1'].values) \
-            + np.square(cata[f'{fit_model}_g_2'].values)
-        cata['weight_e'] = np.square(1-e_sq) * np.exp(-1*e_sq/2./0.09)
+            
+            ## Weight based on ellipticity
+            e_sq = np.square(cata[f'{fit_model}_g_1'].values) \
+                + np.square(cata[f'{fit_model}_g_2'].values)
+            cata['weight_e'] = np.square(1-e_sq) * np.exp(-1*e_sq/2./0.09)
 
-        ## Combine them together
-        cata['shear_weight'] = cata['weight_sigma_e'] * cata['weight_e']
+            ## Combine them together
+            cata['shear_weight'] = cata['weight_sigma_e'] * cata['weight_e']
 
-        ## S/N and resolution cut
-        mask_cut = ((cata[f'{fit_model}_s2n'] <= snr_min)
-                 & (cata[f'{fit_model}_T_ratio'] <= resolution_min)
-                    )
-        cata.loc[mask_cut, 
-                'weight_sigma_e'] = 0.
-        cata.loc[mask_cut, 
-                'weight_e'] = 0.
-        cata.loc[mask_cut, 
-                'shear_weight'] = 0.
-        
-        ## Zero weight for nan measurements
-        cata[['weight_sigma_e', 
-              'weight_e', 
-              'shear_weight']] = cata[['weight_sigma_e', 
-                                        'weight_e', 
-                                        'shear_weight']].fillna(value=0.)
+            ## S/N and resolution cut
+            mask_cut = ((cata[f'{fit_model}_s2n'] <= snr_min)
+                    | (cata[f'{fit_model}_T_ratio'] <= resolution_min)
+                    | (cata[f'{fit_model}_flags'] != 0)
+                        )
+            cata.loc[mask_cut, 
+                    'weight_sigma_e'] = 0.
+            cata.loc[mask_cut, 
+                    'weight_e'] = 0.
+            cata.loc[mask_cut, 
+                    'shear_weight'] = 0.
+            
+            ## Zero weight for nan measurements
+            cata[['weight_sigma_e', 
+                'weight_e', 
+                'shear_weight']] = cata[['weight_sigma_e', 
+                                            'weight_e', 
+                                            'shear_weight']].fillna(value=0.)
 
-        ## Save back
-        cata.to_feather(inpath)
-        print(f"++++++ Finished for {os.path.basename(inpath)}, zero weight ratio: {np.sum(cata['shear_weight']==0)/len(cata)}")
-        del cata
+            ## Save back
+            cata.to_feather(inpath)
+            print(f"++++++ Finished for {os.path.basename(inpath)}, zero weight ratio: {np.sum(cata['shear_weight']==0)/len(cata)}")
+            del cata

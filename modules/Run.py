@@ -2,10 +2,10 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2026-03-25 13:47:22
+# @Last Modified time: 2026-09-01 15:01:42
 
 ### main module to run the whole pipeline
-__version__ = "MultiBand_ImSim v1.0.0"
+__version__ = "MultiBand_ImSim v1.1.0"
 
 import re
 import os
@@ -787,7 +787,8 @@ def run_task_6_1_psfmodel(configs_dict, tile_labels, Nmax_proc, running_log, nee
 
                 # run
                 proc = work_pool.apply_async(func=PSFmodelling.ima2coeffsFunc,
-                            args=(ima2coeffs_dir, psf_ima_dir, psf_coeff_dir, varChips))
+                            args=(ima2coeffs_dir, psf_ima_dir, psf_coeff_dir, varChips),
+                            kwds={'psf_image': configs_dict['PSFmodelling']['psf_image']})
                 proc_list.append(proc)
 
         work_pool.close()
@@ -870,6 +871,140 @@ def run_task_6_1_psfmodel(configs_dict, tile_labels, Nmax_proc, running_log, nee
 
     logger.info(f'====== Task 6_1: PSF modelling === finished in {(time.time()-start_time)/3600.} h ======')
 
+
+def _metadetect_cross_match(CrossMatch, configs_dict, inpath_feather,
+                            ori_cata_dir_tmp, out_dir_cross,
+                            tile_label, band, gal_rotation_angle, pixel_scale):
+    """
+    Cross-match a metadetect catalogue with the input catalogue.
+
+    metadetect reports one row per (object, shear_type), and the sheared
+    catalogues are independent detections of the same sky, so each shear type is
+    matched separately and the results are concatenated. Rows are keyed by
+    NUMBER, exactly as the SExtractor detection catalogues are, so that
+    run_task_7_combine can attach the input info the same way.
+
+    The output follows the naming of the task 3 cross-match, with the band added
+    because metadetect detects independently in every band:
+        <CrossMatch folder>/tile{tile}_band{band}_rot{rot}_matched.feather
+    """
+    cfg = configs_dict['MS']
+    detec_cata = pd.read_feather(inpath_feather)
+    if 'NUMBER' not in detec_cata.columns:
+        raise Exception(f'{inpath_feather} has no NUMBER column, '
+                        'it was produced by an older version of MetaDetect.py!')
+
+    ## metadetect names its columns after the fitting model (wmom, pgauss, ...).
+    ##    <model>_band_flux is a weighted-moment flux, not a total flux like
+    ##    SExtractor's MAG_AUTO: it misses the light outside the weight function,
+    ##    so measured against the input it runs ~0.5 mag faint for the smallest
+    ##    galaxies and ~0.9 mag for the largest. That is an aperture effect, not
+    ##    a zero-point error, and it is why dmag_CM in the output is offset from
+    ##    zero. Because of it, mag_closest is forced off for metadetect (see
+    ##    RunConfigFile.ParseConfig) and duplicated matches are resolved by
+    ##    distance; the magnitude below only feeds the reported dmag_CM.
+    flux_cols = [c for c in detec_cata.columns if c.endswith('_band_flux')]
+    if not flux_cols:
+        raise Exception(f'No <model>_band_flux column found in {inpath_feather}!')
+    mag_zero = configs_dict['imsim']['mag_zero']
+    with np.errstate(divide='ignore', invalid='ignore'):
+        detec_cata['mag_detec'] = mag_zero - 2.5*np.log10(
+            np.asarray(detec_cata[flux_cols[0]].values, dtype=float))
+    detec_cata['mag_detec'] = detec_cata['mag_detec'].replace([np.inf, -np.inf], 99.).fillna(99.)
+
+    id_list = ['index_input', 'NUMBER']
+    position_list = [['RA_input', 'DEC_input'], ['X_WORLD', 'Y_WORLD']]
+    mag_list = [f'{band}_input', 'mag_detec']
+    match_kwargs = dict(
+        outDir=out_dir_cross, save_matched=False, save_false=False, save_missed=False,
+        r_max=cfg['metadetect_r_max']/3600., k=4,
+        mag_closest=cfg['metadetect_mag_closest'], running_info=False,
+        useTan=cfg['metadetect_use_TAN'], pixel_scale=pixel_scale,
+        r_max_pixel=cfg['metadetect_r_max_pixel'])
+
+    shear_types = sorted(detec_cata['shear_type'].unique().tolist())
+    if not cfg['metadetect_save_matched']:
+        logger.warning('save_matched is off in [CrossMatch], so the match will be computed '
+                       'and thrown away, and task 7 will not be able to attach the input info!')
+
+    ## stars first, so that they can be flagged and excluded from the galaxy match
+    infile_stars = os.path.join(ori_cata_dir_tmp, f'stars_info_tile{tile_label}.feather')
+    input_stars = pd.read_feather(infile_stars) if os.path.isfile(infile_stars) else None
+    if (input_stars is not None) and input_stars.empty:
+        logger.warning('The input star catalogue is empty, skipping the star match!')
+        input_stars = None
+    ## a stale flag from an earlier run must not survive into this one
+    detec_cata.drop(columns=['perfect_flag_star'], errors='ignore', inplace=True)
+    if input_stars is not None:
+        logger.info('Working on stars...')
+        matched_stars = []
+        for shear_type in shear_types:
+            sub = detec_cata[detec_cata['shear_type'] == shear_type].reset_index(drop=True)
+            matched, _, _ = CrossMatch.run_position2id(
+                input_stars, sub, id_list, position_list, mag_list, **match_kwargs)
+            matched_stars.append(matched)
+        matched_stars = pd.concat(matched_stars, ignore_index=True)
+        mask_stars = detec_cata['NUMBER'].isin(matched_stars['id_detec'])
+        detec_cata['perfect_flag_star'] = np.where(mask_stars, 1, 0).astype(int)
+        del input_stars
+    else:
+        logger.warning('No input star catalogue found-assuming no stars!')
+        matched_stars = None
+
+    ## galaxies
+    logger.info('Working on galaxies...')
+    input_gals = pd.read_feather(os.path.join(ori_cata_dir_tmp, f'gals_info_tile{tile_label}.feather'))
+    ## magnitude pre-selection, as in task 3
+    input_gals = input_gals[input_gals[f'{band}_input'] <= cfg['metadetect_mag_faint_cut']]
+    input_gals.reset_index(drop=True, inplace=True)
+    if input_gals.empty:
+        raise Exception(f'No input galaxy is brighter than mag_faint_cut='
+                        f"{cfg['metadetect_mag_faint_cut']} in band {band}, nothing to match against!")
+
+    gals_only = detec_cata
+    if 'perfect_flag_star' in detec_cata.columns:
+        gals_only = detec_cata[detec_cata['perfect_flag_star'] == 0]
+    matched_gals, false_all, miss_all = [], [], []
+    for shear_type in shear_types:
+        sub = gals_only[gals_only['shear_type'] == shear_type].reset_index(drop=True)
+        matched, false_cata, miss_cata = CrossMatch.run_position2id(
+            input_gals, sub, id_list, position_list, mag_list, **match_kwargs)
+        matched['shear_type'] = shear_type
+        matched_gals.append(matched)
+        false_cata['shear_type'] = shear_type
+        false_all.append(false_cata)
+        miss_cata['shear_type'] = shear_type
+        miss_all.append(miss_cata)
+        logger.info(f'   {shear_type}: {len(matched)}/{len(sub)} matched')
+    matched_gals = pd.concat(matched_gals, ignore_index=True)
+
+    ## mag_detec only existed to resolve duplicate matches, it is not a
+    ##    measurement and does not belong in the saved catalogue
+    detec_cata.drop(columns=['mag_detec'], errors='ignore', inplace=True)
+    ## write the star flag back into the shape catalogue, as task 3 does;
+    ##    with no stars there is nothing to add, so leave the file alone
+    if 'perfect_flag_star' in detec_cata.columns:
+        detec_cata.to_feather(inpath_feather)
+        logger.info(f'Star flag written back into {inpath_feather}')
+
+    basename = f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}'
+    if cfg['metadetect_save_matched']:
+        outfile = os.path.join(out_dir_cross, basename+'_matched.feather')
+        matched_gals.to_feather(outfile)
+        logger.info(f'Matched detections saved to {outfile}')
+    if matched_stars is not None and cfg['metadetect_save_matched']:
+        outfile = os.path.join(out_dir_cross, basename+'_stars_matched.feather')
+        matched_stars.to_feather(outfile)
+        logger.info(f'Matched stars saved to {outfile}')
+    if cfg['metadetect_save_false'] or cfg['metadetect_save_missed']:
+        outDir_miss_false = os.path.join(out_dir_cross, 'miss_false')
+        pathlib.Path(outDir_miss_false).mkdir(parents=True, exist_ok=True)
+        if cfg['metadetect_save_false']:
+            pd.concat(false_all, ignore_index=True).to_feather(
+                os.path.join(outDir_miss_false, basename+'_false.feather'))
+        if cfg['metadetect_save_missed']:
+            pd.concat(miss_all, ignore_index=True).to_feather(
+                os.path.join(outDir_miss_false, basename+'_miss.feather'))
 
 def run_task_6_2_shapes(configs_dict, tile_labels, Nmax_proc, rng_seed, running_log, needed_tile):
     """Task 6_2: measure galaxy shapes."""
@@ -1036,6 +1171,7 @@ def run_task_6_2_shapes(configs_dict, tile_labels, Nmax_proc, rng_seed, running_
 
     elif configs_dict['MS']['method'].lower() == 'hsm':
         import HSM
+        import ImSimPSF
         logger.info('Use EstimateShear from galsim.hsm for shape measurement.')
 
         ## I/O
@@ -1084,6 +1220,9 @@ def run_task_6_2_shapes(configs_dict, tile_labels, Nmax_proc, rng_seed, running_
                         inpath_psf_image = os.path.join(in_ima_dir_tmp,
                                                         f'psf_tile{tile_label}_band{band}',
                                                         'psf_ima.fits')
+                        ## two flavours are saved, pick the requested one
+                        if configs_dict['MS']['hsm_psf_image'] == 'centred':
+                            inpath_psf_image = ImSimPSF.psf_centred_path(inpath_psf_image)
 
                         # run
                         HSM.EstimateShear_samePSF(outpath_feather,
@@ -1111,6 +1250,7 @@ def run_task_6_2_shapes(configs_dict, tile_labels, Nmax_proc, rng_seed, running_
 
     elif configs_dict['MS']['method'].lower() == 'metadetect':
         import MetaDetect
+        import ImSimPSF
         logger.info('Use MetaDetect for shape measurement.')
         logger.info('   NOTE: MetaDetect performs its own source detection.')
 
@@ -1121,6 +1261,22 @@ def run_task_6_2_shapes(configs_dict, tile_labels, Nmax_proc, rng_seed, running_
         ## save one core for safety
         metadetect_cores = max(1, Nmax_proc - 1)
         logger.info(f'Number of processes for MetaDetect: {metadetect_cores}')
+
+        ## cross-match with the input catalogue
+        ##    metadetect does its own detection, so this plays the role that the
+        ##    cross-match in task 3 plays for SExtractor
+        if configs_dict['MS']['metadetect_cross_match']:
+            import CrossMatch
+            input_folder, _, CrossMatch_folder = configs_dict['work_dirs']['cata_folder_names'][:3]
+            ori_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], input_folder)
+            out_dir_cross = os.path.join(configs_dict['work_dirs']['cata'], CrossMatch_folder)
+            pathlib.Path(out_dir_cross).mkdir(parents=True, exist_ok=True)
+            logger.info(f'Cross-match with the input catalogue is ON, results to {out_dir_cross}')
+        else:
+            logger.warning('Cross-match with the input catalogue is OFF: cross_match is not set '
+                           '(or is False) in the [metadetect] section of the configuration file. '
+                           'No input info will be attached, and task 7 cannot build a combined '
+                           'catalogue without it.')
         ## start running
         for i_band, band in enumerate(configs_dict['MS']['bands']):
             logger.info(f'Measure shapes for band {band}...')
@@ -1158,6 +1314,10 @@ def run_task_6_2_shapes(configs_dict, tile_labels, Nmax_proc, rng_seed, running_
                         inpath_psf_image = os.path.join(in_ima_dir_tmp,
                                                         f'psf_tile{tile_label}_band{band}',
                                                         'psf_ima.fits')
+                        ## two flavours are saved, pick the requested one
+                        ##    ngmix needs the centred one (see ImSimPSF.PSFima)
+                        if configs_dict['MS']['metadetect_psf_image'] == 'centred':
+                            inpath_psf_image = ImSimPSF.psf_centred_path(inpath_psf_image)
 
                         # run
                         MetaDetect.MetaDetectShear(outpath_feather,
@@ -1171,7 +1331,17 @@ def run_task_6_2_shapes(configs_dict, tile_labels, Nmax_proc, rng_seed, running_
                                                     random_seed=rng_seed + np.array(re.findall(r"\d+", tile_label), dtype=int).sum()*547 + int(gal_rotation_angle)*97,
                                                     cell_size=configs_dict['MS']['metadetect_cell_size'],
                                                     central_size=configs_dict['MS']['metadetect_central_size'],
-                                                    max_cores=metadetect_cores)
+                                                    max_cores=metadetect_cores,
+                                                    ## only tolerate an uncentred PSF if it was asked for
+                                                    allow_uncentred_psf=(configs_dict['MS']['metadetect_psf_image'] != 'centred'))
+
+                        # cross-match with the input catalogue
+                        if configs_dict['MS']['metadetect_cross_match']:
+                            _metadetect_cross_match(
+                                CrossMatch, configs_dict, outpath_feather,
+                                ori_cata_dir_tmp, out_dir_cross,
+                                tile_label, band, gal_rotation_angle,
+                                metadetect_pixel_scale)
 
                     else:
                         raise Exception('Different PSF for each object is not supported yet!')
@@ -1181,6 +1351,100 @@ def run_task_6_2_shapes(configs_dict, tile_labels, Nmax_proc, rng_seed, running_
 
     logger.info(f'====== Task 6_2: measure galaxy shapes === finished in {(time.time()-start_time)/3600.} h ======')
 
+
+def _combine_metadetect(configs_dict, out_dir_shape, out_dir_cross, out_dir_input,
+                        tile_label, gal_rotation_angle, combined_suffix):
+    """
+    Combined catalogue for a metadetect run.
+
+    metadetect replaces the detection step, so its shape catalogue is the base
+    here, in place of the SExtractor detection catalogue. Rows are keyed by
+    NUMBER exactly as there, so the cross-match output attaches the same way.
+    One catalogue is written per band, because metadetect detects independently
+    in each band and the rows therefore cannot be merged across bands.
+
+    Photometry and photo-z are keyed to the SExtractor detections and are not
+    attached here.
+    """
+    glob_pattern = os.path.join(out_dir_shape,
+                                f'tile{tile_label}_band*_rot{gal_rotation_angle:.0f}.feather')
+    shape_files = sorted(glob.glob(glob_pattern))
+    if not shape_files:
+        raise FileNotFoundError(f'No metadetect catalogue found matching {glob_pattern}')
+
+    for infile_tmp in shape_files:
+        band = re.search(r'_band(.*)_rot', os.path.basename(infile_tmp)).group(1)
+        data_final = pd.read_feather(infile_tmp)
+        if 'NUMBER' not in data_final.columns:
+            raise Exception(f'{infile_tmp} has no NUMBER column, '
+                            'it was produced by an older version of MetaDetect.py!')
+
+        basename = f'tile{tile_label}_band{band}_rot{gal_rotation_angle:.0f}'
+
+        # CrossMatch
+        infile_cross = os.path.join(out_dir_cross, basename+'_matched.feather')
+        if os.path.isfile(infile_cross):
+            ## combine CrossMatch and input for galaxies
+            tmp_info = pd.read_feather(infile_cross)
+            tmp_input = pd.read_feather(os.path.join(out_dir_input,
+                                                     f'gals_info_tile{tile_label}.feather'))
+            #### pick and rename the input e
+            tmp_input.rename(columns={f'e1_input_rot{int(gal_rotation_angle)}': 'e1_input',
+                                      f'e2_input_rot{int(gal_rotation_angle)}': 'e2_input'},
+                             inplace=True)
+            tmp_input.drop(columns=[c for c in tmp_input.columns
+                                    if ("e1_input_" in c) or ("e2_input_" in c)], inplace=True)
+            tmp_info = tmp_info.merge(tmp_input, left_on='id_input', right_on='index_input', how='left')
+            del tmp_input
+
+            ## combine CrossMatch and input for stars
+            infile_cross_stars = os.path.join(out_dir_cross, basename+'_stars_matched.feather')
+            if os.path.isfile(infile_cross_stars):
+                tmp_info_stars = pd.read_feather(infile_cross_stars)
+                tmp_input = pd.read_feather(os.path.join(out_dir_input,
+                                                         f'stars_info_tile{tile_label}.feather'))
+                tmp_info_stars = tmp_info_stars.merge(tmp_input, left_on='id_input',
+                                                     right_on='index_input', how='left')
+                del tmp_input
+                tmp_info = pd.concat([tmp_info, tmp_info_stars], ignore_index=True)
+                del tmp_info_stars
+            else:
+                logger.warning('No star CrossMatch found-assuming no stars!')
+
+            ## shear_type is already carried by the shape catalogue, and NUMBER
+            ##    determines it, so drop the duplicate before merging
+            tmp_info.drop(columns=['shear_type'], errors='ignore', inplace=True)
+
+            ## combine with the detections
+            data_final = data_final.merge(tmp_info, left_on='NUMBER', right_on='id_detec', how='left')
+            del tmp_info
+            data_final.drop(columns=['id_detec', 'index_input'], errors='ignore', inplace=True)
+        else:
+            logger.warning('CrossMatch is not performed, the final catalogue will not contain input info.')
+
+        # dummy values for nan
+        data_final.fillna(-999, inplace=True)
+        if 'id_input' in data_final.columns:
+            data_final = data_final.astype({'id_input': int})
+
+        # save
+        out_base = os.path.join(configs_dict['work_dirs']['cata'],
+                                f'{basename}_{combined_suffix}')
+        if configs_dict['CC']['format'] == 'feather':
+            outfile = out_base + '.feather'
+            data_final.to_feather(outfile)
+        elif configs_dict['CC']['format'] == 'csv':
+            outfile = out_base + '.csv'
+            data_final.to_csv(outfile, index=False)
+        elif configs_dict['CC']['format'] == 'fits':
+            outfile = out_base + '.fits'
+            if os.path.isfile(outfile):
+                os.remove(outfile)
+            Table.from_pandas(data_final).write(outfile, format='fits')
+        else:
+            raise Exception(f"Unsupported output format: {configs_dict['CC']['format']}!")
+        logger.info(f'Combined catalogue saved as {outfile}')
+        del data_final
 
 def run_task_7_combine(configs_dict, tile_labels, needed_tile):
     """Task 7: create a combined catalogue."""
@@ -1193,7 +1457,20 @@ def run_task_7_combine(configs_dict, tile_labels, needed_tile):
 
     # detection info
     out_dir_detec = os.path.join(configs_dict['work_dirs']['cata'], detect_foler)
-    if not os.path.exists(out_dir_detec):
+
+    ## metadetect does its own detection, so there is no separate detection
+    ##    catalogue: its shape catalogue is the base instead (see _combine_metadetect)
+    ms_method = (configs_dict.get('MS', {}) or {}).get('method', '') or ''
+    if ms_method:
+        metadetect_mode = (ms_method.lower() == 'metadetect')
+    else:
+        ## task 7 can be run on its own, without [MeasureShape] being parsed,
+        ##    in which case fall back on what is actually on disk
+        metadetect_mode = not glob.glob(os.path.join(out_dir_detec, '*.feather'))
+    if metadetect_mode:
+        logger.info('No separate detection catalogue: building the combined catalogue '
+                    'on the metadetect shape catalogue.')
+    elif not os.path.exists(out_dir_detec):
         raise Exception('Detection files are not generated!\n\
         Task 3 is required for create a combined catalogue.')
 
@@ -1222,6 +1499,12 @@ def run_task_7_combine(configs_dict, tile_labels, needed_tile):
         for gal_rotation_angle in configs_dict['imsim']['gal_rotation_angles']:
 
             logger.info(f'Combining outputs for tile {tile_label}, rot {gal_rotation_angle}...')
+
+            if metadetect_mode:
+                _combine_metadetect(configs_dict, out_dir_shape, out_dir_cross,
+                                    out_dir_input, tile_label, gal_rotation_angle,
+                                    combined_suffix)
+                continue
 
             # detection catalogue as the base
             glob_pattern = os.path.join(out_dir_detec, f'tile{tile_label}_band*_rot{gal_rotation_angle:.0f}.feather')

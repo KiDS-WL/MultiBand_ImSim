@@ -124,8 +124,10 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
     ### different rotation has same psf, so only make once
     if (save_image_PSF) and (gal_rotation_angle==0.):
         psf_dir_tmp = os.path.join(outpath_dir, f'psf_tile{tile_label}_band{band}')
+        ## two stamps per exposure: the half-pixel-shifted one for lensfit and
+        ##    the centred one for metadetect/HSM (see ImSimPSF.PSFima)
         n_files = len(glob.glob(os.path.join(psf_dir_tmp, f'expo*.fits')))
-        if n_files == n_exposures:
+        if n_files == 2*n_exposures:
             logger.info('PSF images already exist.')
         else:
             if os.path.exists(psf_dir_tmp):
@@ -133,11 +135,15 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
             os.mkdir(psf_dir_tmp)
 
             PSF = psf_func(*psf_paras)
-            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size, pixelPSF=psf_pixel)
+            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size,
+                                pixelPSF=psf_pixel, half_pixel_shift=True)
+            psf_ima_centred = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size,
+                                pixelPSF=psf_pixel, half_pixel_shift=False)
 
             for id_exposure in range(n_exposures):
                 outpath_tmp = os.path.join(psf_dir_tmp, f'expo{id_exposure}.fits')
                 psf_ima.write(outpath_tmp)
+                psf_ima_centred.write(PSFModule.psf_centred_path(outpath_tmp))
             logger.debug(f'PSF images saved to {psf_dir_tmp}')
 
     ## chips
@@ -366,13 +372,23 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
     if (save_image_PSF) and (gal_rotation_angle==0.):
         psf_dir_tmp = os.path.join(outpath_dir, f'psf_tile{tile_label}_band{band}')
         psf_ima_file_tmp = os.path.join(psf_dir_tmp, f'expo{id_exposure}.fits')
-        if os.path.isfile(psf_ima_file_tmp):
+        ## the centred counterpart, for metadetect and HSM (see ImSimPSF.PSFima)
+        psf_ima_centred_file_tmp = PSFModule.psf_centred_path(psf_ima_file_tmp)
+        if os.path.isfile(psf_ima_file_tmp) and os.path.isfile(psf_ima_centred_file_tmp):
             logger.info('PSF image already exist.')
         else:
+            os.makedirs(psf_dir_tmp, exist_ok=True)
             PSF = psf_func(*psf_paras)
-            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size, pixelPSF=psf_pixel)
+            ## half-pixel-shifted, as lensfit expects
+            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size,
+                                pixelPSF=psf_pixel, half_pixel_shift=True)
             psf_ima.write(psf_ima_file_tmp)
-            logger.debug(f'PSF image saved as {psf_ima_file_tmp}')
+            ## on the stamp true centre, as ngmix/metadetect assume
+            psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size,
+                                pixelPSF=psf_pixel, half_pixel_shift=False)
+            psf_ima.write(psf_ima_centred_file_tmp)
+            logger.debug(f'PSF images saved as {psf_ima_file_tmp} '
+                         f'and {psf_ima_centred_file_tmp}')
 
     ## if all exist, quit
     if (not False in outpath_image_exist_list) and (outpath_PSF_exist):
@@ -537,28 +553,41 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
     if (save_image_PSF) and (gal_rotation_angle==0.):
         psf_dir_tmp = os.path.join(outpath_dir, f'psf_tile{tile_label}_band{band}')
         psf_ima_file_tmp = os.path.join(psf_dir_tmp, f'exp{id_exposure}chip.fits')
-        if os.path.isfile(psf_ima_file_tmp):
+        ## the centred counterpart, for metadetect and HSM (see ImSimPSF.PSFima)
+        psf_ima_centred_file_tmp = PSFModule.psf_centred_path(psf_ima_file_tmp)
+        if os.path.isfile(psf_ima_file_tmp) and os.path.isfile(psf_ima_centred_file_tmp):
             logger.info(f'PSF image already exist.')
         else:
-            # initial hdul
-            hdu_list = fits.HDUList(fits.PrimaryHDU())
-            ## add a card for pixel scale
-            hdu_list[0].header['GS_SCALE'] = (pixel_scale, 'GalSim image scale')
+            os.makedirs(psf_dir_tmp, exist_ok=True)
+            # initial hdul, one per flavour
+            ##   True: half-pixel-shifted, as lensfit expects
+            ##   False: on the stamp true centre, as ngmix/metadetect assume
+            hdu_lists = {}
+            for half_pixel_shift in (True, False):
+                hdu_lists[half_pixel_shift] = fits.HDUList(fits.PrimaryHDU())
+                ## add a card for pixel scale
+                hdu_lists[half_pixel_shift][0].header['GS_SCALE'] = (pixel_scale, 'GalSim image scale')
             # produce 32 psf images
             for i_chip in range(32):
                 psf_paras = psf_paras_chips[i_chip]
 
                 PSF = psf_func(*psf_paras)
-                psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size, 
-                                    pixelPSF=psf_pixel)
+                for half_pixel_shift, hdu_list in hdu_lists.items():
+                    psf_ima = PSFModule.PSFima(PSF, pixel_scale, size=image_PSF_size, 
+                                        pixelPSF=psf_pixel,
+                                        half_pixel_shift=half_pixel_shift)
 
-                # collect to hdul
-                galsim.fits.write(psf_ima, hdu_list=hdu_list)
-                ## save chip id
-                hdu_list[i_chip+1].header['IMAGEID'] = i_chip+1
+                    # collect to hdul
+                    galsim.fits.write(psf_ima, hdu_list=hdu_list)
+                    ## save chip id
+                    hdu_list[i_chip+1].header['IMAGEID'] = i_chip+1
 
-            # save psf image
-            hdu_list.writeto(psf_ima_file_tmp)
+            # save psf images
+            ##    overwrite: the shifted file may already exist from a run made
+            ##    before the centred flavour was introduced, in which case the
+            ##    check above sends us here to regenerate both
+            hdu_lists[True].writeto(psf_ima_file_tmp, overwrite=True)
+            hdu_lists[False].writeto(psf_ima_centred_file_tmp, overwrite=True)
 
     ## if all exist, quit
     if (not False in outpath_image_exist_list):

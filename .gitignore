@@ -14,6 +14,7 @@ nohup*
 old_*
 *_old*
 tmp_*
+log-*
 
 log/
 old/

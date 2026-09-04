@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2026-03-25 16:18:32
+# @Last Modified time: 2026-09-03 14:20:50
 
 ### module to generate an example configuration file
 
@@ -25,6 +25,67 @@ def _strtobool(val):
         raise ValueError(f"invalid truth value {val!r}")
 
 logger = logging.getLogger(__name__)
+
+def _parse_cross_match(config, imsim_configs, section):
+    """
+    Settings for cross-matching a detection catalogue against the input one.
+
+    Shared by [SExtractor] and [metadetect]: both read the same [CrossMatch]
+    section, so that a run gives the same matching regardless of which one
+    produced the detections.
+    """
+    if 'CrossMatch' not in config:
+        raise Exception(f'cross_match is on for [{section}] but there is no '
+                        '[CrossMatch] section in the configuration file!')
+    config_cross = config['CrossMatch']
+    out = {
+        'mag_faint_cut': config_cross.getfloat('mag_faint_cut'),
+        'save_matched': config_cross.getboolean('save_matched'),
+        'save_false': config_cross.getboolean('save_false'),
+        'save_missed': config_cross.getboolean('save_missed'),
+        'mag_closest': config_cross.getboolean('mag_closest'),
+        'r_max': config_cross.getfloat('r_max'),
+    }
+
+    ### legitimate check
+    if out['mag_faint_cut'] > imsim_configs['casual_mag']:
+        raise Exception("mag_faint_cut has to be brighter than the casual_mag!")
+
+    ### match with TAN projection
+    ##    NOTE: SectionProxy.get* returns the fallback for a missing option, it
+    ##          does not raise, so the default has to be passed explicitly.
+    ##          Without it use_TAN and r_max_pixel came out as None, and a config
+    ##          with use_TAN=True but no r_max_pixel crashed the KDTree query
+    ##          with "must be real number, not NoneType".
+    ## old code is using the sky coordinates
+    out['use_TAN'] = config_cross.getboolean('use_TAN', fallback=False)
+
+    out['r_max_pixel'] = config_cross.getfloat('r_max_pixel', fallback=None)
+    if out['r_max_pixel'] is None:
+        out['r_max_pixel'] = 3.
+        if out['use_TAN']:
+            logger.warning(f'r_max_pixel not found in config, using default value 3 pixels ({section}).')
+
+    return out
+
+def _parse_psf_image(value, default, section):
+    """
+    Which flavour of the PSF stamp a step should use.
+
+    Two stamps are saved for every image (see modules/ImSimPSF.py):
+        'shifted'  the profile is shifted by half a pixel, so it lands on a
+                   pixel centre for an even-sized stamp. lensfit expects this.
+        'centred'  the profile sits on the true centre of the stamp, which is
+                   where GalSim's InterpolatedImage, and hence ngmix/metadetect,
+                   assume it to be.
+    """
+    if value is None:
+        return default
+    value = value.strip().lower()
+    if value not in ('shifted', 'centred'):
+        raise Exception(f"Unsupported psf_image {value} in [{section}]!\n\
+        supported values: shifted, centred")
+    return value
 
 def ParseConfig(config_file, taskIDs, run_tag, running_log):
 
@@ -365,30 +426,7 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
 
         ### cross match
         if sex_configs['cross_match']:
-            config_cross = config['CrossMatch']
-            sex_configs['mag_faint_cut'] = config_cross.getfloat('mag_faint_cut')
-            sex_configs['save_matched'] = config_cross.getboolean('save_matched')
-            sex_configs['save_false'] = config_cross.getboolean('save_false')
-            sex_configs['save_missed'] = config_cross.getboolean('save_missed')
-            sex_configs['mag_closest'] = config_cross.getboolean('mag_closest')
-            sex_configs['r_max'] = config_cross.getfloat('r_max')
-
-            ### legitimate check
-            if sex_configs['mag_faint_cut'] > imsim_configs['casual_mag']:
-                raise Exception("mag_faint_cut has to be brighter than the casual_mag!")
-
-            ### match with TAN projection
-            try:
-                sex_configs['use_TAN'] = config_cross.getboolean('use_TAN')
-            except (configparser.NoSectionError, configparser.NoOptionError):
-                ## old code is using the sky coordinates
-                sex_configs['use_TAN'] = False
-
-            try:
-                sex_configs['r_max_pixel'] = config_cross.getfloat('r_max_pixel')
-            except (configparser.NoSectionError, configparser.NoOptionError):
-                sex_configs['r_max_pixel'] = 3.
-                logger.warning('r_max_pixel not found in config, using default value 3 pixels.')
+            sex_configs.update(_parse_cross_match(config, imsim_configs, 'SExtractor'))
 
         ### collect
         configs_dict['sex'] = sex_configs
@@ -494,6 +532,11 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             PSF_configs['folder_prefix'] = folder_prefix
         else:
             PSF_configs['folder_prefix'] = 'psf_coeff'
+
+        ### which flavour of the PSF stamp to use (see modules/ImSimPSF.py)
+        ###    lensfit wants the half-pixel-shifted one
+        PSF_configs['psf_image'] = _parse_psf_image(config_PSF.get('psf_image'),
+                                                    'shifted', 'PSFmodelling')
 
         if PSF_method.lower() == 'ima2coeffs':
             config_tmp = config['ima2coeffs']
@@ -618,6 +661,9 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             MS_configs['hsm_guess_sig_PSF'] = config_hsm.getfloat('guess_sig_PSF')
             MS_configs['hsm_precision'] = config_hsm.getfloat('precision')
             MS_configs['hsm_save_Nstamps'] = config_hsm.getint('save_Nstamps')
+            ### which flavour of the PSF stamp to use (see modules/ImSimPSF.py)
+            MS_configs['hsm_psf_image'] = _parse_psf_image(config_hsm.get('psf_image'),
+                                                           'centred', 'hsm')
 
         elif MS_method.lower() == 'metadetect':
             config_metadetect = config['metadetect']
@@ -627,6 +673,36 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             MS_configs['metadetect_cell_size'] = config_metadetect.getint('cell_size')
             MS_configs['metadetect_central_size'] = config_metadetect.getint('central_size')
             MS_configs['metadetect_save_Ncells'] = config_metadetect.getint('save_Ncells')
+            ### which flavour of the PSF stamp to use (see modules/ImSimPSF.py)
+            ###    ngmix places the PSF at the true centre of its stamp, so
+            ###    metadetect needs the centred one
+            MS_configs['metadetect_psf_image'] = _parse_psf_image(
+                                        config_metadetect.get('psf_image'),
+                                        'centred', 'metadetect')
+            ### cross-match the metadetect detections with the input catalogue
+            ###    metadetect does its own detection, so this replaces the
+            ###    cross-match that task 3 does for SExtractor, and it is what
+            ###    lets task 7 attach the input info (see run_task_7_combine)
+            ## absent in older config files, in which case it stays off
+            MS_configs['metadetect_cross_match'] = bool(config_metadetect.getboolean('cross_match'))
+            if MS_configs['metadetect_cross_match']:
+                MS_configs.update({'metadetect_'+k: v for k, v in
+                                   _parse_cross_match(config, imsim_configs, 'metadetect').items()})
+                ## mag_closest resolves a duplicated match by picking the
+                ##    detection whose magnitude is closest to the input one,
+                ##    which assumes the measured magnitude is a TOTAL magnitude
+                ##    like SExtractor's MAG_AUTO. metadetect has no such
+                ##    quantity: its only flux is the weighted-moment
+                ##    <model>_band_flux, which misses the light outside the
+                ##    weight function by ~0.5 mag for the smallest galaxies and
+                ##    ~0.9 mag for the largest. Comparing that with an input
+                ##    total magnitude is biased, and size-dependent, so the
+                ##    duplicates are resolved by distance instead.
+                if MS_configs['metadetect_mag_closest']:
+                    logger.warning(
+                        'mag_closest=True in [CrossMatch] is ignored for metadetect: '
+                        'metadetect reports no total magnitude, only an aperture flux!')
+                MS_configs['metadetect_mag_closest'] = False
 
         else:
             raise Exception(f'Unsupported shape measurement method {MS_method}!')
@@ -943,6 +1019,10 @@ method =                ima2coeffs             # method for PSF modelling\n\
                                                #    makeglobalpsf\n\
                                                #    ima2coeffs\n\
 folder_prefix =         psf_coeff              # prefix of folders saving PSF models\n\
+psf_image =             shifted                # which saved PSF image to model from\n\
+                                               #    shifted: PSF shifted onto a pixel centre (what lensfit expects)\n\
+                                               #    centred: PSF on the true centre of the stamp\n\
+                                               # only used by the ima2coeffs method\n\
 detection_band =        r                      # band with detection catalogue\n\
 band_list =             r                      # bands being measured\n\
 image_label_list =      original\n\
@@ -1035,6 +1115,10 @@ guess_sig_gal =         5.0                    # initial guess for the sigma of 
 guess_sig_PSF =         3.0                    # initial guess for the sigma of the PSF (in pixels)\n\
 precision =             1e-6                   # convergence criterion for the moments\n\
 save_Nstamps =          0                      # number of stamps saved for visual check\n\
+psf_image =             centred                # which saved PSF image to use\n\
+                                               #    centred: PSF on the true centre of the stamp (default)\n\
+                                               #    shifted: PSF shifted onto a pixel centre (what lensfit expects)\n\
+                                               # HSM measures the PSF centroid itself, so it is insensitive to this\n\
 \n\n\
 [metadetect]\n\n\
 same_PSF =              True                   # whether all objects have the same PSF\n\
@@ -1047,6 +1131,18 @@ cell_size =             250                    # the cell size for metadetection
 central_size =          150                    # the central size for metadetection\n\
                                                #    should be even number and smaller than cell size\n\
 save_Ncells =           0                      # number of cells saved for visual check\n\
+psf_image =             centred                # which saved PSF image to use\n\
+                                               #    centred: PSF on the true centre of the stamp (default)\n\
+                                               #    shifted: PSF shifted onto a pixel centre (what lensfit expects)\n\
+                                               # ngmix puts the PSF at the true centre of its stamp, so the\n\
+                                               #    shifted one displaces every measured position by 0.71 pixel\n\
+cross_match =           True                   # cross-match the detections with the input catalogue\n\
+                                               # metadetect does its own detection, so this replaces the\n\
+                                               #    cross-match that task 3 does for SExtractor\n\
+                                               # settings are taken from the [CrossMatch] section, except\n\
+                                               #    mag_closest, which is always False here: metadetect has\n\
+                                               #    no total magnitude to compare with the input one\n\
+                                               # required by task 7 to attach the input info\n\
 \n\n\
 ################################## CombineCata ###################################################\n\
 [CombineCata]\n\n\

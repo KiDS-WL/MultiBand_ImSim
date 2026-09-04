@@ -2,18 +2,43 @@
 # @Author: lshuns
 # @Date:   2020-11-26 15:00:22
 # @Last Modified by:   lshuns
-# @Last Modified time: 2021-11-24 13:47:16
+# @Last Modified time: 2026-08-31 16:14:16
 
 ### Everything about PSF
 __all__ = ['MoffatPSF', 'AiryPSF', 'loadPixelPSF', \
             'PSFima', 'PSFmap', 'PSFmap_MultiPSF', 'PSFmap_DiffMag', 'PSFmap_MultiPSF_DiffMag',
-            'parse_psf_info', 'parse_psf_info_chips']
+            'parse_psf_info', 'parse_psf_info_chips',
+            'PSF_CENTRED_SUFFIX', 'psf_centred_path']
 
+import os
 import galsim
 import logging
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+## Two flavours of every PSF stamp are saved, because the codes downstream do not
+##    agree on where the PSF should sit within its stamp:
+##
+##      <name>.fits            the profile is shifted by half a pixel before being
+##                             drawn, which puts it on a pixel centre for an
+##                             even-sized stamp. This is what lensfit expects and
+##                             what PSFima has always produced.
+##      <name>_centred.fits    the profile sits on the true centre of the stamp,
+##                             i.e. the zero-based position ((n-1)/2, (n-1)/2).
+##                             This is where GalSim's InterpolatedImage places a
+##                             stamp, and therefore where ngmix/metadetect assume
+##                             the PSF to be. Handing the shifted stamp to
+##                             metadetect displaces every measured position by
+##                             half a pixel per axis (0.71 pixel in total).
+PSF_CENTRED_SUFFIX = '_centred'
+
+def psf_centred_path(path):
+    """
+    Name of the centred counterpart of a PSF stamp file (see PSFima).
+    """
+    root, ext = os.path.splitext(path)
+    return root + PSF_CENTRED_SUFFIX + ext
 
 def _grid_positions(N, sep, rng_seed):
     """
@@ -235,7 +260,7 @@ def loadPixelPSF(inpath, pixel_scale, offset=(0.5, 0.5)):
 
     return PixelPSF
 
-def PSFima(PSF, pixel_scale, size=32, pixelPSF=False):
+def PSFima(PSF, pixel_scale, size=32, pixelPSF=False, half_pixel_shift=True):
     """
     Draw a single PSF image from a PSF model.
 
@@ -249,6 +274,13 @@ def PSFima(PSF, pixel_scale, size=32, pixelPSF=False):
         The image size in unit of pixel
     pixelPSF : bool, optional (default: False)
         if the PSF provided already including pixel response
+    half_pixel_shift : bool, optional (default: True)
+        shift the profile by half a pixel before drawing it, which puts the PSF
+        on a pixel centre for an even-sized stamp. This is the convention
+        lensfit expects. Set it to False to leave the profile on the true centre
+        of the stamp, ((n-1)/2, (n-1)/2) zero-based, which is what GalSim's
+        InterpolatedImage and hence ngmix/metadetect assume.
+        See PSF_CENTRED_SUFFIX for how the two flavours are named on disk.
 
     Returns
     -------
@@ -257,13 +289,16 @@ def PSFima(PSF, pixel_scale, size=32, pixelPSF=False):
     """
 
     psf_image = galsim.Image(size, size)
-    PSF_lf = PSF.shift(0.5*pixel_scale, 0.5*pixel_scale)
+    if half_pixel_shift:
+        PSF_tmp = PSF.shift(0.5*pixel_scale, 0.5*pixel_scale)
+    else:
+        PSF_tmp = PSF
 
     if pixelPSF:
         draw_method = 'no_pixel'
     else:
         draw_method = 'auto'
-    psf_image = PSF_lf.drawImage(image=psf_image, scale=pixel_scale, method=draw_method)
+    psf_image = PSF_tmp.drawImage(image=psf_image, scale=pixel_scale, method=draw_method)
 
     return psf_image
 

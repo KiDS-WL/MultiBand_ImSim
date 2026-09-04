@@ -21,18 +21,34 @@ import pandas as pd
 from pathlib import Path
 from astropy.io import fits
 
+from ImSimPSF import PSF_CENTRED_SUFFIX
+
 logger = logging.getLogger(__name__)
 
-def ima2coeffsFunc(ima2coeffs_dir, in_dir, out_dir, varChips=False):
+def ima2coeffsFunc(ima2coeffs_dir, in_dir, out_dir, varChips=False, psf_image='shifted'):
     """
     get psf polynomial coefficients from psf image
+
+    psf_image : 'shifted' (default) or 'centred'
+        which flavour of the PSF stamp to use, see modules/ImSimPSF.py.
+        lensfit wants the half-pixel-shifted one, which is the default.
     """
 
     logger.info(f'Running ima2coeffs for {in_dir}...')
-    psf_imas = glob.glob(os.path.join(in_dir, '*.fits'))
+    psf_imas = sorted(glob.glob(os.path.join(in_dir, '*.fits')))
+    ## both flavours of every stamp live in this directory, keep only the
+    ##    requested one so that they do not overwrite each other's coefficients
+    def _is_centred(f):
+        return os.path.splitext(os.path.basename(f))[0].endswith(PSF_CENTRED_SUFFIX)
+    if psf_image == 'centred':
+        psf_imas = [f for f in psf_imas if _is_centred(f)]
+    elif psf_image == 'shifted':
+        psf_imas = [f for f in psf_imas if not _is_centred(f)]
+    else:
+        raise Exception(f"Unsupported psf_image {psf_image}, use 'shifted' or 'centred'")
     if len(psf_imas) < 1:
-        raise Exception(f'No PSF images found in {in_dir}')
-    logger.info(f'Number of PSF images: {len(psf_imas)}')
+        raise Exception(f'No {psf_image} PSF images found in {in_dir}')
+    logger.info(f'Number of PSF images ({psf_image}): {len(psf_imas)}')
 
     # psf vary between different chips
     if varChips:
