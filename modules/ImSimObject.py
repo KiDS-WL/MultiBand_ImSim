@@ -190,7 +190,15 @@ def GalaxiesImage(canvas, band, pixel_scale, PSF,
 
     # constrain gal stamp for grid mode
     if gal_position_type[0] == 'grid':
-        bounds_stamp = galsim.BoundsI(xmin=1, xmax=math.floor(gal_position_type[1]/pixel_scale), ymin=1, ymax=math.floor(gal_position_type[1]/pixel_scale))
+        ## NOTE: the stamp size has to be even.
+        ##    drawImage() places the object relative to the stamp's true_center,
+        ##    whereas setCenter() below aligns the integer center. The two coincide
+        ##    for an odd-sized stamp but differ by half a pixel for an even-sized one.
+        ##    GalSim's auto-sized stamps (used in the non-grid modes) are always even,
+        ##    and the '+0.5' added to x_gals/y_gals below is calibrated against that.
+        ##    An odd stamp would therefore displace every galaxy by +0.5 pixel.
+        N_stamp = 2 * math.floor(gal_position_type[1]/pixel_scale/2)
+        bounds_stamp = galsim.BoundsI(xmin=1, xmax=N_stamp, ymin=1, ymax=N_stamp)
         logger.info(f'galaxy stamp is constrained to {bounds_stamp}')
 
     # copy the canvas
@@ -314,7 +322,15 @@ def GalaxiesImage_casual(canvas, band, pixel_scale, PSF,
 
     # constrain gal stamp for grid mode
     if gal_position_type[0] == 'grid':
-        bounds_stamp = galsim.BoundsI(xmin=1, xmax=math.floor(gal_position_type[1]/pixel_scale), ymin=1, ymax=math.floor(gal_position_type[1]/pixel_scale))
+        ## NOTE: the stamp size has to be even.
+        ##    drawImage() places the object relative to the stamp's true_center,
+        ##    whereas setCenter() below aligns the integer center. The two coincide
+        ##    for an odd-sized stamp but differ by half a pixel for an even-sized one.
+        ##    GalSim's auto-sized stamps (used in the non-grid modes) are always even,
+        ##    and the '+0.5' added to x_gals/y_gals below is calibrated against that.
+        ##    An odd stamp would therefore displace every galaxy by +0.5 pixel.
+        N_stamp = 2 * math.floor(gal_position_type[1]/pixel_scale/2)
+        bounds_stamp = galsim.BoundsI(xmin=1, xmax=N_stamp, ymin=1, ymax=N_stamp)
         logger.info(f'galaxy stamp is constrained to {bounds_stamp}')
 
     # copy the canvas
