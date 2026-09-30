@@ -216,7 +216,8 @@ def _run_metadetect_cell(args):
      shm_name_weight_img, img_weight_shape, img_weight_dtype,
      cell_size, central_size, pixel_scale,
      outpath_cell, outpath_cell_cata,
-     shm_name_noise_img, img_noise_shape, img_noise_dtype
+     shm_name_noise_img, img_noise_shape, img_noise_dtype,
+     trim_position
      ) = args
 
     half_size = cell_size // 2
@@ -381,12 +382,26 @@ def _run_metadetect_cell(args):
             logger.debug(f"No objects detected in {key} for cell at ({xcen}, {ycen})")
             continue
 
-        ## Use unsheared position to select objects within the centre region
+        ## Select objects within the centre region, by either
+        ##    'noshear'  : the position un-sheared back to the noshear frame. This
+        ##                 aims to make the trimming shear-independent, but the
+        ##                 un-shearing is imperfect near cell boundaries: objects
+        ##                 get claimed by two cells or by none, more often in the
+        ##                 1p/1m images than the 2p/2m ones, and never in noshear.
+        ##    'measured' : the position measured in each image, so the trimming is
+        ##                 a shear-dependent selection that the response calibrates.
+        ##                 This is the choice of Sheldon et al. 2023
+        ##                 (arXiv:2303.03947), and it needs the simulated positions
+        ##                 sheared as well (ImSim shear_positions = True).
+        if trim_position == 'measured':
+            row_trim, col_trim = res[key]['sx_row'], res[key]['sx_col']
+        else:
+            row_trim, col_trim = res[key]['sx_row_noshear'], res[key]['sx_col_noshear']
         idx_centre = np.where(
-            (res[key]['sx_row_noshear'] >= (cell_size - central_size) / 2) &
-            (res[key]['sx_row_noshear'] < (cell_size + central_size) / 2) &
-            (res[key]['sx_col_noshear'] >= (cell_size - central_size) / 2) &
-            (res[key]['sx_col_noshear'] < (cell_size + central_size) / 2)
+            (row_trim >= (cell_size - central_size) / 2) &
+            (row_trim < (cell_size + central_size) / 2) &
+            (col_trim >= (cell_size - central_size) / 2) &
+            (col_trim < (cell_size + central_size) / 2)
         )[0]
         logger.debug(f'For {key}, number of objects in centre region / all: {len(idx_centre)}/{len(res[key])}')
 
@@ -446,7 +461,8 @@ def MetaDetectShear(outpath_feather,
                     cell_size=250,
                     central_size=150,
                     max_cores=12,
-                    allow_uncentred_psf=False):
+                    allow_uncentred_psf=False,
+                    trim_position='noshear'):
     """
     Main function for running metadetect
 
@@ -454,6 +470,11 @@ def MetaDetectShear(outpath_feather,
         Proceed, with a warning, when the PSF stamp is not centred where ngmix
         assumes it to be. Off by default because such a run is biased in both
         position and shear, see _check_psf_centred.
+    trim_position : str, optional (default: 'noshear')
+        Which position decides whether a detection belongs to a cell's central
+        region: 'noshear' (un-sheared back to the noshear frame) or 'measured'
+        (as measured in each sheared image, as in Sheldon et al. 2023). See the
+        trimming in _run_metadetect_cell.
     """
 
     _log_versions()
@@ -468,6 +489,9 @@ def MetaDetectShear(outpath_feather,
     assert central_size < cell_size, "central_size should be smaller than cell_size!"
     assert cell_size % 2 == 0, "cell_size should be an even number!"
     assert central_size % 2 == 0, "central_size should be an even number!"
+    if trim_position not in ('noshear', 'measured'):
+        raise ValueError(f"trim_position must be 'noshear' or 'measured', not {trim_position!r}")
+    logger.info(f'Cell central regions are trimmed on the {trim_position} position of each detection.')
 
     ## >>>>>>>>>>> 0. Load config
     with open(inpath_config, 'r') as json_file:
@@ -687,6 +711,7 @@ def MetaDetectShear(outpath_feather,
                                  str(shm_noise_img_arr.dtype)]
                 else:
                     job_arg += [None, None, None]
+                job_arg += [trim_position]
                 job_args.append(tuple(job_arg))
 
         ## Run in parallel

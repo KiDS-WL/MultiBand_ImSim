@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2021-02-03, 15:58:35
 # @Last Modified by:   lshuns
-# @Last Modified time: 2026-09-03 14:20:50
+# @Last Modified time: 2026-09-30 09:19:19
 
 ### module to generate an example configuration file
 
@@ -175,6 +175,17 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                     'image_chips': [bool(_strtobool(x.strip())) for x in config_imsim.get('image_chips').split(',')],
                     'image_PSF': [bool(_strtobool(x.strip())) for x in config_imsim.get('image_PSF').split(',')]}
 
+    ### shear the galaxy POSITIONS as well as their profiles
+    ###    optional, and off unless asked: only metadetection needs it, because it
+    ###    trims detections to unique cell regions and that selection is
+    ###    shear-dependent (see ImSim._shear_positions). Absent from older config
+    ###    files, hence the fallback rather than a bare get().
+    shear_positions = config_imsim.get('shear_positions', fallback=None)
+    if shear_positions is None:
+        imsim_configs['shear_positions'] = False
+    else:
+        imsim_configs['shear_positions'] = bool(_strtobool(shear_positions.strip()))
+
     ### repeat certain para to match with number of bands
     if len(imsim_configs['PSF_map']) == 1:
         imsim_configs['PSF_map'] = imsim_configs['PSF_map'] * len(imsim_configs['bands'])
@@ -272,7 +283,7 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
     noise_configs['psf_type_list'] = psf_type_list
     ###### supported types
     for psf_type in noise_configs['psf_type_list']:
-        if psf_type not in ['moffat', 'airy', 'pixelima']:
+        if psf_type not in ['moffat', 'gaussian', 'airy', 'pixelima']:
             raise Exception(f'not supported psf_type: {psf_type}')
 
     ### >>> for old version                     
@@ -298,6 +309,7 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             logger.warning('Using old psf_basenames parameter, please update ASAP!')
             noise_configs['psf_basenames_moffat'] = [x.strip() for x in psf_basenames.split(',')]
             noise_configs['psf_basenames_airy'] = [x.strip() for x in psf_basenames.split(',')]
+            noise_configs['psf_basenames_gaussian'] = [x.strip() for x in psf_basenames.split(',')]
         else:
             try:
                 noise_configs['psf_basenames_moffat'] = [x.strip() for x in config_noise.get('psf_basenames_moffat').split(',')]
@@ -308,6 +320,11 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
                 noise_configs['psf_basenames_airy'] = [x.strip() for x in config_noise.get('psf_basenames_airy').split(',')]
             except AttributeError:    
                 noise_configs['psf_basenames_airy'] = None
+
+            try:
+                noise_configs['psf_basenames_gaussian'] = [x.strip() for x in config_noise.get('psf_basenames_gaussian').split(',')]
+            except AttributeError:    
+                noise_configs['psf_basenames_gaussian'] = None
 
     ### collect
     configs_dict['noise'] = noise_configs
@@ -685,6 +702,13 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             ###    lets task 7 attach the input info (see run_task_7_combine)
             ## absent in older config files, in which case it stays off
             MS_configs['metadetect_cross_match'] = bool(config_metadetect.getboolean('cross_match'))
+            ### which position decides a detection's cell (see MetaDetect._run_metadetect_cell)
+            ## absent in older config files, in which case the original 'noshear' is kept
+            trim_position = config_metadetect.get('trim_position', fallback='noshear').strip().lower()
+            if trim_position not in ('noshear', 'measured'):
+                raise Exception(f"[metadetect] trim_position must be 'noshear' or 'measured', "
+                                f"not {trim_position!r}")
+            MS_configs['metadetect_trim_position'] = trim_position
             if MS_configs['metadetect_cross_match']:
                 MS_configs.update({'metadetect_'+k: v for k, v in
                                    _parse_cross_match(config, imsim_configs, 'metadetect').items()})
@@ -822,6 +846,13 @@ psf_basenames_moffat =  InputSeeing, InputBeta, seeing_e1, seeing_e2\n\
                                                #    seeing, MoffatBeta, e1, e2\n\
                                                # the real column name is associated with band labels\n\
                                                # not all required, for those missed, simply ignore or feed none\n\
+psf_basenames_gaussian = InputSeeing, seeing_e1, seeing_e2\n\
+                                               # base names for psf profile\n\
+                                               # used by psf_type == Gaussian\n\
+                                               # order:\n\
+                                               #    seeing, e1, e2\n\
+                                               # the real column name is associated with band labels\n\
+                                               # not all required, for those missed, simply ignore or feed none\n\
 psf_basenames_airy =    lam, diam, obscuration, psf_e1, psf_e2\n\
                                                # base names for psf profile\n\
                                                # used by psf_type == Airy\n\
@@ -897,6 +928,14 @@ simple_cut =            True                   # cut the input sky to tiles usin
 simple_camera =         True                   # Camera layout using \n\
                                                # simple transformations without FoV distortion across chips (True)\n\
                                                # properly transformations (False), recommended for |dec|>10\n\
+shear_positions =       False                  # shear the galaxy POSITIONS as well as their profiles\n\
+                                               # False (default): only the profiles are sheared\n\
+                                               # True: the full scene is sheared\n\
+                                               # Set True for METADETECTION: it trims detections to\n\
+                                               #    unique cell regions, a shear-dependent selection it\n\
+                                               #    can only calibrate if the positions carry the shear\n\
+                                               # Not needed by lensfit or HSM, which apply no\n\
+                                               #    position-dependent selection\n\
 \n\n\
 ################################## SWarp ###################################################\n\
 [SWarp]\n\n\
@@ -1136,6 +1175,10 @@ psf_image =             centred                # which saved PSF image to use\n\
                                                #    shifted: PSF shifted onto a pixel centre (what lensfit expects)\n\
                                                # ngmix puts the PSF at the true centre of its stamp, so the\n\
                                                #    shifted one displaces every measured position by 0.71 pixel\n\
+trim_position =         noshear                # which position decides a detection's cell central region\n\
+                                               #    noshear : un-sheared back to the noshear frame (default)\n\
+                                               #    measured: as measured in each sheared image, as in\n\
+                                               #              Sheldon et al. 2023; needs shear_positions = True\n\
 cross_match =           True                   # cross-match the detections with the input catalogue\n\
                                                # metadetect does its own detection, so this replaces the\n\
                                                #    cross-match that task 3 does for SExtractor\n\

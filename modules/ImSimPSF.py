@@ -2,10 +2,10 @@
 # @Author: lshuns
 # @Date:   2020-11-26 15:00:22
 # @Last Modified by:   lshuns
-# @Last Modified time: 2026-08-31 16:14:16
+# @Last Modified time: 2026-09-30 09:11:55
 
 ### Everything about PSF
-__all__ = ['MoffatPSF', 'AiryPSF', 'loadPixelPSF', \
+__all__ = ['MoffatPSF', 'GaussianPSF', 'AiryPSF', 'loadPixelPSF', \
             'PSFima', 'PSFmap', 'PSFmap_MultiPSF', 'PSFmap_DiffMag', 'PSFmap_MultiPSF_DiffMag',
             'parse_psf_info', 'parse_psf_info_chips',
             'PSF_CENTRED_SUFFIX', 'psf_centred_path']
@@ -80,7 +80,7 @@ def parse_psf_info(psf_info, pixel_scale):
     ----------
     psf_info : tuple
         PSF specification: (type_name, *params).
-        Supported types: 'moffat', 'airy', 'pixelima'.
+        Supported types: 'moffat', 'gaussian', 'airy', 'pixelima'.
     pixel_scale : float
         Pixel scale in arcsec (used for pixelima).
 
@@ -100,6 +100,12 @@ def parse_psf_info(psf_info, pixel_scale):
         if (psf_e[0] == 0.) and (psf_e[1] == 0.):
             psf_e = None
         return MoffatPSF, (seeing, beta, psf_e), False
+
+    elif psf_type == 'gaussian':
+        seeing, psf_e = psf_info[1:]
+        if (psf_e[0] == 0.) and (psf_e[1] == 0.):
+            psf_e = None
+        return GaussianPSF, (seeing, psf_e), False
 
     elif psf_type == 'airy':
         lam, diam, obscuration, psf_e = psf_info[1:]
@@ -148,6 +154,16 @@ def parse_psf_info_chips(psf_info_chips, pixel_scale, n_chips=32):
             psf_paras_chips.append((seeing_chips[i_chip], beta_chips[i_chip], psf_e))
         return MoffatPSF, psf_paras_chips, False
 
+    elif psf_type == 'gaussian':
+        seeing_chips, psf_e_chips = psf_info_chips[1:]
+        psf_paras_chips = []
+        for i_chip in range(n_chips):
+            psf_e = [psf_e_chips[0][i_chip], psf_e_chips[1][i_chip]]
+            if (psf_e[0] == 0.) and (psf_e[1] == 0.):
+                psf_e = None
+            psf_paras_chips.append((seeing_chips[i_chip], psf_e))
+        return GaussianPSF, psf_paras_chips, False
+
     elif psf_type == 'airy':
         lam_chips, diam_chips, obscuration_chips, psf_e_chips = psf_info_chips[1:]
         psf_paras_chips = []
@@ -187,6 +203,38 @@ def MoffatPSF(seeing, moffat_beta, psf_e=None):
     """
 
     psf = galsim.Moffat(beta=moffat_beta, fwhm=seeing, trunc=4.5*seeing)
+    if psf_e:
+        psf_e1 = psf_e[0]
+        psf_e2 = psf_e[1]
+
+        psf_e_mag = np.sqrt(psf_e1**2+psf_e2**2)
+        if psf_e_mag >= 2:
+            raise ValueError(f'Unphysical PSF ellipticity |e| = {psf_e_mag} >= 2')
+        # g_i = e_i/(2-e)
+        psf_g1, psf_g2 = psf_e1/(2-psf_e_mag), psf_e2/(2-psf_e_mag)
+
+        psf = psf.shear(g1=psf_g1, g2=psf_g2)
+
+    return psf
+
+def GaussianPSF(seeing, psf_e=None):
+    """
+    Generate PSF model as a Gaussian profile.
+
+    Parameters
+    ----------
+    seeing : float
+        Full-width-half-max of the PSF.
+    psf_e : list, optional (default: [0, 0])
+        List of psf ellipticity [e1, e2]
+        NOTE: e = 1 - q, as from KiDS AW data.
+
+    Returns
+    -------
+    psf : galsim PSF model.
+    """
+
+    psf = galsim.Gaussian(fwhm=seeing)
     if psf_e:
         psf_e1 = psf_e[0]
         psf_e2 = psf_e[1]

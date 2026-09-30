@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-12-09 19:21:53
 # @Last Modified by:   lshuns
-# @Last Modified time: 2026-01-07 16:41:39
+# @Last Modified time: 2026-09-30 09:10:19
 
 ### running module for ImSim
 
@@ -27,11 +27,104 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['NUMEXPR_NUM_THREADS'] = '1'
 
+import galsim
 import numpy as np
 import pandas as pd
 from astropy.wcs import WCS
 
 logger = logging.getLogger(__name__)
+
+def _shear_positions(gals_info_selec, g_cosmic):
+    """
+    Displace galaxy sky positions by the cosmic shear.
+
+    Metadetection trims detections to unique cell regions, which is a
+    shear-dependent selection: real shear moves objects, so whether an object
+    falls in a given cell depends on the shear. Metadetection calibrates that
+    selection by re-detecting on artificially sheared images, but it can only do
+    so if the simulated positions carry the shear too. 
+    
+    Shape measurements without a position-dependent selection (lensfit, HSM, GAaP) 
+    do not need it, which is why it is off by default.
+
+    The shear is applied in the gnomonic tangent plane of the tile centre, which
+    is the plane the tile WCS itself projects onto, so the distortion acts on
+    true angular separations at any declination. 
+    """
+
+    g1, g2 = float(g_cosmic[0]), float(g_cosmic[1])
+    if (g1 == 0.) and (g2 == 0.):
+        return
+
+    ## The tangent point is taken from the galaxies themselves
+    ra_all = np.concatenate([np.asarray(g['RA'], dtype=float)
+                             for g in gals_info_selec if g is not None])
+    dec_all = np.concatenate([np.asarray(g['DEC'], dtype=float)
+                              for g in gals_info_selec if g is not None])
+    if ra_all.size == 0:
+        return
+    ra_cen = 0.5 * (ra_all.min() + ra_all.max())
+    dec_cen = 0.5 * (dec_all.min() + dec_all.max())
+    cen = galsim.CelestialCoord(ra_cen * galsim.degrees, dec_cen * galsim.degrees)
+
+    ## Project onto the tangent plane at the tile centre.
+    for gals_info_tmp in gals_info_selec:
+        if gals_info_tmp is None:
+            continue
+
+        u, v = cen.project_rad(np.deg2rad(np.asarray(gals_info_tmp['RA'], dtype=float)),
+                               np.deg2rad(np.asarray(gals_info_tmp['DEC'], dtype=float)),
+                               projection='gnomonic')
+        u = np.asarray(u)
+        v = np.asarray(v)
+
+        A = galsim.Shear(g1=g1, g2=g2).getMatrix()
+        u_s = A[0, 0] * u + A[0, 1] * v
+        v_s = A[1, 0] * u + A[1, 1] * v
+
+        ## back to sky coordinates
+        ra_s, dec_s = cen.deproject_rad(u_s, v_s, projection='gnomonic')
+        gals_info_tmp.loc[:, 'RA'] = np.rad2deg(ra_s)
+        gals_info_tmp.loc[:, 'DEC'] = np.rad2deg(dec_s)
+
+def _canvas_bounds_unsheared(gals_info_selec, g_cosmic, edge_sep=18.):
+    """
+    Sky bounds for the image canvas, taken from the galaxy positions BEFORE the
+    position shear, with the edge margin widened to hold the sheared positions.
+
+    The margin is the largest displacement any of (+-|g1|, +-|g2|) produces at the
+    edge of the unsheared extent, so the canvas is identical for the four shear
+    signs used to measure m1 and m2. Returns None when there is no shear, in which
+    case the canvas is built from the galaxy positions exactly as before.
+    """
+
+    g1, g2 = abs(float(g_cosmic[0])), abs(float(g_cosmic[1]))
+    if (g1 == 0.) and (g2 == 0.):
+        return None
+
+    ra_all = np.concatenate([np.asarray(g['RA'], dtype=float)
+                             for g in gals_info_selec if g is not None])
+    dec_all = np.concatenate([np.asarray(g['DEC'], dtype=float)
+                              for g in gals_info_selec if g is not None])
+    if ra_all.size == 0:
+        return None
+    ra_min, ra_max = ra_all.min(), ra_all.max()
+    dec_min, dec_max = dec_all.min(), dec_all.max()
+
+    ## half-extents in arcsec on the sky, about the centre _shear_positions uses
+    dec_cen = 0.5 * (dec_min + dec_max)
+    Lx = 0.5 * (ra_max - ra_min) * 3600. * np.cos(np.deg2rad(dec_cen))
+    Ly = 0.5 * (dec_max - dec_min) * 3600.
+    margin = 0.
+    for s1 in (-1., 1.):
+        for s2 in (-1., 1.):
+            A = galsim.Shear(g1=s1 * g1, g2=s2 * g2).getMatrix()
+            margin = max(margin,
+                         abs(A[0, 0] - 1.) * Lx + abs(A[0, 1]) * Ly,
+                         abs(A[1, 0]) * Lx + abs(A[1, 1] - 1.) * Ly)
+
+    return dict(RA_min=ra_min, RA_max=ra_max, DEC_min=dec_min, DEC_max=dec_max,
+                edge_sep=edge_sep + margin)
 
 def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, mag_zero,
                                             Nmax_proc,
@@ -46,7 +139,8 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                             psf_type_list=None,
                                             CalSimpleArea=True,
                                             SimpleCut=True, SimpleCam=True,
-                                            needed_tile=None):
+                                            needed_tile=None,
+                                            shear_positions=False):
     '''
     Run ImSim for multi-tile of mutli-band with parallel process.
         Support extending input catalogues
@@ -59,6 +153,16 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         g_cosmic = [0, 0]
     if gal_position_type is None:
         gal_position_type = ['true', 18]
+    ## shearing the positions as well as the profiles: required by metadetection,
+    ##    see _shear_positions
+    if shear_positions:
+        logger.info(f'Galaxy POSITIONS are sheared by g_cosmic={g_cosmic} '
+                    '(full scene sheared, required by metadetection).')
+    else:
+        logger.warning('Galaxy positions are NOT sheared, only the profiles are. '
+                    'Set shear_positions=True in the [ImSim] section for '
+                    'metadetection, which trims detections to cell regions and '
+                    'so needs the position shear for that selection.')
     if PSF_map is None:
         PSF_map = []
     if psf_type_list is None:
@@ -89,6 +193,12 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
     else:
         g_const = True
         logger.info('Using a constant shear')
+
+    ## _shear_positions displaces every galaxy by the single constant g_cosmic,
+    ##    so it is simply wrong under variable shears.
+    if shear_positions and (not g_const):
+        raise Exception(
+            'shear_positions=True is not supported in variable-shear mode!')
 
     # check if the noise_info is enough for desired N_tiles
     if len(noise_info) < N_tiles:
@@ -201,6 +311,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             Nstar_even = int(len(stars_info) / stars_area * (area_ra*area_dec))
             stars_info_list = []
         gals_info_list = []
+        canvas_bounds_list = []
         rng_seed_list = []
         i_ra = 0
         i_dec = 0
@@ -308,6 +419,16 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                 if gal_position_type[0] != 'true':
                     raise Exception(f'Unsupported gal_position_type: {gal_position_type[0]} !')
 
+            ## shear the positions as well as the profiles, if asked
+            ##    done before the input catalogue is written, so that the saved
+            ##    truth is the sheared position the galaxy is actually drawn at
+            ##    the canvas is sized from the UNSHEARED extent, so that it does
+            ##    not depend on the shear (see _canvas_bounds_unsheared)
+            canvas_bounds = None
+            if shear_positions:
+                canvas_bounds = _canvas_bounds_unsheared(gals_info_selec, g_cosmic)
+                _shear_positions(gals_info_selec, g_cosmic)
+
             ## output galaxies info
             output_col_tmp = ['index', 'RA', 'DEC', 'redshift', 'position_angle',
                               'Re', 'axis_ratio', 'sersic_n',
@@ -343,6 +464,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
             ## save to list
             gals_info_list.append(gals_info_selec)
+            canvas_bounds_list.append(canvas_bounds)
 
             # select stars
             if (stars_info is not None):
@@ -444,6 +566,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
             stars_info_list = []
 
         gals_info_list = []
+        canvas_bounds_list = []
         rng_seed_list = []
         # number along dec direction (fixed)
         N_dec = len(DECsin_span_array)
@@ -557,6 +680,16 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                 if gal_position_type[0] != 'true':
                     raise Exception(f'Unsupported gal_position_type: {gal_position_type[0]} !')
 
+            ## shear the positions as well as the profiles, if asked
+            ##    done before the input catalogue is written, so that the saved
+            ##    truth is the sheared position the galaxy is actually drawn at
+            ##    the canvas is sized from the UNSHEARED extent, so that it does
+            ##    not depend on the shear (see _canvas_bounds_unsheared)
+            canvas_bounds = None
+            if shear_positions:
+                canvas_bounds = _canvas_bounds_unsheared(gals_info_selec, g_cosmic)
+                _shear_positions(gals_info_selec, g_cosmic)
+
             ## output galaxies info
             output_col_tmp = ['index', 'RA', 'DEC', 'redshift', 'position_angle',
                               'Re', 'axis_ratio', 'sersic_n',
@@ -592,6 +725,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
 
             ## save to list
             gals_info_list.append(gals_info_selec)
+            canvas_bounds_list.append(canvas_bounds)
 
             # select stars
             if (stars_info is not None):
@@ -680,6 +814,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
         tile_label = noise_info_tile['label']
         rng_seed_tile = rng_seed_list[i_tile]
         gals_info_tile = gals_info_list[i_tile]
+        canvas_bounds_tile = canvas_bounds_list[i_tile]
         if (stars_info is not None):
             stars_info_tile = stars_info_list[i_tile]
 
@@ -804,6 +939,10 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                 beta_chips = [noise_info_tile[f'beta_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
                                 psf_info_chips = [psf_type, seeing_chips, beta_chips]
                                 del seeing_chips, beta_chips
+                            elif psf_type.lower() == 'gaussian':
+                                seeing_chips = [noise_info_tile[f'seeing_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
+                                psf_info_chips = [psf_type, seeing_chips]
+                                del seeing_chips
                             elif psf_type.lower() == 'airy':
                                 lam_chips = [noise_info_tile[f'lam_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
                                 diam_chips = [noise_info_tile[f'diam_{band}_expo{i_expo}_chip{i_chip}'] for i_chip in range(32)]
@@ -824,6 +963,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                         rms=rms, psf_info_chips=psf_info_chips,
                                         g_cosmic=g_cosmic,
                                         gals_info_band=gals_info_band, gal_rotation_angle=gal_rotation_angle,
+                                        canvas_bounds=canvas_bounds_tile,
                                         stars_info_band=stars_info_band,
                                         outpath_PSF_basename=outpath_PSF_basename, N_PSF=N_PSF, sep_PSF=sep_PSF,
                                         save_image_PSF=save_image_PSF, image_PSF_size=image_PSF_size,
@@ -873,6 +1013,10 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                 beta = noise_info_tile[f'beta_{band}_expo{i_expo}']
                                 psf_info = [psf_type, seeing, beta]
                                 del seeing, beta
+                            elif psf_type.lower() == 'gaussian':
+                                seeing = noise_info_tile[f'seeing_{band}_expo{i_expo}']
+                                psf_info = [psf_type, seeing]
+                                del seeing
                             elif psf_type.lower() == 'airy':
                                 lam = noise_info_tile[f'lam_{band}_expo{i_expo}']
                                 diam = noise_info_tile[f'diam_{band}_expo{i_expo}']
@@ -892,6 +1036,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                         rms=rms, psf_info=psf_info,
                                         g_cosmic=g_cosmic,
                                         gals_info_band=gals_info_band, gal_rotation_angle=gal_rotation_angle,
+                                        canvas_bounds=canvas_bounds_tile,
                                         stars_info_band=stars_info_band,
                                         outpath_PSF_basename=outpath_PSF_basename, N_PSF=N_PSF, sep_PSF=sep_PSF,
                                         save_image_PSF=save_image_PSF, image_PSF_size=image_PSF_size,
@@ -923,6 +1068,10 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                         beta = noise_info_tile[f'beta_{band}']
                         psf_info = [psf_type, seeing, beta]
                         del seeing, beta
+                    elif psf_type.lower() == 'gaussian':
+                        seeing = noise_info_tile[f'seeing_{band}']
+                        psf_info = [psf_type, seeing]
+                        del seeing
                     elif psf_type.lower() == 'airy':
                         lam = noise_info_tile[f'lam_{band}']
                         diam = noise_info_tile[f'diam_{band}']
@@ -943,6 +1092,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
                                 rms=rms, psf_info=psf_info,
                                 g_cosmic=g_cosmic,
                                 gals_info_band=gals_info_band, gal_rotation_angle=gal_rotation_angle,
+                                canvas_bounds=canvas_bounds_tile,
                                 stars_info_band=stars_info_band,
                                 outpath_PSF_basename=outpath_PSF_basename, N_PSF=N_PSF, sep_PSF=sep_PSF,
                                 save_image_chips=save_image_chips, save_image_PSF=save_image_PSF, image_PSF_size=image_PSF_size,
@@ -958,6 +1108,7 @@ def RunParallel_PSFNoisySkyImages(survey, outpath_dir, outcata_dir, rng_seed, ma
     # release some space
     del noise_info_selec, rng_seed_list
     del gals_info_list, gals_info_tile, gals_info_band
+    del canvas_bounds_list, canvas_bounds_tile
     if (stars_info is not None):
         del stars_info_list, stars_info_tile, stars_info_band
 

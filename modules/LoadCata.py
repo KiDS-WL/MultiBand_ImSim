@@ -400,7 +400,8 @@ def NoiseInfo(cata_pathfile, bands,
                 only_labels, psf_type_list=['moffat'],
                 noise_psf_basenames=None,
                 label_basename=None, noise_basenames=None, 
-                psf_basenames_moffat=None, psf_basenames_airy=None, 
+                psf_basenames_moffat=None, psf_basenames_airy=None,
+                psf_basenames_gaussian=None, 
                 id_basenames=None,
                 multiple_exposures_list=None, N_exposures_list=None, 
                 file4varChips=None, varChips_list=None, N_chips_list=None,
@@ -416,7 +417,7 @@ def NoiseInfo(cata_pathfile, bands,
         A list of bands being queried.
     only_labels : bool
         only return labels or not
-    psf_type_list : list of str, ['moffat', 'airy', 'pixelima']
+    psf_type_list : list of str, ['moffat', 'gaussian', 'airy', 'pixelima']
         Type of PSF profile.
     noise_psf_basenames (deprecated) : list of str [label, rms, seeing, MoffatBeta, psf_e1, psf_e2]
         A list of base names for noise and psf info.
@@ -429,6 +430,9 @@ def NoiseInfo(cata_pathfile, bands,
     psf_basenames_moffat : a list of str
         A list of base names for Moffat psf info.
         [seeing, beta, e1, e2]
+    psf_basenames_gaussian : a list of str
+        A list of base names for Gaussian psf info.
+        [seeing, e1, e2]
     psf_basenames_airy : a list of str
         A list of base names for Airy psf info.
         [lam, diam, obscuration, e1, e2]
@@ -518,6 +522,13 @@ def NoiseInfo(cata_pathfile, bands,
                 name_seeing, name_MoffatBeta = psf_basenames_moffat
                 name_moffat_e1 = 'none'
                 name_moffat_e2 = 'none'
+        if 'gaussian' in psf_type_list:
+            try:
+                name_gaussian_seeing, name_gaussian_e1, name_gaussian_e2 = psf_basenames_gaussian
+            except ValueError:
+                name_gaussian_seeing, = psf_basenames_gaussian
+                name_gaussian_e1 = 'none'
+                name_gaussian_e2 = 'none'
         if 'airy' in psf_type_list:
             try:
                 name_lam, name_diam, name_obscuration, name_airy_e1, name_airy_e2 = psf_basenames_airy
@@ -543,10 +554,16 @@ def NoiseInfo(cata_pathfile, bands,
             name_psf_e1 = name_moffat_e1
             name_psf_e2 = name_moffat_e2
             need_psf_para = True
+        elif psf_type == 'gaussian':
+            name_psf_e1 = name_gaussian_e1
+            name_psf_e2 = name_gaussian_e2
+            need_psf_para = True
         elif psf_type == 'airy':
             name_psf_e1 = name_airy_e1
             name_psf_e2 = name_airy_e2
             need_psf_para = True
+        else:
+            raise ValueError(f'Unsupported psf_type in NoiseInfo: {psf_type}')
 
         try:
             multiple_exposures = multiple_exposures_list[i_band]
@@ -591,6 +608,8 @@ def NoiseInfo(cata_pathfile, bands,
                             if psf_type.lower() == 'moffat':
                                 noise_info.loc[noise_info['label']==tile_label, f'seeing_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_seeing}_{band}']).astype(float)[0]
                                 noise_info.loc[noise_info['label']==tile_label, f'beta_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_MoffatBeta}_{band}']).astype(float)[0]
+                            elif psf_type.lower() == 'gaussian':
+                                noise_info.loc[noise_info['label']==tile_label, f'seeing_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_gaussian_seeing}_{band}']).astype(float)[0]
                             elif psf_type.lower() == 'airy':
                                 noise_info.loc[noise_info['label']==tile_label, f'lam_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_lam}_{band}']).astype(float)[0]
                                 noise_info.loc[noise_info['label']==tile_label, f'diam_{band}_expo{i_expo}_chip{i_chip}'] = np.array(cata_varChips.loc[mask_chip, f'{name_diam}_{band}']).astype(float)[0]
@@ -639,6 +658,14 @@ def NoiseInfo(cata_pathfile, bands,
                             noise_info.loc[:, f'beta_{band}_expo{i_expo}'] = np.array(cata[f'{name_MoffatBeta}_{band}']).astype(float)
                             if i_expo == 0:
                                 logger.warning('Use same beta for all exposures in diffExpo mode!')
+                    elif psf_type.lower() == 'gaussian':
+                        try:
+                            noise_info.loc[:, f'seeing_{band}_expo{i_expo}'] = np.array(cata[f'{name_gaussian_seeing}_{band}_expo{i_expo}']).astype(float)
+                        except KeyError:
+                            ## same value for all exposures
+                            noise_info.loc[:, f'seeing_{band}_expo{i_expo}'] = np.array(cata[f'{name_gaussian_seeing}_{band}']).astype(float)
+                            if i_expo == 0:
+                                logger.warning('Use same seeing for all exposures in diffExpo mode!')
                     elif psf_type.lower() == 'airy':
                         try:
                             noise_info.loc[:, f'lam_{band}_expo{i_expo}'] = np.array(cata[f'{name_lam}_{band}_expo{i_expo}']).astype(float)
@@ -700,6 +727,9 @@ def NoiseInfo(cata_pathfile, bands,
                 if psf_type.lower() == 'moffat':
                     noise_info.loc[:, f'seeing_{band}'] = np.array(cata[f'{name_seeing}_{band}']).astype(float)
                     noise_info.loc[:, f'beta_{band}'] = np.array(cata[f'{name_MoffatBeta}_{band}']).astype(float)
+
+                elif psf_type.lower() == 'gaussian':
+                    noise_info.loc[:, f'seeing_{band}'] = np.array(cata[f'{name_gaussian_seeing}_{band}']).astype(float)
 
                 elif psf_type.lower() == 'airy':
                     noise_info.loc[:, f'lam_{band}'] = np.array(cata[f'{name_lam}_{band}']).astype(float)

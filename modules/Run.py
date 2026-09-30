@@ -2,10 +2,10 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2026-09-01 15:01:42
+# @Last Modified time: 2026-09-30 11:10:23
 
 ### main module to run the whole pipeline
-__version__ = "MultiBand_ImSim v1.1.0"
+__version__ = "MultiBand_ImSim v1.2.0"
 
 import re
 import os
@@ -103,6 +103,7 @@ def run_task_1_simulate(configs_dict, Nmax_proc, rng_seed, g_cosmic, g_columns, 
         label_basename = None
         noise_basenames = None
         psf_basenames_moffat = None
+        psf_basenames_gaussian = None
         psf_basenames_airy = None
         id_basenames = None
     ###### >>> new version
@@ -112,6 +113,7 @@ def run_task_1_simulate(configs_dict, Nmax_proc, rng_seed, g_cosmic, g_columns, 
         noise_basenames = configs_dict['noise']['noise_basenames']
         psf_basenames_moffat = configs_dict['noise']['psf_basenames_moffat']
         psf_basenames_airy = configs_dict['noise']['psf_basenames_airy']
+        psf_basenames_gaussian = configs_dict['noise']['psf_basenames_gaussian']
         try:
             id_basenames = configs_dict['noise']['id_basenames']
         except KeyError:
@@ -123,6 +125,7 @@ def run_task_1_simulate(configs_dict, Nmax_proc, rng_seed, g_cosmic, g_columns, 
                     noise_psf_basenames=noise_psf_basenames,
                     label_basename=label_basename, noise_basenames=noise_basenames,
                     psf_basenames_moffat=psf_basenames_moffat, psf_basenames_airy=psf_basenames_airy,
+                    psf_basenames_gaussian=psf_basenames_gaussian,
                     id_basenames=id_basenames,
                     multiple_exposures_list=multiple_exposures_list, N_exposures_list=N_exposures_list,
                     file4varChips=configs_dict['noise']['file4varChips'], varChips_list=varChips_list, N_chips_list=N_chips_list,
@@ -178,7 +181,8 @@ def run_task_1_simulate(configs_dict, Nmax_proc, rng_seed, g_cosmic, g_columns, 
                                             CalSimpleArea=configs_dict['imsim']['simple_area'],
                                             SimpleCut=configs_dict['imsim']['simple_cut'],
                                             SimpleCam=configs_dict['imsim']['simple_camera'],
-                                            needed_tile=needed_tile)
+                                            needed_tile=needed_tile,
+                                            shear_positions=configs_dict['imsim']['shear_positions'])
     del noise_info, gals_info, stars_info
 
     logger.info(f'====== Task 1: simulate images === finished in {(time.time()-start_time)/3600.} h ======')
@@ -1333,7 +1337,8 @@ def run_task_6_2_shapes(configs_dict, tile_labels, Nmax_proc, rng_seed, running_
                                                     central_size=configs_dict['MS']['metadetect_central_size'],
                                                     max_cores=metadetect_cores,
                                                     ## only tolerate an uncentred PSF if it was asked for
-                                                    allow_uncentred_psf=(configs_dict['MS']['metadetect_psf_image'] != 'centred'))
+                                                    allow_uncentred_psf=(configs_dict['MS']['metadetect_psf_image'] != 'centred'),
+                                                    trim_position=configs_dict['MS']['metadetect_trim_position'])
 
                         # cross-match with the input catalogue
                         if configs_dict['MS']['metadetect_cross_match']:

@@ -220,7 +220,15 @@ def _PSFNoisySkyImages_KiDS_sameExpo(para_list):
         RA_max = np.amax(RA_gals)
         DEC_min = np.amin(DEC_gals)
         DEC_max = np.amax(DEC_gals)
-        canvas = ObjModule.SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale)
+        ## with sheared positions, size the canvas from the UNSHEARED extent so
+        ##    that it is the same for every shear (ImSim._canvas_bounds_unsheared)
+        canvas_bounds = para_list.get('canvas_bounds')
+        if canvas_bounds is not None:
+            canvas = ObjModule.SimpleCanvas(canvas_bounds['RA_min'], canvas_bounds['RA_max'],
+                                            canvas_bounds['DEC_min'], canvas_bounds['DEC_max'],
+                                            pixel_scale, edge_sep=canvas_bounds['edge_sep'])
+        else:
+            canvas = ObjModule.SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale)
         del RA_gals, DEC_gals, RA_min, RA_max, DEC_min, DEC_max
 
         # star image
@@ -434,6 +442,12 @@ def _PSFNoisySkyImages_KiDS_singleExpo(para_list):
             DEC_gals = np.hstack([DEC_gals, gals_info_band[1]['DEC'].values])
         RA0 = (np.amax(RA_gals) + np.amin(RA_gals))/2.
         DEC0 = (np.amax(DEC_gals) + np.amin(DEC_gals))/2.
+        ## with sheared positions, point at the centre of the UNSHEARED extent, the
+        ##    fixed point of the shear (ImSim._canvas_bounds_unsheared)
+        canvas_bounds = para_list.get('canvas_bounds')
+        if canvas_bounds is not None:
+            RA0 = 0.5 * (canvas_bounds['RA_min'] + canvas_bounds['RA_max'])
+            DEC0 = 0.5 * (canvas_bounds['DEC_min'] + canvas_bounds['DEC_max'])
         canvases_list = KiDSModule.getKiDScanvases(RA0, DEC0, SimpleCam, id_exposure=id_exposure)
         del RA_gals, DEC_gals, RA0, DEC0
 
@@ -609,6 +623,12 @@ def _PSFNoisySkyImages_KiDS_varChips(para_list):
             DEC_gals = np.hstack([DEC_gals, gals_info_band[1]['DEC'].values])
         RA0 = (np.amax(RA_gals) + np.amin(RA_gals))/2.
         DEC0 = (np.amax(DEC_gals) + np.amin(DEC_gals))/2.
+        ## with sheared positions, point at the centre of the UNSHEARED extent, the
+        ##    fixed point of the shear (ImSim._canvas_bounds_unsheared)
+        canvas_bounds = para_list.get('canvas_bounds')
+        if canvas_bounds is not None:
+            RA0 = 0.5 * (canvas_bounds['RA_min'] + canvas_bounds['RA_max'])
+            DEC0 = 0.5 * (canvas_bounds['DEC_min'] + canvas_bounds['DEC_max'])
         canvases_list = KiDSModule.getKiDScanvases(RA0, DEC0, SimpleCam, id_exposure=id_exposure)
         del RA_gals, DEC_gals, RA0, DEC0
 

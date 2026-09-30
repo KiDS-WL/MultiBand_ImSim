@@ -170,7 +170,15 @@ def _PSFNoisySkyImages_simple(para_list):
         RA_max = np.amax(RA_gals)
         DEC_min = np.amin(DEC_gals)
         DEC_max = np.amax(DEC_gals)
-        canvas = ObjModule.SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale)
+        ## with sheared positions, size the canvas from the UNSHEARED extent so
+        ##    that it is the same for every shear (ImSim._canvas_bounds_unsheared)
+        canvas_bounds = para_list.get('canvas_bounds')
+        if canvas_bounds is not None:
+            canvas = ObjModule.SimpleCanvas(canvas_bounds['RA_min'], canvas_bounds['RA_max'],
+                                            canvas_bounds['DEC_min'], canvas_bounds['DEC_max'],
+                                            pixel_scale, edge_sep=canvas_bounds['edge_sep'])
+        else:
+            canvas = ObjModule.SimpleCanvas(RA_min, RA_max, DEC_min, DEC_max, pixel_scale)
         del RA_gals, DEC_gals
 
         # save noise image if required
