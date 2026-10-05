@@ -696,6 +696,18 @@ def ParseConfig(config_file, taskIDs, run_tag, running_log):
             MS_configs['metadetect_psf_image'] = _parse_psf_image(
                                         config_metadetect.get('psf_image'),
                                         'centred', 'metadetect')
+            ### a user-provided PSF image, in place of the one used by ImSim
+            ###    path relative to the psf_tile*_band* folder saved by ImSim,
+            ###    so that a different PSF can be used for metadetect than the
+            ###    one that generated the images
+            ## absent, empty or None in older config files, in which case
+            ##    the ImSim one (selected by psf_image) is used
+            PSF_image_file = config_metadetect.get('PSF_image_file', fallback=None)
+            if PSF_image_file is not None:
+                PSF_image_file = PSF_image_file.strip()
+                if PSF_image_file.lower() in ('', 'none'):
+                    PSF_image_file = None
+            MS_configs['metadetect_PSF_image_file'] = PSF_image_file
             ### cross-match the metadetect detections with the input catalogue
             ###    metadetect does its own detection, so this replaces the
             ###    cross-match that task 3 does for SExtractor, and it is what
@@ -1175,7 +1187,13 @@ psf_image =             centred                # which saved PSF image to use\n\
                                                #    shifted: PSF shifted onto a pixel centre (what lensfit expects)\n\
                                                # ngmix puts the PSF at the true centre of its stamp, so the\n\
                                                #    shifted one displaces every measured position by 0.71 pixel\n\
-trim_position =         noshear                # which position decides a detection's cell central region\n\
+PSF_image_file =        None                   # a user-provided PSF image, in place of the one used by ImSim\n\
+                                               #    relative to the psf_tile*_band* folder of each tile and band,\n\
+                                               #    e.g. metadetect/psf_ima.fits -> psf_tile*_band*/metadetect/psf_ima.fits\n\
+                                               #    used as it is, but psf_image above still decides whether\n\
+                                               #    an off-centre stamp is refused (centred) or allowed (shifted)\n\
+                                               # None or absent: use the ImSim one selected by psf_image (default)\n\
+trim_position =        noshear                # which position decides a detection's cell central region\n\
                                                #    noshear : un-sheared back to the noshear frame (default)\n\
                                                #    measured: as measured in each sheared image, as in\n\
                                                #              Sheldon et al. 2023; needs shear_positions = True\n\

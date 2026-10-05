@@ -2,10 +2,10 @@
 # @Author: lshuns
 # @Date:   2020-12-21 11:44:14
 # @Last Modified by:   lshuns
-# @Last Modified time: 2026-09-30 11:10:23
+# @Last Modified time: 2026-10-05 12:46:44
 
 ### main module to run the whole pipeline
-__version__ = "MultiBand_ImSim v1.2.0"
+__version__ = "MultiBand_ImSim v1.3.0"
 
 import re
 import os
@@ -1315,13 +1315,22 @@ def run_task_6_2_shapes(configs_dict, tile_labels, Nmax_proc, rng_seed, running_
 
                     # PSF image
                     if configs_dict['MS']['metadetect_same_PSF']:
-                        inpath_psf_image = os.path.join(in_ima_dir_tmp,
-                                                        f'psf_tile{tile_label}_band{band}',
-                                                        'psf_ima.fits')
-                        ## two flavours are saved, pick the requested one
-                        ##    ngmix needs the centred one (see ImSimPSF.PSFima)
-                        if configs_dict['MS']['metadetect_psf_image'] == 'centred':
-                            inpath_psf_image = ImSimPSF.psf_centred_path(inpath_psf_image)
+                        psf_dir_tmp = os.path.join(in_ima_dir_tmp,
+                                                   f'psf_tile{tile_label}_band{band}')
+                        if configs_dict['MS']['metadetect_PSF_image_file'] is None:
+                            inpath_psf_image = os.path.join(psf_dir_tmp, 'psf_ima.fits')
+                            ## two flavours are saved, pick the requested one
+                            ##    ngmix needs the centred one (see ImSimPSF.PSFima)
+                            if configs_dict['MS']['metadetect_psf_image'] == 'centred':
+                                inpath_psf_image = ImSimPSF.psf_centred_path(inpath_psf_image)
+                        else:
+                            ## user-provided PSF image, used as it is
+                            ##    psf_image still decides whether an off-centre stamp is allowed
+                            inpath_psf_image = os.path.join(psf_dir_tmp,
+                                                            configs_dict['MS']['metadetect_PSF_image_file'])
+                            assert os.path.isfile(inpath_psf_image), \
+                                f'PSF image {inpath_psf_image} not found! Check PSF_image_file in [metadetect]'
+                        logger.info(f'  PSF image for metadetect: {inpath_psf_image}')
 
                         # run
                         MetaDetect.MetaDetectShear(outpath_feather,
