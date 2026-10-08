@@ -30,4 +30,7 @@ diagnostic/
 .ipynb_checkpoints/
 outputs/
 
+!metadetect_cell_size/**
+
 .DS_Store
+
