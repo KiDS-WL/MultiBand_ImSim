@@ -13,6 +13,12 @@ It contains 8 modules labelled as
 - taskID 6_2: measure shapes
 - taskID 7: create a combined catalogue
 
+To get the code, clone with `--recursive` so that the submodules (`modules/metadetect`, `modules/sxdes`) are also downloaded:
+
+    `git clone --recursive https://github.com/KiDS-WL/MultiBand_ImSim.git`
+
+If you already cloned without `--recursive`, run `git submodule update --init --recursive` inside the repository.
+
 For usage instructions, run
 
     `python modules/Run.py --help`
