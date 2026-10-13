@@ -6,3 +6,7 @@
 	path = modules/sxdes
 	url = https://github.com/lshuns/sxdes.git
 	ignore = untracked
+[submodule "modules/HPMCM"]
+	path = modules/HPMCM
+	url = https://github.com/KIPAC/HPMCM.git
+	ignore = untracked
