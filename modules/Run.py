@@ -5,7 +5,7 @@
 # @Last Modified time: 2026-10-05 12:46:44
 
 ### main module to run the whole pipeline
-__version__ = "MultiBand_ImSim v1.3.0"
+__version__ = "MultiBand_ImSim v1.4.0"
 
 import re
 import os
@@ -345,7 +345,11 @@ def run_task_2_swarp(configs_dict, tile_labels, Nmax_proc, running_log, needed_t
 def run_task_3_detect(configs_dict, tile_labels, N_tiles, Nmax_proc, running_log, needed_tile):
     """Task 3: detect objects."""
     import Astromatic
-    import CrossMatch
+    ## same run_position2id interface, see use_optimal in [CrossMatch]
+    if configs_dict['sex']['cross_match'] and configs_dict['sex']['use_optimal']:
+        import CrossMatch_optimal as CrossMatch
+    else:
+        import CrossMatch
     logger.info('====== Task 3: detect objects === started ======')
     start_time = time.time()
 
@@ -1270,7 +1274,11 @@ def run_task_6_2_shapes(configs_dict, tile_labels, Nmax_proc, rng_seed, running_
         ##    metadetect does its own detection, so this plays the role that the
         ##    cross-match in task 3 plays for SExtractor
         if configs_dict['MS']['metadetect_cross_match']:
-            import CrossMatch
+            ## same run_position2id interface, see use_optimal in [CrossMatch]
+            if configs_dict['MS']['metadetect_use_optimal']:
+                import CrossMatch_optimal as CrossMatch
+            else:
+                import CrossMatch
             input_folder, _, CrossMatch_folder = configs_dict['work_dirs']['cata_folder_names'][:3]
             ori_cata_dir_tmp = os.path.join(configs_dict['work_dirs']['cata'], input_folder)
             out_dir_cross = os.path.join(configs_dict['work_dirs']['cata'], CrossMatch_folder)

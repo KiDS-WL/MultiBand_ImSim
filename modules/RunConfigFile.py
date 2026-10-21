@@ -66,6 +66,15 @@ def _parse_cross_match(config, imsim_configs, section):
         if out['use_TAN']:
             logger.warning(f'r_max_pixel not found in config, using default value 3 pixels ({section}).')
 
+    ### one-to-one assignment
+    ##    False (default, absent in older config files): CrossMatch.py, nearest input,
+    ##          so earlier runs are reproduced
+    ##    True: CrossMatch_optimal.py, all candidates within the max distance and an
+    ##          optimal one-to-one assignment, which is better for blends
+    out['use_optimal'] = config_cross.getboolean('use_optimal', fallback=False)
+    if out['use_optimal']:
+        logger.info(f'CrossMatch uses the optimal one-to-one assignment (CrossMatch_optimal.py) ({section}).')
+
     return out
 
 def _parse_psf_image(value, default, section):
@@ -1002,6 +1011,12 @@ r_max =                 0.6                    # (arcsec) allowed maximum separa
 use_TAN =               True                   # using TAN projection before CrossMatch\n\
 r_max_pixel =           2.5                    # (pixel) allowed maximum separation\n\
                                                # used when use_TAN==True\n\
+use_optimal =           False                  # one-to-one assignment of the matches\n\
+                                               #    False (default): nearest input (CrossMatch.py), as in earlier runs\n\
+                                               #    True: all candidates within the max distance, optimal one-to-one\n\
+                                               #          assignment (CrossMatch_optimal.py), better for blends, adds blend columns\n\
+                                               #          with mag_closest: total |dmag| minimised, pairs with |dmag|>=2 mag rejected\n\
+                                               #          without: number of matches maximised, then total distance minimised\n\
 \n\n\
 ################################## MeasurePhotometry ########################################################\n\
 [MeasurePhotometry]\n\n\
