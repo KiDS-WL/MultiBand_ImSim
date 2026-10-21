@@ -921,7 +921,7 @@ image_PSF_size =        48                     # (pixels) the size of the saved 
 image_noise =           False, False, False, False, False, False, False, False, False\n\
                                                # save noise-only images\n\
                                                # required by metadetect\n\
-casual_mag =            25                     # up to which magnitude galaxies are casually simulated\n\
+casual_mag =            26                     # up to which magnitude galaxies are casually simulated\n\
                                                #    means: only drawImage for a few, \n\
                                                #        the rest is randomly sampled from those simulated\n\
                                                # should be lower than mag_cut[1] in [GalInfo]\n\
